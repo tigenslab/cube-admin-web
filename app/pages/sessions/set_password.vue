@@ -1,12 +1,12 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
+const session = useSessionStore()
 const password = ref('')
 const confirmation = ref('')
-const submitted = ref(false)
 
 function setPassword() {
-  submitted.value = true
+  session.setPassword()
 }
 </script>
 
@@ -17,7 +17,7 @@ function setPassword() {
     <h2 class="text-h4 font-weight-bold mt-2">Set your password</h2>
     <p class="text-body-2 text-medium-emphasis mt-3">Create a strong password to protect your account.</p>
 
-    <VAlert v-if="submitted" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
+    <VAlert v-if="session.lastAction === 'set-password'" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
       Your password has been set. You can now sign in.
     </VAlert>
 

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const email = ref('')
+const session = useSessionStore()
 const password = ref('')
-const submitted = ref(false)
 
 function login() {
-  submitted.value = true
+  session.signIn()
 }
 </script>
 
@@ -16,13 +15,13 @@ function login() {
     <h2 class="text-h4 font-weight-bold mt-2">Sign in to your account</h2>
     <p class="text-body-2 text-medium-emphasis mt-3">Enter your details to continue to your workspace.</p>
 
-    <VAlert v-if="submitted" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
+    <VAlert v-if="session.lastAction === 'login'" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
       Demo login submitted successfully.
     </VAlert>
 
     <VForm class="mt-8" @submit.prevent="login">
       <label class="text-body-2 font-weight-medium" for="email">Email address</label>
-      <VTextField id="email" v-model="email" class="mt-2" density="comfortable" placeholder="you@example.com" prepend-inner-icon="mdi-email-outline" required rounded="lg" type="email" variant="outlined" />
+      <VTextField id="email" v-model="session.email" class="mt-2" density="comfortable" placeholder="you@example.com" prepend-inner-icon="mdi-email-outline" required rounded="lg" type="email" variant="outlined" />
 
       <div class="d-flex align-center justify-space-between mt-2">
         <label class="text-body-2 font-weight-medium" for="password">Password</label>
