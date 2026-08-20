@@ -61,27 +61,7 @@ const workspaceNavigation = [
     </VBtn>
     <VDivider class="mx-3" vertical />
 
-    <VMenu>
-      <template #activator="{ props }">
-        <VBtn class="account-button" v-bind="props" variant="text">
-          <VAvatar color="primary" size="36">
-            <span class="text-caption font-weight-bold">AD</span>
-          </VAvatar>
-          <div class="text-left d-none d-sm-block ml-3">
-            <div class="text-body-2 font-weight-medium">Administrator</div>
-            <div class="text-caption text-medium-emphasis">admin@example.com</div>
-          </div>
-          <VIcon class="ml-2 d-none d-sm-flex" icon="mdi-chevron-down" />
-        </VBtn>
-      </template>
-
-      <VList min-width="200">
-        <VListItem prepend-icon="mdi-account-outline" title="My profile" />
-        <VListItem prepend-icon="mdi-cog-outline" title="Preferences" />
-        <VDivider />
-        <VListItem base-color="error" prepend-icon="mdi-logout" title="Sign out" />
-      </VList>
-    </VMenu>
+    <SessionAccountMenu />
   </VAppBar>
 
   <VMain class="dashboard-main">
@@ -112,10 +92,6 @@ const workspaceNavigation = [
 .global-search {
   max-width: 360px;
   width: 100%;
-}
-.account-button {
-  height: 52px !important;
-  text-transform: none;
 }
 .dashboard-main {
   background: #f6f8fc;

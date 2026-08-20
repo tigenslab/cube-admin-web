@@ -13,6 +13,7 @@ async function login() {
       username: session.username,
       password: password.value
     })
+    await navigateTo('/')
   } catch {
     // The store exposes the request failure through session.error.
   }
