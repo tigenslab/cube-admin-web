@@ -4,7 +4,7 @@ const drawer = ref(true)
 const primaryNavigation = [
   { title: 'Overview', icon: 'mdi-view-dashboard-outline', to: '/' },
   { title: 'Users', icon: 'mdi-account-group-outline', to: '/users' },
-  { title: 'Content', icon: 'mdi-file-document-multiple-outline', to: '/content' },
+  { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses' },
   { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics' },
 ]
 

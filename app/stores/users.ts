@@ -1,10 +1,20 @@
 import { defineStore } from 'pinia'
 
 export interface User {
-  id: number
-  name: string
-  email: string
+  id: string | number
+  name?: string
+  email?: string
   username?: string
+  first_name?: string
+  last_name?: string
+  role?: string
+  user_type?: string
+  team?: string
+  status?: string
+  is_active?: boolean
+  enabled?: boolean
+  last_active?: string
+  updated_at?: string
   phone?: string
   website?: string
 }
@@ -34,12 +44,15 @@ export const useUsersStore = defineStore('users', () => {
 
   async function index() {
     const api = useApi()
-    const data = await request(() => api<User[]>('/users'))
+    const data = await request(() => api<User[]>('/users/search', {
+      method: 'POST',
+      body: {}
+    }))
     users.value = data
     return data
   }
 
-  async function show(id: number) {
+  async function show(id: string | number) {
     const api = useApi()
     const data = await request(() => api<User>(`/users/${id}`))
     currentUser.value = data
@@ -56,7 +69,7 @@ export const useUsersStore = defineStore('users', () => {
     return createdUser
   }
 
-  async function update(id: number, data: UpdateUserInput) {
+  async function update(id: string | number, data: UpdateUserInput) {
     const api = useApi()
     const updatedUser = await request(() => api<User>(`/users/${id}`, {
       method: 'PATCH',
@@ -70,7 +83,7 @@ export const useUsersStore = defineStore('users', () => {
     return updatedUser
   }
 
-  async function destroy(id: number) {
+  async function destroy(id: string | number) {
     const api = useApi()
     await request(() => api<void>(`/users/${id}`, { method: 'DELETE' }))
     users.value = users.value.filter((user) => user.id !== id)

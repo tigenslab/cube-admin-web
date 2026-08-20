@@ -22,8 +22,27 @@ export function useApi() {
       }
       headers.set('subdomain', subdomain)
       options.headers = headers
+    },
+    async onResponseError({ response }) {
+      if (!sessionId.value || !isUnauthorizedResponse(response.status, response._data)) return
+
+      const session = useSessionStore()
+      session.clearSession()
+
+      if (useRoute().path !== '/sessions/login') {
+        await navigateTo('/sessions/login')
+      }
     }
   })
+}
+
+function isUnauthorizedResponse(status: number, body: unknown) {
+  if (status === 401) return true
+  if (status < 400 || status >= 500 || !body || typeof body !== 'object') return false
+
+  const errorBody = body as { error?: unknown; message?: unknown }
+  return [errorBody.error, errorBody.message]
+    .some(value => typeof value === 'string' && value.toLowerCase() === 'unauthorized')
 }
 
 function isLoginRequest(url: string) {

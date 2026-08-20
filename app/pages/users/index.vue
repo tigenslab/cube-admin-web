@@ -1,23 +1,49 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+
 type UserStatus = 'Active' | 'Invited' | 'Suspended'
 
+const usersStore = useUsersStore()
+const { users, loading, error } = storeToRefs(usersStore)
 const search = ref('')
 const status = ref<'All' | UserStatus>('All')
 
-const users = [
-  { name: 'Maya Chen', email: 'maya.chen@example.com', role: 'Workspace admin', team: 'Operations', status: 'Active' as UserStatus, initials: 'MC', color: 'primary', lastActive: 'Just now' },
-  { name: 'David Miller', email: 'david.miller@example.com', role: 'Editor', team: 'Content', status: 'Active' as UserStatus, initials: 'DM', color: 'success', lastActive: '12 min ago' },
-  { name: 'Olivia Brown', email: 'olivia.brown@example.com', role: 'Analyst', team: 'Growth', status: 'Active' as UserStatus, initials: 'OB', color: 'secondary', lastActive: '1 hour ago' },
-  { name: 'Noah Wilson', email: 'noah.wilson@example.com', role: 'Viewer', team: 'Finance', status: 'Invited' as UserStatus, initials: 'NW', color: 'warning', lastActive: 'Invite sent yesterday' },
-  { name: 'Sophia Patel', email: 'sophia.patel@example.com', role: 'Editor', team: 'Content', status: 'Active' as UserStatus, initials: 'SP', color: 'info', lastActive: 'Yesterday' },
-  { name: 'Ethan Johnson', email: 'ethan.johnson@example.com', role: 'Viewer', team: 'Operations', status: 'Suspended' as UserStatus, initials: 'EJ', color: 'error', lastActive: '4 days ago' }
-]
+onMounted(() => {
+  usersStore.index().catch(() => {
+    // The store exposes request failures through error.
+  })
+})
 
-const filteredUsers = computed(() => users.filter((user) => {
+const displayUsers = computed(() => users.value.map((user) => {
+  const name = user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Unnamed user'
+  const normalizedStatus = user.status?.toLowerCase()
+  const userStatus: UserStatus = normalizedStatus === 'invited'
+    ? 'Invited'
+    : normalizedStatus === 'suspended' || user.is_active === false || user.enabled === false
+      ? 'Suspended'
+      : 'Active'
+
+  return {
+    ...user,
+    name,
+    email: user.email || user.username || '—',
+    role: user.role || user.user_type || 'User',
+    team: user.team || '—',
+    status: userStatus,
+    initials: name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase(),
+    color: userStatus === 'Active' ? 'primary' : userStatus === 'Invited' ? 'warning' : 'error',
+    lastActive: user.last_active || user.updated_at || '—'
+  }
+}))
+
+const filteredUsers = computed(() => displayUsers.value.filter((user) => {
   const matchesSearch = `${user.name} ${user.email} ${user.role} ${user.team}`.toLowerCase().includes(search.value.toLowerCase())
   const matchesStatus = status.value === 'All' || user.status === status.value
   return matchesSearch && matchesStatus
 }))
+
+const activeUsers = computed(() => displayUsers.value.filter(user => user.status === 'Active').length)
+const invitedUsers = computed(() => displayUsers.value.filter(user => user.status === 'Invited').length)
 
 const statusColor: Record<UserStatus, string> = {
   Active: 'success',
@@ -41,7 +67,7 @@ const statusColor: Record<UserStatus, string> = {
       <VCard rounded="xl" variant="flat">
         <VCardText class="d-flex align-center ga-4 pa-5">
           <VAvatar color="primary" rounded="lg" variant="tonal"><VIcon icon="mdi-account-group-outline" /></VAvatar>
-          <div><div class="text-h5 font-weight-bold">48</div><div class="text-body-2 text-medium-emphasis">Total users</div></div>
+          <div><div class="text-h5 font-weight-bold">{{ users.length }}</div><div class="text-body-2 text-medium-emphasis">Total users</div></div>
         </VCardText>
       </VCard>
     </VCol>
@@ -49,7 +75,7 @@ const statusColor: Record<UserStatus, string> = {
       <VCard rounded="xl" variant="flat">
         <VCardText class="d-flex align-center ga-4 pa-5">
           <VAvatar color="success" rounded="lg" variant="tonal"><VIcon icon="mdi-account-check-outline" /></VAvatar>
-          <div><div class="text-h5 font-weight-bold">39</div><div class="text-body-2 text-medium-emphasis">Active this month</div></div>
+          <div><div class="text-h5 font-weight-bold">{{ activeUsers }}</div><div class="text-body-2 text-medium-emphasis">Active users</div></div>
         </VCardText>
       </VCard>
     </VCol>
@@ -57,19 +83,23 @@ const statusColor: Record<UserStatus, string> = {
       <VCard rounded="xl" variant="flat">
         <VCardText class="d-flex align-center ga-4 pa-5">
           <VAvatar color="warning" rounded="lg" variant="tonal"><VIcon icon="mdi-email-outline" /></VAvatar>
-          <div><div class="text-h5 font-weight-bold">3</div><div class="text-body-2 text-medium-emphasis">Pending invitations</div></div>
+          <div><div class="text-h5 font-weight-bold">{{ invitedUsers }}</div><div class="text-body-2 text-medium-emphasis">Pending invitations</div></div>
         </VCardText>
       </VCard>
     </VCol>
   </VRow>
 
   <VCard rounded="xl" variant="flat">
+    <VProgressLinear v-if="loading" color="primary" indeterminate />
     <VCardItem class="pa-6 pb-3">
       <template #title>All users</template>
       <template #subtitle>{{ filteredUsers.length }} people match your filters</template>
     </VCardItem>
 
     <VCardText class="pa-6 pt-2">
+      <VAlert v-if="error" class="mb-5" color="error" density="compact" variant="tonal">
+        {{ error }}
+      </VAlert>
       <div class="filters mb-5">
         <VTextField
           v-model="search"
@@ -103,7 +133,7 @@ const statusColor: Record<UserStatus, string> = {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in filteredUsers" :key="user.email">
+          <tr v-for="user in filteredUsers" :key="user.id || user.email">
             <td>
               <div class="d-flex align-center ga-3 py-3">
                 <VAvatar :color="user.color" size="40">{{ user.initials }}</VAvatar>

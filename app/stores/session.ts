@@ -77,21 +77,25 @@ export const useSessionStore = defineStore('session', {
       this.lastAction = 'change-password'
     },
 
-    async logout() {
+    clearSession() {
       const sessionId = useCookie<string | null>('session_id')
 
+      sessionId.value = null
+      this.username = ''
+      this.userUsername = ''
+      this.user = null
+      this.accessToken = null
+      this.isAuthenticated = false
+      this.error = null
+      this.lastAction = null
+    },
+
+    async logout() {
       try {
         const api = useApi()
         await api('/sessions/logout', { method: 'DELETE' })
       } finally {
-        sessionId.value = null
-        this.username = ''
-        this.userUsername = ''
-        this.user = null
-        this.accessToken = null
-        this.isAuthenticated = false
-        this.error = null
-        this.lastAction = null
+        this.clearSession()
       }
     },
 
