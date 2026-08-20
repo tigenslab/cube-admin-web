@@ -7,18 +7,27 @@ import { v4 as uuidv4 } from 'uuid'
 export function useApi() {
   const config = useRuntimeConfig()
   const subdomain = getSubdomain(useRequestURL().hostname)
+  const sessionId = useCookie<string | null>('session_id')
 
   return $fetch.create({
     baseURL: config.public.apiBase,
-    onRequest({ options }) {
+    onRequest({ request, options }) {
       const headers = new Headers(options.headers)
       const deviceId = getDeviceId()
+      const requestUrl = typeof request === 'string' ? request : request.url
 
       if (deviceId) headers.set('x-device-id', deviceId)
+      if (sessionId.value && !isLoginRequest(requestUrl)) {
+        headers.set('session_id', sessionId.value)
+      }
       headers.set('subdomain', subdomain)
       options.headers = headers
     }
   })
+}
+
+function isLoginRequest(url: string) {
+  return url.split('?')[0]?.replace(/\/+$/, '').endsWith('/sessions/login') ?? false
 }
 
 const getDeviceId = () => {
