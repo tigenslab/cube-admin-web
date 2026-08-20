@@ -1,0 +1,91 @@
+import { v4 as uuidv4 } from 'uuid'
+
+/**
+ * Creates a REST client configured from Nuxt runtimeConfig.
+ * Set NUXT_PUBLIC_API_BASE to point the client at another API.
+ */
+export function useApi() {
+  const config = useRuntimeConfig()
+  const subdomain = getSubdomain(useRequestURL().hostname)
+
+  return $fetch.create({
+    baseURL: config.public.apiBase,
+    onRequest({ options }) {
+      const headers = new Headers(options.headers)
+      const deviceId = getDeviceId()
+
+      if (deviceId) headers.set('x-device-id', deviceId)
+      headers.set('subdomain', subdomain)
+      options.headers = headers
+    }
+  })
+}
+
+const getDeviceId = () => {
+  if (import.meta.server) return null
+
+  const key = 'x-device-id'
+  const deviceId = localStorage.getItem(key) || uuidv4()
+
+  localStorage.setItem(key, deviceId)
+
+  return deviceId
+}
+
+function getSubdomain(hostname: string) {
+  const labels = hostname.toLowerCase().split('.').filter(Boolean)
+
+  if (labels.length > 0) return labels[0] ?? ''
+ 
+  return ''
+}
+
+interface ApiErrorBody {
+  error?: string
+  details?: string
+  message?: string
+  body?: unknown
+  data?: unknown
+}
+
+/** Returns the most useful message supplied by an API failure. */
+export function getApiErrorMessage(cause: unknown, fallback: string) {
+  if (cause && typeof cause === 'object') {
+    const fetchError = cause as {
+      data?: unknown
+      response?: { _data?: unknown }
+    }
+    const message = extractApiError(fetchError.data ?? fetchError.response?._data)
+
+    if (message) return message
+
+    // FetchError.message only contains the request URL and HTTP status.
+    if ('response' in fetchError || 'data' in fetchError) return fallback
+  }
+
+  return cause instanceof Error && cause.message ? cause.message : fallback
+}
+
+function extractApiError(value: unknown, depth = 0): string | null {
+  if (depth > 3 || value == null) return null
+
+  if (typeof value === 'string') {
+    try {
+      return extractApiError(JSON.parse(value), depth + 1) ?? value
+    } catch {
+      return value
+    }
+  }
+
+  if (typeof value !== 'object') return null
+
+  const body = value as ApiErrorBody
+
+  if (typeof body.details === 'string' && body.details) return body.details
+  const nestedMessage = extractApiError(body.body, depth + 1) ?? extractApiError(body.data, depth + 1)
+
+  if (nestedMessage) return nestedMessage
+  if (typeof body.message === 'string' && body.message) return body.message
+  if (typeof body.error === 'string' && body.error) return body.error
+  return null
+}
