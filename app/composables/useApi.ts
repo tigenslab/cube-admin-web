@@ -7,7 +7,11 @@ import { v4 as uuidv4 } from 'uuid'
 export function useApi() {
   const config = useRuntimeConfig()
   const subdomain = getSubdomain(useRequestURL().hostname)
-  const sessionId = useCookie<string | null>('session_id')
+  const sessionId = useCookie<string | null>('session_id', {
+    secure: true,
+    sameSite: 'strict',
+    path: '/'
+  })
   const deviceId = import.meta.client
     ? (localStorage.getItem('device_id') || uuidv4())
     : ''
@@ -28,6 +32,12 @@ export function useApi() {
       headers.set('subdomain', subdomain)
       if (deviceId) headers.set('device_id', deviceId)
       options.headers = headers
+    },
+    onResponse({ response }) {
+      const refreshedSessionId = response.headers.get('session_id')
+      if (refreshedSessionId && refreshedSessionId !== sessionId.value) {
+        sessionId.value = refreshedSessionId
+      }
     },
     async onResponseError({ response }) {
       if (!sessionId.value || !isUnauthorizedResponse(response.status, response._data)) return
