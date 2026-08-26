@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid'
-
 /**
  * Creates a REST client configured from Nuxt runtimeConfig.
  * Set NUXT_PUBLIC_API_BASE to point the client at another API.
@@ -13,10 +11,8 @@ export function useApi() {
     baseURL: config.public.apiBase,
     onRequest({ request, options }) {
       const headers = new Headers(options.headers)
-      const deviceId = getDeviceId()
       const requestUrl = typeof request === 'string' ? request : request.url
 
-      if (deviceId) headers.set('x-device-id', deviceId)
       if (sessionId.value && !isLoginRequest(requestUrl)) {
         headers.set('session_id', sessionId.value)
       }
@@ -47,17 +43,6 @@ function isUnauthorizedResponse(status: number, body: unknown) {
 
 function isLoginRequest(url: string) {
   return url.split('?')[0]?.replace(/\/+$/, '').endsWith('/sessions/login') ?? false
-}
-
-const getDeviceId = () => {
-  if (import.meta.server) return null
-
-  const key = 'x-device-id'
-  const deviceId = localStorage.getItem(key) || uuidv4()
-
-  localStorage.setItem(key, deviceId)
-
-  return deviceId
 }
 
 function getSubdomain(hostname: string) {

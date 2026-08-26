@@ -32,7 +32,7 @@ function contentCount(course: { content?: Record<string, unknown> }) {
       <h1 class="text-h4 font-weight-bold mt-1">Courses</h1>
       <p class="text-body-1 text-medium-emphasis mt-2">Manage your course catalogue and learning content.</p>
     </div>
-    <VBtn color="primary" prepend-icon="mdi-plus">Create course</VBtn>
+    <VBtn color="primary" prepend-icon="mdi-plus" to="/courses/create">Create course</VBtn>
   </section>
 
   <VRow class="mb-4">
