@@ -23,6 +23,11 @@ const filteredCourses = computed(() => {
 function contentCount(course: { content?: Record<string, unknown> }) {
   return Object.keys(course.content ?? {}).length
 }
+
+async function deleteCourse(id: string) {
+  if (!confirm('Delete this course?')) return
+  await coursesStore.remove(id)
+}
 </script>
 
 <template>
@@ -108,7 +113,10 @@ function contentCount(course: { content?: Record<string, unknown> }) {
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
-            <td><VBtn aria-label="Course actions" icon="mdi-dots-horizontal" size="small" variant="text" /></td>
+            <td class="text-no-wrap">
+              <VBtn :to="`/courses/${course.id}/edit`" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" />
+              <VBtn aria-label="Delete course" icon="mdi-delete-outline" size="small" variant="text" @click="deleteCourse(course.id)" />
+            </td>
           </tr>
         </tbody>
       </VTable>

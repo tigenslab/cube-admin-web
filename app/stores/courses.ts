@@ -45,5 +45,16 @@ export const useCoursesStore = defineStore('courses', () => {
     })
   }
 
-  return { courses, loading, error, search, create }
+  async function update(id: string, course: Partial<Omit<Course, 'id'>>) {
+    const api = useApi()
+    return api<Course>(`/courses/${id}`, { method: 'PUT', body: course })
+  }
+
+  async function remove(id: string) {
+    const api = useApi()
+    await api(`/courses/${id}`, { method: 'DELETE' })
+    courses.value = courses.value.filter(course => course.id !== id)
+  }
+
+  return { courses, loading, error, search, create, update, remove }
 })
