@@ -8,7 +8,7 @@ export function useApi() {
   const config = useRuntimeConfig()
   const subdomain = getSubdomain(useRequestURL().hostname)
   const sessionId = useCookie<string | null>('session_id', {
-    secure: true,
+    secure: !import.meta.dev,
     sameSite: 'strict',
     path: '/'
   })

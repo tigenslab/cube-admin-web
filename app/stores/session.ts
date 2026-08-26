@@ -53,14 +53,13 @@ export const useSessionStore = defineStore('session', {
         if (apiError) throw new Error(apiError)
 
         const sessionId = useCookie<string | null>('session_id', {
-          secure: true,
+          secure: !import.meta.dev,
           sameSite: 'strict',
           path: '/'
         })
         sessionId.value = payload.id ?? null
         this.user = payload.user ?? null
         this.userUsername = payload.user?.username ?? credentials.username
-        this.accessToken = payload.accessToken ?? payload.token ?? null
         this.isAuthenticated = true
         this.lastAction = 'login'
 
