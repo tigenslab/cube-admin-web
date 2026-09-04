@@ -82,6 +82,24 @@ export const useSessionStore = defineStore('session', {
       }
     },
 
+    async hydrate() {
+      const sessionId = useCookie<string | null>('session_id', { secure: !import.meta.dev, sameSite: 'strict', path: '/' })
+      if (!sessionId.value || this.isAuthenticated) return false
+
+      try {
+        const response = await useApi()<LoginResponse>('/sessions/current')
+        const payload = response.data ?? response
+        const storedUser = (payload.user ?? (payload as LoginResponse & { user_json?: SessionUser }).user_json) as SessionUser | undefined
+        this.user = storedUser ?? (payload.username ? { username: payload.username } : null)
+        this.userUsername = this.user?.username ?? payload.username ?? ''
+        this.isAuthenticated = true
+        return true
+      } catch {
+        this.clearSession()
+        return false
+      }
+    },
+
     async completeNewPassword(newPassword: string, attributes: Record<string, string> = {}) {
       if (!this.pendingChallenge) throw new Error('Password challenge has expired. Please sign in again.')
 

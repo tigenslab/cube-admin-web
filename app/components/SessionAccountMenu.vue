@@ -42,7 +42,7 @@ async function logout() {
     </template>
 
     <VList min-width="200">
-      <VListItem prepend-icon="mdi-account-outline" title="My profile" />
+      <VListItem prepend-icon="mdi-account-outline" title="My profile" to="/profile" />
       <VListItem prepend-icon="mdi-cog-outline" title="Preferences" />
       <VDivider />
       <VListItem base-color="error" prepend-icon="mdi-logout" title="Sign out" @click="logout" />
