@@ -14,6 +14,7 @@ export interface SessionUser {
 
 interface LoginResponse {
   id?: string
+  session_id?: string
   accessToken?: string
   token?: string
   user?: SessionUser
@@ -21,6 +22,9 @@ interface LoginResponse {
   details?: string
   message?: string
   data?: Omit<LoginResponse, 'data'>
+  challenge?: string
+  session?: string
+  challengeParams?: Record<string, unknown>
 }
 
 export const useSessionStore = defineStore('session', {
@@ -32,7 +36,8 @@ export const useSessionStore = defineStore('session', {
     isAuthenticated: false,
     loading: false,
     error: null as string | null,
-    lastAction: null as 'login' | 'set-password' | 'change-password' | null
+    lastAction: null as 'login' | 'set-password' | 'change-password' | null,
+    pendingChallenge: null as { username: string; session: string } | null
   }),
 
   actions: {
@@ -52,12 +57,17 @@ export const useSessionStore = defineStore('session', {
 
         if (apiError) throw new Error(apiError)
 
+        if (payload.challenge === 'NEW_PASSWORD_REQUIRED' && payload.session) {
+          this.pendingChallenge = { username: credentials.username, session: payload.session }
+          return payload
+        }
+
         const sessionId = useCookie<string | null>('session_id', {
           secure: !import.meta.dev,
           sameSite: 'strict',
           path: '/'
         })
-        sessionId.value = payload.id ?? null
+        sessionId.value = payload.session_id ?? null
         this.user = payload.user ?? null
         this.userUsername = payload.user?.username ?? credentials.username
         this.isAuthenticated = true
@@ -66,6 +76,39 @@ export const useSessionStore = defineStore('session', {
         return payload
       } catch (cause) {
         this.error = getApiErrorMessage(cause, 'Unable to sign in. Please try again.')
+        throw cause
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async completeNewPassword(newPassword: string, attributes: Record<string, string> = {}) {
+      if (!this.pendingChallenge) throw new Error('Password challenge has expired. Please sign in again.')
+
+      this.loading = true
+      this.error = null
+      try {
+        const api = useApi()
+        const response = await api<LoginResponse>('/sessions/new-password', {
+          method: 'POST',
+          body: {
+            username: this.pendingChallenge.username,
+            session: this.pendingChallenge.session,
+            newPassword,
+            attributes
+          }
+        })
+        const payload = response.data ?? response
+        const apiError = payload.details ?? (payload.error ? payload.message ?? payload.error : '')
+        if (apiError) throw new Error(apiError)
+
+        const sessionId = useCookie<string | null>('session_id', { secure: !import.meta.dev, sameSite: 'strict', path: '/' })
+        sessionId.value = payload.session_id ?? null
+        this.pendingChallenge = null
+        this.isAuthenticated = true
+        return payload
+      } catch (cause) {
+        this.error = getApiErrorMessage(cause, 'Unable to set your password. Please try again.')
         throw cause
       } finally {
         this.loading = false
@@ -91,14 +134,19 @@ export const useSessionStore = defineStore('session', {
       this.isAuthenticated = false
       this.error = null
       this.lastAction = null
+      this.pendingChallenge = null
     },
 
     async logout() {
+      let logoutError: string | null = null
       try {
         const api = useApi()
         await api('/sessions/logout', { method: 'DELETE' })
+      } catch (cause) {
+        logoutError = getApiErrorMessage(cause, 'Unable to complete logout on the server.')
       } finally {
         this.clearSession()
+        this.error = logoutError
       }
     },
 

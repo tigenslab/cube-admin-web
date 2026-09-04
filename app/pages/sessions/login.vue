@@ -13,7 +13,7 @@ async function login() {
       username: session.username,
       password: password.value
     })
-    await navigateTo('/')
+    await navigateTo(session.pendingChallenge ? '/sessions/new-password' : '/')
   } catch {
     // The store exposes the request failure through session.error.
   }
@@ -39,7 +39,7 @@ async function login() {
 
       <div class="d-flex align-center justify-space-between mt-2">
         <label class="text-body-2 font-weight-medium" for="password">Password</label>
-        <NuxtLink class="text-primary text-body-2 font-weight-medium" to="/sessions/set_password">Forgot password?</NuxtLink>
+        <NuxtLink class="text-primary text-body-2 font-weight-medium" to="/sessions/forgot-password">Forgot password?</NuxtLink>
       </div>
       <VTextField id="password" v-model="password" class="mt-2" density="comfortable" placeholder="Enter your password" prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
 
