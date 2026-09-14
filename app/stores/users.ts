@@ -54,14 +54,18 @@ export const useUsersStore = defineStore('users', () => {
 
   async function show(id: string | number) {
     const api = useApi()
-    const data = await request(() => api<User>(`/users/${id}`))
+    const data = await request(async () => {
+      const results = await api<User[]>('/users/search', { method: 'POST', body: { filters: { id } } })
+      if (!results[0]) throw new Error('User does not exist.')
+      return results[0]
+    })
     currentUser.value = data
     return data
   }
 
   async function create(data: CreateUserInput) {
     const api = useApi()
-    const createdUser = await request(() => api<User>('/users', {
+    const createdUser = await request(() => api<User>('/users/create', {
       method: 'POST',
       body: data
     }))
@@ -71,7 +75,7 @@ export const useUsersStore = defineStore('users', () => {
 
   async function update(id: string | number, data: UpdateUserInput) {
     const api = useApi()
-    const updatedUser = await request(() => api<User>(`/users/${id}`, {
+    const updatedUser = await request(() => api<User>(`/users/edit/${id}`, {
       method: 'PATCH',
       body: data
     }))
@@ -85,7 +89,7 @@ export const useUsersStore = defineStore('users', () => {
 
   async function destroy(id: string | number) {
     const api = useApi()
-    await request(() => api<void>(`/users/${id}`, { method: 'DELETE' }))
+    await request(() => api<void>(`/users/delete/${id}`, { method: 'DELETE' }))
     users.value = users.value.filter((user) => user.id !== id)
 
     if (currentUser.value?.id === id) currentUser.value = null

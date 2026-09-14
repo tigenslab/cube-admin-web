@@ -74,11 +74,12 @@ function getSubdomain(hostname: string) {
 }
 
 interface ApiErrorBody {
-  error?: string
+  error?: unknown
   details?: string
   message?: string
   body?: unknown
   data?: unknown
+  issues?: unknown
 }
 
 /** Returns the most useful message supplied by an API failure. */
@@ -115,10 +116,33 @@ function extractApiError(value: unknown, depth = 0): string | null {
   const body = value as ApiErrorBody
 
   if (typeof body.details === 'string' && body.details) return body.details
+  const issuesMessage = extractIssuesMessage(body.issues)
+  if (issuesMessage) return issuesMessage
+  if (body.error && typeof body.error === 'object') {
+    const nestedErrorMessage = extractApiError(body.error, depth + 1)
+    if (nestedErrorMessage) return nestedErrorMessage
+  }
   const nestedMessage = extractApiError(body.body, depth + 1) ?? extractApiError(body.data, depth + 1)
 
   if (nestedMessage) return nestedMessage
   if (typeof body.message === 'string' && body.message) return body.message
   if (typeof body.error === 'string' && body.error) return body.error
   return null
+}
+
+function extractIssuesMessage(value: unknown) {
+  if (!Array.isArray(value)) return null
+
+  const messages = value.map((issue) => {
+    if (!issue || typeof issue !== 'object') return null
+
+    const item = issue as { path?: unknown; message?: unknown }
+    const path = Array.isArray(item.path) ? item.path.filter(Boolean).join('.') : ''
+    const message = typeof item.message === 'string' ? item.message : ''
+
+    if (!message) return null
+    return path ? `${path}: ${message}` : message
+  }).filter((message): message is string => Boolean(message))
+
+  return messages.length ? messages.join('; ') : null
 }

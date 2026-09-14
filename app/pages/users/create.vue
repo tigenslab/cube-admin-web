@@ -1,0 +1,6 @@
+<script setup lang="ts">
+const store = useUsersStore(); const form = reactive({ username: '', email: '', first_name: '', last_name: '', phone: '', roles: [] as string[], password: '' })
+const error = ref(''); const roles = ['admin', 'trainer', 'learner', 'master']
+async function submit() { try { await store.create(form); await navigateTo('/users') } catch (e) { error.value = getApiErrorMessage(e, 'Unable to create user.') } }
+</script>
+<template><VContainer><VBtn class="mb-6" to="/users" variant="text">Back to users</VBtn><h1 class="text-h4 font-weight-bold">Create user</h1><VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert><VForm class="mt-6" @submit.prevent="submit"><VTextField v-model="form.username" label="Username" required /><VTextField v-model="form.email" label="Email" type="email" required /><VTextField v-model="form.first_name" label="First name" /><VTextField v-model="form.last_name" label="Last name" /><VTextField v-model="form.phone" label="Phone" /><VSelect v-model="form.roles" :items="roles" label="Roles" multiple /><VTextField v-model="form.password" label="Temporary password" type="password" /><VBtn class="mt-4" color="primary" type="submit">Create user</VBtn></VForm></VContainer></template>
