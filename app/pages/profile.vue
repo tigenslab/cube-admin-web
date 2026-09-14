@@ -1,12 +1,36 @@
 <script setup lang="ts">
 const session = useSessionStore()
 const email = ref(session.user?.email ?? '')
-const phone = ref('')
+const phone = ref(session.user?.phone ?? '')
+const loading = ref(true)
+const error = ref('')
 const verificationCode = ref('')
 const verificationSent = ref(false)
 const phoneVerificationCode = ref('')
 const phoneVerificationSent = ref(false)
 const message = ref('')
+
+interface ProfileUser {
+  id?: string | number
+  username?: string
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+}
+
+onMounted(async () => {
+  try {
+    const user = await useApi()<ProfileUser>('/sessions/user')
+    session.user = user
+    session.userUsername = user.username ?? ''
+    email.value = user.email ?? ''
+    phone.value = user.phone ?? ''
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to load your profile.')
+  } finally {
+    loading.value = false
+  }
+})
 
 async function requestEmailVerification() {
   message.value = ''
@@ -58,14 +82,18 @@ async function verifyPhone() {
     <VBtn class="mb-6" prepend-icon="mdi-arrow-left" to="/" variant="text">Back to dashboard</VBtn>
     <h1 class="text-h4 font-weight-bold">My profile</h1>
     <p class="text-body-2 text-medium-emphasis mt-2">Manage your account details and security.</p>
+    <VAlert v-if="error" class="mt-4" color="error" variant="tonal">{{ error }}</VAlert>
 
     <VRow class="mt-4" max-width="760">
       <VCol cols="12" md="6">
         <VCard class="pa-6" rounded="lg">
           <h2 class="text-h6">Account details</h2>
-          <VTextField :model-value="session.user?.name || session.userUsername" class="mt-5" label="Name" readonly variant="outlined" />
-          <VTextField v-model="email" label="Email" type="email" variant="outlined" />
-          <VTextField v-model="phone" class="mt-4" label="Phone" type="tel" variant="outlined" />
+          <VProgressLinear v-if="loading" class="mt-5" color="primary" indeterminate />
+          <template v-else>
+            <VTextField :model-value="session.user?.name || session.userUsername" class="mt-5" label="Name" readonly variant="outlined" />
+            <VTextField v-model="email" label="Email" type="email" variant="outlined" />
+            <VTextField v-model="phone" class="mt-4" label="Phone" type="tel" variant="outlined" />
+          </template>
           <VBtn class="mt-2" color="primary" @click="requestEmailVerification">Update email</VBtn>
           <VBtn class="mt-2 ml-2" color="primary" @click="requestPhoneVerification">Update phone</VBtn>
           <VAlert v-if="message" class="mt-4" density="compact" variant="tonal">{{ message }}</VAlert>

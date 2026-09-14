@@ -10,6 +10,7 @@ export interface SessionUser {
   username?: string
   email?: string
   name?: string
+  phone?: string
 }
 
 interface LoginResponse {
