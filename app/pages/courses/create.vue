@@ -3,18 +3,18 @@ const coursesStore = useCoursesStore()
 const router = useRouter()
 const title = ref('')
 const code = ref('')
-const level = ref<number | null>(null)
+const subType = ref('')
 const type = ref('')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
 async function submit() {
-  if (!title.value.trim() || !code.value.trim() || level.value === null || !type.value.trim()) return
+  if (!title.value.trim() || !code.value.trim() || !subType.value.trim() || !type.value.trim()) return
 
   submitting.value = true
   error.value = null
   try {
-    await coursesStore.create({ title: title.value.trim(), code: code.value.trim(), level: level.value, type: type.value.trim() })
+    await coursesStore.create({ title: title.value.trim(), code: code.value.trim(), sub_type: subType.value.trim(), type: type.value.trim() })
     await router.push('/courses')
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to create course.')
@@ -42,7 +42,7 @@ async function submit() {
       <VForm @submit.prevent="submit">
         <VTextField v-model="title" class="mb-4" label="Title" placeholder="Mathematicsd" required />
         <VTextField v-model="code" class="mb-4" label="Code" placeholder="Mathematics Year 7" required />
-        <VTextField v-model.number="level" class="mb-4" label="Level" min="0" required type="number" />
+        <VTextField v-model="subType" class="mb-4" label="Sub-type" required />
         <VTextField v-model="type" class="mb-4" label="Type" placeholder="course" required />
         <div class="d-flex justify-end ga-3">
           <VBtn to="/courses" variant="text">Cancel</VBtn>

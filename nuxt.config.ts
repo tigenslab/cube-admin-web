@@ -10,7 +10,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://2detf96dc0.execute-api.ap-southeast-2.amazonaws.com/development/v1'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://klut4stnw2.execute-api.ap-southeast-2.amazonaws.com/v1'
     }
   },
   vuetify: {

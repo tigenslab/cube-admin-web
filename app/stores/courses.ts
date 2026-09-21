@@ -4,7 +4,7 @@ export interface Course {
   id: string
   title: string
   code: string
-  level: number
+  sub_type: string
   type: string
   content?: Record<string, unknown>
   created_at?: string
@@ -37,11 +37,11 @@ export const useCoursesStore = defineStore('courses', () => {
     }
   }
 
-  async function create(course: Pick<Course, 'title' | 'code' | 'level' | 'type'>) {
+  async function create(course: Pick<Course, 'title' | 'code' | 'sub_type' | 'type'>) {
     const api = useApi()
     return api<Course>('/courses/create', {
       method: 'POST',
-      body: { title: course.title, code: course.code, level: course.level, type: course.type, content: {} }
+      body: { title: course.title, code: course.code, sub_type: course.sub_type, type: course.type, content: {} }
     })
   }
 

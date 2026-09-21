@@ -6,6 +6,7 @@ const primaryNavigation = [
   { title: 'Users', icon: 'mdi-account-group-outline', to: '/users' },
   { title: 'Active sessions', icon: 'mdi-shield-account-outline', to: '/sessions/active' },
   { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses' },
+  { title: 'Notifications', icon: 'mdi-bell-outline', to: '/notifications' },
   { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics' },
 ]
 
