@@ -2,6 +2,9 @@
 const session = useSessionStore()
 const email = ref(session.user?.email ?? '')
 const phone = ref(session.user?.phone ?? '')
+const firstName = ref('')
+const lastName = ref('')
+const profileSaving = ref(false)
 const loading = ref(true)
 const error = ref('')
 const verificationCode = ref('')
@@ -16,6 +19,8 @@ interface ProfileUser {
   name?: string | null
   email?: string | null
   phone?: string | null
+  first_name?: string | null
+  last_name?: string | null
 }
 
 onMounted(async () => {
@@ -25,6 +30,8 @@ onMounted(async () => {
     session.userUsername = user.username ?? ''
     email.value = user.email ?? ''
     phone.value = user.phone ?? ''
+    firstName.value = user.first_name ?? ''
+    lastName.value = user.last_name ?? ''
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load your profile.')
   } finally {
@@ -41,6 +48,23 @@ async function requestEmailVerification() {
     message.value = 'A verification code was sent to your new email address.'
   } catch (error) {
     message.value = getApiErrorMessage(error, 'Unable to update your email address.')
+  }
+}
+
+async function updateProfile() {
+  message.value = ''
+  profileSaving.value = true
+  try {
+    const user = await useApi()<ProfileUser>('/sessions/user', {
+      method: 'PATCH',
+      body: { first_name: firstName.value, last_name: lastName.value }
+    })
+    session.user = user
+    message.value = 'Your profile has been updated.'
+  } catch (cause) {
+    message.value = getApiErrorMessage(cause, 'Unable to update your profile.')
+  } finally {
+    profileSaving.value = false
   }
 }
 
@@ -90,7 +114,10 @@ async function verifyPhone() {
           <h2 class="text-h6">Account details</h2>
           <VProgressLinear v-if="loading" class="mt-5" color="primary" indeterminate />
           <template v-else>
-            <VTextField :model-value="session.user?.name || session.userUsername" class="mt-5" label="Name" readonly variant="outlined" />
+            <VTextField :model-value="[firstName, lastName].filter(Boolean).join(' ') || session.userUsername" class="mt-5" label="Name" readonly variant="outlined" />
+            <VTextField v-model="firstName" label="First name" variant="outlined" />
+            <VTextField v-model="lastName" class="mt-4" label="Last name" variant="outlined" />
+            <VBtn class="mt-2" color="primary" :loading="profileSaving" @click="updateProfile">Save profile</VBtn>
             <VTextField v-model="email" label="Email" type="email" variant="outlined" />
             <VTextField v-model="phone" class="mt-4" label="Phone" type="tel" variant="outlined" />
           </template>

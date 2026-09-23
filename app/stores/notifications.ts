@@ -11,7 +11,7 @@ export interface NotificationInput {
   type: NotificationType
   message: NotificationMessage
 }
-export interface Notification extends NotificationInput { id: string; created_at?: string; read?: number }
+export interface Notification extends NotificationInput { id: string; status?: string; created_at?: string; read?: number }
 
 export const useNotificationsStore = defineStore('notifications', () => {
   const loading = ref(false)
