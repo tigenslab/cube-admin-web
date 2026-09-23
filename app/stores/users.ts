@@ -44,7 +44,7 @@ export const useUsersStore = defineStore('users', () => {
 
   async function index() {
     const api = useApi()
-    const data = await request(() => api<User[]>('/users/search', {
+    const data = await request(() => api<User[]>('/users', {
       method: 'POST',
       body: {}
     }))
@@ -55,7 +55,7 @@ export const useUsersStore = defineStore('users', () => {
   async function show(id: string | number) {
     const api = useApi()
     const data = await request(async () => {
-      const results = await api<User[]>('/users/search', { method: 'POST', body: { filters: { id } } })
+      const results = await api<User[]>('/users', { method: 'POST', body: { filters: { id } } })
       if (!results[0]) throw new Error('User does not exist.')
       return results[0]
     })

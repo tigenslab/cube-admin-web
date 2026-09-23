@@ -22,7 +22,7 @@ export const useCoursesStore = defineStore('courses', () => {
 
     try {
       const api = useApi()
-      const data = await api<Course[]>('/courses/search', {
+      const data = await api<Course[]>('/courses', {
         method: 'POST',
         body: {}
       })

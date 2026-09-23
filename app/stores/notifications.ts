@@ -20,7 +20,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
   async function search() {
     const api = useApi()
-    notifications.value = await api<Notification[]>('/notifications/search', { method: 'POST', body: {} })
+    notifications.value = await api<Notification[]>('/notifications', { method: 'POST', body: {} })
     return notifications.value
   }
 
