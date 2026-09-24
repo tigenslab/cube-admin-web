@@ -1,19 +1,30 @@
 <script setup lang="ts">
 const drawer = ref(true)
 
+const session = useSessionStore()
+
 const primaryNavigation = [
   { title: 'Overview', icon: 'mdi-view-dashboard-outline', to: '/' },
-  { title: 'Users', icon: 'mdi-account-group-outline', to: '/users' },
+  { title: 'Users', icon: 'mdi-account-group-outline', to: '/users', subject: 'User' },
   { title: 'Active sessions', icon: 'mdi-shield-account-outline', to: '/sessions/active' },
-  { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses' },
-  { title: 'Notifications', icon: 'mdi-bell-outline', to: '/notifications' },
-  { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics' },
+  { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses', subject: 'Course' },
+  { title: 'Notifications', icon: 'mdi-bell-outline', to: '/notifications', subject: 'Notification' },
+  { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics', subject: 'Analytics' },
 ]
 
 const workspaceNavigation = [
-  { title: 'Team', icon: 'mdi-account-cog-outline', to: '/team' },
-  { title: 'Settings', icon: 'mdi-cog-outline', to: '/settings' },
+  { title: 'Team', icon: 'mdi-account-cog-outline', to: '/team', subject: 'Team' },
+  { title: 'Settings', icon: 'mdi-cog-outline', to: '/settings', subject: 'Settings' },
 ]
+
+function hasPermission(subject?: string) {
+  if (!subject) return true
+  const actions = session.permissions[subject] || session.permissions.all || []
+  return actions.length > 0
+}
+
+const visiblePrimaryNavigation = computed(() => primaryNavigation.filter(item => hasPermission(item.subject)))
+const visibleWorkspaceNavigation = computed(() => workspaceNavigation.filter(item => hasPermission(item.subject)))
 </script>
 
 <template>
@@ -33,10 +44,10 @@ const workspaceNavigation = [
     <div class="pa-4">
       <VList density="comfortable" nav>
         <VListSubheader class="navigation-label">MAIN MENU</VListSubheader>
-        <VListItem v-for="item in primaryNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
+        <VListItem v-for="item in visiblePrimaryNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
 
         <VListSubheader class="navigation-label mt-5">WORKSPACE</VListSubheader>
-        <VListItem v-for="item in workspaceNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
+        <VListItem v-for="item in visibleWorkspaceNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
       </VList>
     </div>
 

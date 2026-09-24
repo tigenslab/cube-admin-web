@@ -13,6 +13,7 @@ export interface SessionUser {
   phone?: string
   roles?: string[]
   current_role?: string | null
+  permissions?: Record<string, string[]>
 }
 
 interface LoginResponse {
@@ -30,6 +31,7 @@ interface LoginResponse {
   challengeParams?: Record<string, unknown>
   roles?: string[]
   current_role?: string | null
+  permissions?: Record<string, string[]>
 }
 
 export const useSessionStore = defineStore('session', {
@@ -44,7 +46,8 @@ export const useSessionStore = defineStore('session', {
     lastAction: null as 'login' | 'set-password' | 'change-password' | null,
     pendingChallenge: null as { username: string; session: string } | null,
     roles: [] as string[],
-    currentRole: null as string | null
+    currentRole: null as string | null,
+    permissions: {} as Record<string, string[]>
   }),
 
   actions: {
@@ -78,6 +81,7 @@ export const useSessionStore = defineStore('session', {
         this.user = payload.user ?? null
         this.roles = payload.roles ?? payload.user?.roles ?? []
         this.currentRole = payload.current_role ?? payload.user?.current_role ?? null
+        this.permissions = payload.permissions ?? {}
         this.userUsername = payload.user?.username ?? credentials.username
         this.isAuthenticated = true
         this.lastAction = 'login'
@@ -102,6 +106,7 @@ export const useSessionStore = defineStore('session', {
         this.user = storedUser ?? (payload.username ? { username: payload.username } : null)
         this.roles = payload.roles ?? this.user?.roles ?? []
         this.currentRole = payload.current_role ?? this.user?.current_role ?? null
+        this.permissions = payload.permissions ?? {}
         this.userUsername = this.user?.username ?? payload.username ?? ''
         this.isAuthenticated = true
         return true
@@ -136,6 +141,7 @@ export const useSessionStore = defineStore('session', {
         this.pendingChallenge = null
         this.roles = payload.roles ?? payload.user?.roles ?? []
         this.currentRole = payload.current_role ?? payload.user?.current_role ?? null
+        this.permissions = payload.permissions ?? {}
         this.isAuthenticated = true
         return payload
       } catch (cause) {
@@ -154,6 +160,7 @@ export const useSessionStore = defineStore('session', {
       const response = payload.data ?? payload
       this.roles = response.roles ?? this.roles
       this.currentRole = response.current_role ?? role
+      this.permissions = response.permissions ?? this.permissions
       return response
     },
 
@@ -179,6 +186,7 @@ export const useSessionStore = defineStore('session', {
       this.pendingChallenge = null
       this.roles = []
       this.currentRole = null
+      this.permissions = {}
     },
 
     async logout() {
