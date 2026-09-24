@@ -9,6 +9,25 @@ const displayName = computed(() => (
   || 'Signed in user'
 ))
 const displayEmail = computed(() => session.user?.email ?? '')
+const roleOptions = computed(() => session.roles.map(role => ({
+  title: role.replaceAll('_', ' ').replace(/\b\w/g, character => character.toUpperCase()),
+  value: role
+})))
+const roleError = ref('')
+const changingRole = ref(false)
+
+async function changeRole(role: string) {
+  if (!role || role === session.currentRole) return
+  changingRole.value = true
+  roleError.value = ''
+  try {
+    await session.changeRole(role)
+  } catch (cause) {
+    roleError.value = getApiErrorMessage(cause, 'Unable to change role.')
+  } finally {
+    changingRole.value = false
+  }
+}
 const initials = computed(() => {
   const parts = displayName.value.trim().split(/\s+/).filter(Boolean)
 
@@ -41,7 +60,30 @@ async function logout() {
       </VBtn>
     </template>
 
-    <VList min-width="200">
+    <VList min-width="240">
+      <VListSubheader>Switch role</VListSubheader>
+      <VListItem
+        v-for="role in roleOptions"
+        :key="role.value"
+        :active="session.currentRole === role.value"
+        :disabled="changingRole"
+        :title="role.title"
+        rounded="lg"
+        @click="changeRole(role.value)"
+      >
+        <template #append>
+          <VRadio
+            :model-value="session.currentRole"
+            :value="role.value"
+            color="primary"
+            density="compact"
+            hide-details
+            tabindex="-1"
+          />
+        </template>
+      </VListItem>
+      <VProgressLinear v-if="changingRole" class="mx-4" color="primary" indeterminate />
+      <VAlert v-if="roleError" class="mx-4 my-2" density="compact" type="error">{{ roleError }}</VAlert>
       <VListItem prepend-icon="mdi-account-outline" title="My profile" to="/profile" />
       <VListItem prepend-icon="mdi-cog-outline" title="Preferences" />
       <VDivider />
