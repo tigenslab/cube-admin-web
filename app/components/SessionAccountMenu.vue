@@ -21,6 +21,7 @@ async function changeRole(role: string) {
   roleError.value = ''
   try {
     await session.changeRole(role)
+    await navigateTo('/')
   } catch (cause) {
     roleError.value = getApiErrorMessage(cause, 'Unable to change role.')
   } finally {
