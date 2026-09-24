@@ -5,6 +5,7 @@ const title = ref('')
 const code = ref('')
 const subType = ref('')
 const type = ref('')
+const status = ref('new')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
@@ -14,7 +15,7 @@ async function submit() {
   submitting.value = true
   error.value = null
   try {
-    await coursesStore.create({ title: title.value.trim(), code: code.value.trim(), sub_type: subType.value.trim(), type: type.value.trim() })
+    await coursesStore.create({ title: title.value.trim(), code: code.value.trim(), sub_type: subType.value.trim(), type: type.value.trim(), status: status.value })
     await router.push('/courses')
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to create course.')
@@ -44,6 +45,7 @@ async function submit() {
         <VTextField v-model="code" class="mb-4" label="Code" placeholder="Mathematics Year 7" required />
         <VTextField v-model="subType" class="mb-4" label="Sub-type" required />
         <VTextField v-model="type" class="mb-4" label="Type" placeholder="course" required />
+        <VSelect v-model="status" :items="['new', 'draft', 'ready', 'publish']" class="mb-4" label="Status" />
         <div class="d-flex justify-end ga-3">
           <VBtn to="/courses" variant="text">Cancel</VBtn>
           <VBtn color="primary" :loading="submitting" type="submit">Create course</VBtn>

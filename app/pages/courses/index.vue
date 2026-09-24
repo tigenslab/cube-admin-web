@@ -97,6 +97,7 @@ async function deleteCourse(id: string) {
           <tr>
             <th>Course</th>
             <th>Code</th>
+            <th>Status</th>
             <th class="d-none d-sm-table-cell">Content fields</th>
             <th aria-label="Actions" />
           </tr>
@@ -112,6 +113,7 @@ async function deleteCourse(id: string) {
               </div>
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
+            <td><VChip :color="course.status === 'publish' ? 'success' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip></td>
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
             <td class="text-no-wrap">
               <VBtn :to="`/courses/${course.id}/edit`" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" />
