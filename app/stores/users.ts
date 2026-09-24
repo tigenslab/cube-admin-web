@@ -17,6 +17,7 @@ export interface User {
   updated_at?: string
   phone?: string
   website?: string
+  permissions?: Record<string, boolean>
 }
 
 export type CreateUserInput = Omit<User, 'id'>

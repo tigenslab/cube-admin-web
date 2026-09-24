@@ -147,7 +147,7 @@ const statusColor: Record<UserStatus, string> = {
             <td class="d-none d-lg-table-cell">{{ user.team }}</td>
             <td><VChip :color="statusColor[user.status]" size="small" variant="tonal">{{ user.status }}</VChip></td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ user.lastActive }}</td>
-            <td><VBtn :to="`/users/${user.id}/edit`" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" /></td>
+            <td><VBtn v-if="user.permissions?.update" :to="`/users/${user.id}/edit`" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" /></td>
           </tr>
         </tbody>
       </VTable>

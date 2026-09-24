@@ -7,6 +7,7 @@ export interface Course {
   sub_type: string
   type: string
   status: string
+  permissions?: Record<string, boolean>
   content?: Record<string, unknown>
   created_at?: string
   updated_at?: string
