@@ -21,8 +21,19 @@ onMounted(async () => {
   <VBtn class="mb-6" to="/courses" variant="text">Back to courses</VBtn>
   <VAlert v-if="error" class="mb-4" type="error">{{ error }}</VAlert>
   <VCard v-if="course" max-width="720" rounded="xl" variant="flat">
-    <VCardItem><template #title>{{ course.title }}</template><template #subtitle>{{ course.code }}</template></VCardItem>
-    <VCardText><VChip class="mb-4" :color="course.status === 'publish' ? 'success' : 'warning'" variant="tonal">{{ course.status }}</VChip><div>Type: {{ course.type }}</div><div>Sub-type: {{ course.sub_type }}</div></VCardText>
-    <VCardActions><VBtn v-if="course.permissions?.change_status" color="secondary" variant="tonal" @click="changeStatus">Move to {{ nextStatus[course.status || 'new'] }}</VBtn><VBtn v-if="course.permissions?.update" :to="`/courses/${course.id}/edit`" color="primary">Edit course</VBtn></VCardActions>
+    <VCardItem><template #title>{{ course.title }}</template><template #subtitle>{{ course.code }}</template>
+    </VCardItem>
+    <VCardText>
+      <VChip class="mb-4" :color="course.status === 'publish' ? 'success' : 'warning'" variant="tonal">{{ course.status
+        }}
+      </VChip>
+      <div>Type: {{ course.type }}</div>
+      <div>Sub-type: {{ course.sub_type }}</div>
+    </VCardText>
+    <VCardActions>
+      <VBtn v-if="course.permissions?.change_status" color="secondary" variant="tonal" @click="changeStatus">Move to {{
+        nextStatus[course.status || 'new'] }}</VBtn>
+      <VBtn v-if="course.permissions?.update" :to="`/courses/${course.id}/edit`" color="primary">Edit course</VBtn>
+    </VCardActions>
   </VCard>
 </template>
