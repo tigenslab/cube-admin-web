@@ -20,6 +20,14 @@ const filteredCourses = computed(() => {
   ))
 })
 
+const nextStatus: Record<string, string> = { new: 'draft', draft: 'ready', ready: 'publish', publish: 'draft' }
+
+async function changeStatus(course: { id: string; status: string }) {
+  const next = nextStatus[course.status || 'new']
+  if (!next) return
+  try { await coursesStore.changeStatus(course.id, next) } catch (cause) { error.value = getApiErrorMessage(cause, 'Unable to change course status.') }
+}
+
 function contentCount(course: { content?: Record<string, unknown> }) {
   return Object.keys(course.content ?? {}).length
 }
@@ -109,11 +117,12 @@ async function deleteCourse(id: string) {
                 <VAvatar color="primary" rounded="lg" size="40" variant="tonal">
                   <VIcon icon="mdi-book-outline" />
                 </VAvatar>
-                <span class="text-body-2 font-weight-medium">{{ course.title }}</span>
+                <NuxtLink class="text-body-2 font-weight-medium" :to="`/courses/${course.id}`">{{ course.title }}</NuxtLink>
               </div>
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
-            <td><VChip :color="course.status === 'publish' ? 'success' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip></td>
+            <td><VChip :color="course.status === 'publish' ? 'success' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip>
+              <VBtn v-if="course.permissions?.change_status" class="ml-2" size="x-small" variant="text" @click="changeStatus(course)">{{ nextStatus[course.status || 'new'] }}</VBtn></td>
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
             <td class="text-no-wrap">
               <VBtn v-if="course.permissions?.update" :to="`/courses/${course.id}/edit`" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" />

@@ -39,12 +39,25 @@ export const useCoursesStore = defineStore('courses', () => {
     }
   }
 
+  async function show(id: string) {
+    const api = useApi()
+    return api<Course>(`/courses/${id}`)
+  }
+
   async function create(course: Pick<Course, 'title' | 'code' | 'sub_type' | 'type'> & Partial<Pick<Course, 'status'>>) {
     const api = useApi()
     return api<Course>('/courses/create', {
       method: 'POST',
       body: { title: course.title, code: course.code, sub_type: course.sub_type, type: course.type, status: course.status ?? 'new', content: {} }
     })
+  }
+
+  async function changeStatus(id: string, status: string) {
+    const api = useApi()
+    const updated = await api<Course>(`/courses/${id}/change-status`, { method: 'POST', body: { status } })
+    const index = courses.value.findIndex(course => course.id === id)
+    if (index !== -1) courses.value[index] = updated
+    return updated
   }
 
   async function update(id: string, course: Partial<Omit<Course, 'id'>>) {
@@ -58,5 +71,5 @@ export const useCoursesStore = defineStore('courses', () => {
     courses.value = courses.value.filter(course => course.id !== id)
   }
 
-  return { courses, loading, error, search, create, update, remove }
+  return { courses, loading, error, search, show, create, update, changeStatus, remove }
 })

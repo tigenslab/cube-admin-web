@@ -138,7 +138,7 @@ const statusColor: Record<UserStatus, string> = {
               <div class="d-flex align-center ga-3 py-3">
                 <VAvatar :color="user.color" size="40">{{ user.initials }}</VAvatar>
                 <div>
-                  <div class="text-body-2 font-weight-medium">{{ user.name }}</div>
+                  <NuxtLink class="text-body-2 font-weight-medium" :to="`/users/${user.id}`">{{ user.name }}</NuxtLink>
                   <div class="text-caption text-medium-emphasis">{{ user.email }}</div>
                 </div>
               </div>
