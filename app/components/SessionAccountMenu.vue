@@ -1,14 +1,13 @@
 <script setup lang="ts">
 const session = useSessionStore()
 
-const displayName = computed(() => (
-  session.user?.name
-  || session.user?.username
-  || session.userUsername
-  || session.username
-  || 'Signed in user'
-))
-const displayEmail = computed(() => session.user?.email ?? '')
+const displayName = computed(() => {
+  const firstName = session.user?.first_name?.trim()
+  const lastName = session.user?.last_name?.trim()
+  if (firstName && lastName) return `${firstName.charAt(0)}. ${lastName}`
+  return firstName || session.user?.name || session.user?.username || session.userUsername || session.username || 'Signed in user'
+})
+const currentRoleLabel = computed(() => (session.currentRole || 'No role').replaceAll('_', ' ').replace(/\b\w/g, character => character.toUpperCase()))
 const roleOptions = computed(() => session.roles.map(role => ({
   title: role.replaceAll('_', ' ').replace(/\b\w/g, character => character.toUpperCase()),
   value: role
@@ -54,7 +53,7 @@ async function logout() {
         </VAvatar>
         <div class="text-left d-none d-sm-block ml-3">
           <div class="text-body-2 font-weight-medium">{{ displayName }}</div>
-          <div v-if="displayEmail" class="text-caption text-medium-emphasis">{{ displayEmail }}</div>
+          <div class="text-caption text-medium-emphasis">{{ currentRoleLabel }}</div>
         </div>
         <VIcon class="ml-2 d-none d-sm-flex" icon="mdi-chevron-down" />
       </VBtn>
