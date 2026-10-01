@@ -1,9 +1,10 @@
 <script setup lang="ts">
 const route = useRoute()
 const store = useUsersStore()
+const session = useSessionStore()
 const form = reactive({ email: '', first_name: '', last_name: '', phone: '', roles: [] as string[] })
 const error = ref('')
-const roles = ['admin', 'trainer', 'learner', 'master']
+const roles = computed(() => session.validRoles)
 onMounted(async () => {
   try {
     const user = await store.show(String(route.params.id))
