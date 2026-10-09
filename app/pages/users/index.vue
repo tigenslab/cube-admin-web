@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import type { User } from '~/stores/users'
 
 type UserStatus = 'Active' | 'Invited' | 'Suspended'
 
@@ -7,12 +8,26 @@ const usersStore = useUsersStore()
 const { users, loading, error } = storeToRefs(usersStore)
 const search = ref('')
 const status = ref<'All' | UserStatus>('All')
+const deletingUserId = ref<string | number | null>(null)
 
 onMounted(() => {
   usersStore.index().catch(() => {
     // The store exposes request failures through error.
   })
 })
+
+async function deleteUser(user: User) {
+  if (!user.id || !window.confirm(`Delete ${user.name || user.username || 'this user'}?`)) return
+
+  deletingUserId.value = user.id
+  try {
+    await usersStore.destroy(user.id)
+  } catch {
+    // The store exposes request failures through error.
+  } finally {
+    deletingUserId.value = null
+  }
+}
 
 const displayUsers = computed(() => users.value.map((user) => {
   const name = user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Unnamed user'
@@ -28,6 +43,9 @@ const displayUsers = computed(() => users.value.map((user) => {
     name,
     email: user.email || user.username || '—',
     role: user.role || user.user_type || 'User',
+    roles: Array.isArray(user.roles) && user.roles.length
+      ? user.roles
+      : [user.role || user.user_type || 'User'],
     team: user.team || '—',
     status: userStatus,
     initials: name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase(),
@@ -143,11 +161,20 @@ const statusColor: Record<UserStatus, string> = {
                 </div>
               </div>
             </td>
-            <td class="d-none d-md-table-cell">{{ user.role }}</td>
+            <td class="d-none d-md-table-cell">
+              <div class="d-flex flex-wrap ga-1">
+                <VChip v-for="role in user.roles" :key="role" color="primary" size="small" variant="tonal">
+                  {{ role }}
+                </VChip>
+              </div>
+            </td>
             <td class="d-none d-lg-table-cell">{{ user.team }}</td>
             <td><VChip :color="statusColor[user.status]" size="small" variant="tonal">{{ user.status }}</VChip></td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ user.lastActive }}</td>
-            <td><VBtn v-if="user.permissions?.update" :to="`/users/${user.id}/edit`" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" /></td>
+            <td>
+              <VBtn v-if="user.permissions?.update" :to="`/users/${user.id}/edit`" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" />
+              <VBtn v-if="user.permissions?.delete" :loading="deletingUserId === user.id" aria-label="Delete user" color="error" icon="mdi-delete-outline" size="small" variant="text" @click="deleteUser(user)" />
+            </td>
           </tr>
         </tbody>
       </VTable>
