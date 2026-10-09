@@ -6,13 +6,14 @@ const session = useSessionStore()
 const primaryNavigation = [
   { title: 'Overview', icon: 'mdi-view-dashboard-outline', to: '/' },
   { title: 'Users', icon: 'mdi-account-group-outline', to: '/users', subject: 'User' },
-  { title: 'Active sessions', icon: 'mdi-shield-account-outline', to: '/sessions/active' },
+  { title: 'Active sessions', icon: 'mdi-shield-account-outline', to: '/sessions/active', subject: 'Session' },
   { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses', subject: 'Course' },
   { title: 'Notifications', icon: 'mdi-bell-outline', to: '/notifications', subject: 'Notification' },
   { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics', subject: 'Analytics' },
 ]
 
 const workspaceNavigation = [
+  { title: 'Accounts', icon: 'mdi-domain', to: '/accounts', subject: 'Account' },
   { title: 'Team', icon: 'mdi-account-cog-outline', to: '/team', subject: 'Team' },
   { title: 'Settings', icon: 'mdi-cog-outline', to: '/settings', subject: 'Settings' },
 ]

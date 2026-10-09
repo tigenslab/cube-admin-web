@@ -1,18 +1,33 @@
 <script setup lang="ts">
-interface ActiveSession { id: string; user_id?: string; username?: string; device_id?: string; ip_address?: string; request_json?: { device_information?: { user_agent?: string } }; created_at?: string; updated_at?: string }
+interface ActiveSession { id: string; user_id?: string; username?: string; device_id?: string; ip_address?: string; request_json?: { device_information?: { user_agent?: string } }; permissions?: Record<string, string[]>; created_at?: string; updated_at?: string }
 const api = useApi()
+const session = useSessionStore()
 const sessions = ref<ActiveSession[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+const canViewActiveSessions = computed(() => {
+  const permissions = session.permissions
+  return Boolean(permissions.Session?.includes('read') || permissions.all?.includes('manage'))
+})
+
 async function load() {
+  if (!canViewActiveSessions.value) {
+    await navigateTo('/')
+    return
+  }
+
   loading.value = true
   error.value = null
   try { sessions.value = await api<ActiveSession[]>('/sessions/active') }
   catch (cause) { error.value = getApiErrorMessage(cause, 'Unable to load active sessions.') }
   finally { loading.value = false }
 }
-onMounted(load)
+
+onMounted(async () => {
+  if (!session.isAuthenticated) await session.hydrate()
+  await load()
+})
 </script>
 
 <template>
