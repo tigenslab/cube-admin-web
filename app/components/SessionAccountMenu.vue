@@ -61,29 +61,31 @@ async function logout() {
     </template>
 
     <VList min-width="240">
-      <VListSubheader>Switch role</VListSubheader>
-      <VListItem
-        v-for="role in roleOptions"
-        :key="role.value"
-        :active="session.currentRole === role.value"
-        :disabled="changingRole"
-        :title="role.title"
-        rounded="lg"
-        @click="changeRole(role.value)"
-      >
-        <template #append>
-          <VRadio
-            :model-value="session.currentRole"
-            :value="role.value"
-            color="primary"
-            density="compact"
-            hide-details
-            tabindex="-1"
-          />
-        </template>
-      </VListItem>
-      <VProgressLinear v-if="changingRole" class="mx-4" color="primary" indeterminate />
-      <VAlert v-if="roleError" class="mx-4 my-2" density="compact" type="error">{{ roleError }}</VAlert>
+      <template v-if="roleOptions.length > 1">
+        <VListSubheader>Switch role</VListSubheader>
+        <VListItem
+          v-for="role in roleOptions"
+          :key="role.value"
+          :active="session.currentRole === role.value"
+          :disabled="changingRole"
+          :title="role.title"
+          rounded="lg"
+          @click="changeRole(role.value)"
+        >
+          <template #append>
+            <VRadio
+              :model-value="session.currentRole"
+              :value="role.value"
+              color="primary"
+              density="compact"
+              hide-details
+              tabindex="-1"
+            />
+          </template>
+        </VListItem>
+        <VProgressLinear v-if="changingRole" class="mx-4" color="primary" indeterminate />
+        <VAlert v-if="roleError" class="mx-4 my-2" density="compact" type="error">{{ roleError }}</VAlert>
+      </template>
       <VListItem prepend-icon="mdi-account-outline" title="My profile" to="/profile" />
       <VListItem prepend-icon="mdi-cog-outline" title="Preferences" />
       <VDivider />
