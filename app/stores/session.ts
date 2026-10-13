@@ -75,12 +75,6 @@ export const useSessionStore = defineStore('session', {
           return payload
         }
 
-        const sessionId = useCookie<string | null>('session_id', {
-          secure: !import.meta.dev,
-          sameSite: 'strict',
-          path: '/'
-        })
-        sessionId.value = payload.session_id ?? null
         this.user = payload.user ?? null
         this.roles = payload.roles ?? payload.user?.roles ?? []
         this.validRoles = payload.valid_roles ?? this.roles
@@ -100,8 +94,7 @@ export const useSessionStore = defineStore('session', {
     },
 
     async hydrate() {
-      const sessionId = useCookie<string | null>('session_id', { secure: !import.meta.dev, sameSite: 'strict', path: '/' })
-      if (!sessionId.value || this.isAuthenticated) return false
+      if (this.isAuthenticated) return false
 
       try {
         const response = await useApi()<LoginResponse>('/sessions/current')
@@ -141,8 +134,6 @@ export const useSessionStore = defineStore('session', {
         const apiError = payload.details ?? (payload.error ? payload.message ?? payload.error : '')
         if (apiError) throw new Error(apiError)
 
-        const sessionId = useCookie<string | null>('session_id', { secure: !import.meta.dev, sameSite: 'strict', path: '/' })
-        sessionId.value = payload.session_id ?? null
         this.pendingChallenge = null
         this.roles = payload.roles ?? payload.user?.roles ?? []
         this.validRoles = payload.valid_roles ?? this.roles
@@ -175,14 +166,28 @@ export const useSessionStore = defineStore('session', {
       this.lastAction = 'set-password'
     },
 
-    changePassword() {
+    async changePassword(currentPassword: string, newPassword: string, passwordConfirmation: string) {
+      this.loading = true
+      this.error = null
+      try {
+        await useApi()('/sessions/change-password', {
+          method: 'POST',
+          body: {
+            current_password: currentPassword,
+            new_password: newPassword,
+            password_confirmation: passwordConfirmation
+          }
+        })
+      } catch (cause) {
+        this.error = getApiErrorMessage(cause, 'Unable to change your password. Please try again.')
+        throw cause
+      } finally {
+        this.loading = false
+      }
       this.lastAction = 'change-password'
     },
 
     clearSession() {
-      const sessionId = useCookie<string | null>('session_id')
-
-      sessionId.value = null
       this.username = ''
       this.userUsername = ''
       this.user = null

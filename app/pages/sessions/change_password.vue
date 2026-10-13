@@ -5,9 +5,23 @@ const session = useSessionStore()
 const currentPassword = ref('')
 const password = ref('')
 const confirmation = ref('')
+const error = ref<string | null>(null)
 
-function changePassword() {
-  session.changePassword()
+async function changePassword() {
+  error.value = null
+  if (password.value !== confirmation.value) {
+    error.value = 'New passwords do not match.'
+    return
+  }
+
+  try {
+    await session.changePassword(currentPassword.value, password.value, confirmation.value)
+    currentPassword.value = ''
+    password.value = ''
+    confirmation.value = ''
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to change your password. Please try again.')
+  }
 }
 </script>
 
@@ -18,6 +32,7 @@ function changePassword() {
     <h2 class="text-h4 font-weight-bold mt-2">Change password</h2>
     <p class="text-body-2 text-medium-emphasis mt-3">Use a unique password that you do not use elsewhere.</p>
 
+    <VAlert v-if="error" class="mt-6" color="error" density="compact" icon="mdi-alert-circle-outline" variant="tonal">{{ error }}</VAlert>
     <VAlert v-if="session.lastAction === 'change-password'" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
       Your password has been updated.
     </VAlert>
@@ -29,7 +44,7 @@ function changePassword() {
       <VTextField id="changed-password" v-model="password" class="mt-2" density="comfortable" hint="Use at least 8 characters." persistent-hint prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
       <label class="text-body-2 font-weight-medium d-block mt-5" for="changed-confirmation">Confirm new password</label>
       <VTextField id="changed-confirmation" v-model="confirmation" class="mt-2" density="comfortable" placeholder="Repeat your new password" prepend-inner-icon="mdi-lock-check-outline" required rounded="lg" type="password" variant="outlined" />
-      <VBtn block class="mt-4" color="primary" size="large" type="submit">Update password</VBtn>
+      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Update password</VBtn>
     </VForm>
   </div>
 </template>

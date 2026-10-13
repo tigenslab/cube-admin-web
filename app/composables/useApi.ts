@@ -7,11 +7,6 @@ import { v4 as uuidv4 } from 'uuid'
 export function useApi() {
   const config = useRuntimeConfig()
   const subdomain = getSubdomain(useRequestURL().hostname)
-  const sessionId = useCookie<string | null>('session_id', {
-    secure: !import.meta.dev,
-    sameSite: 'strict',
-    path: '/'
-  })
   const deviceId = import.meta.client
     ? (localStorage.getItem('device_id') || uuidv4())
     : ''
@@ -22,25 +17,17 @@ export function useApi() {
 
   return $fetch.create({
     baseURL: config.public.apiBase,
-    onRequest({ request, options }) {
+    credentials: 'include',
+    onRequest({ options }) {
       const headers = new Headers(options.headers)
-      const requestUrl = typeof request === 'string' ? request : request.url
-
-      if (sessionId.value && !isLoginRequest(requestUrl)) {
-        headers.set('session_id', sessionId.value)
-      }
       headers.set('subdomain', subdomain)
       if (deviceId) headers.set('device_id', deviceId)
       options.headers = headers
     },
     onResponse({ response }) {
-      const refreshedSessionId = response.headers.get('session_id')
-      if (refreshedSessionId && refreshedSessionId !== sessionId.value) {
-        sessionId.value = refreshedSessionId
-      }
     },
     async onResponseError({ response }) {
-      if (!sessionId.value || !isUnauthorizedResponse(response.status, response._data)) return
+      if (!isUnauthorizedResponse(response.status, response._data)) return
 
       const session = useSessionStore()
       session.clearSession()
@@ -59,10 +46,6 @@ function isUnauthorizedResponse(status: number, body: unknown) {
   const errorBody = body as { error?: unknown; message?: unknown }
   return [errorBody.error, errorBody.message]
     .some(value => typeof value === 'string' && value.toLowerCase() === 'unauthorized')
-}
-
-function isLoginRequest(url: string) {
-  return url.split('?')[0]?.replace(/\/+$/, '').endsWith('/sessions/login') ?? false
 }
 
 function getSubdomain(hostname: string) {
