@@ -1,5 +1,12 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (to.path === '/sessions/login' || to.path === '/sessions/new-password' || to.path === '/sessions/forgot-password') return
+  const session = useSessionStore()
+  if (to.path === '/sessions/login' || to.path === '/sessions/forgot-password') {
+    if (session.isAuthenticated || (import.meta.client && await session.hydrate())) {
+      return navigateTo('/')
+    }
+    return
+  }
+  if (to.path === '/sessions/new-password') return
 
   // session_id and device_id are issued by the API origin. During SSR the
   // browser sends cookies only for the Nuxt origin, so the API cookies are
@@ -7,7 +14,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // browser, where credentials: 'include' sends them to the API directly.
   if (import.meta.server) return
 
-  const session = useSessionStore()
   if (!session.isAuthenticated && !(await session.hydrate())) {
     return navigateTo('/sessions/login')
   }

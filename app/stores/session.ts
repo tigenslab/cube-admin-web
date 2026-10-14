@@ -43,6 +43,7 @@ export const useSessionStore = defineStore('session', {
     user: null as SessionUser | null,
     accessToken: null as string | null,
     isAuthenticated: false,
+    isHydrating: false,
     loading: false,
     error: null as string | null,
     lastAction: null as 'login' | 'set-password' | 'change-password' | null,
@@ -94,8 +95,18 @@ export const useSessionStore = defineStore('session', {
     },
 
     async hydrate() {
-      if (this.isAuthenticated) return false
+      console.debug('[session.hydrate] called', {
+        isAuthenticated: this.isAuthenticated,
+        isHydrating: this.isHydrating,
+        environment: import.meta.server ? 'server' : 'client'
+      })
+      if (this.isAuthenticated) {
+        console.debug('[session.hydrate] skipped: already authenticated')
+        return false
+      }
 
+      this.isHydrating = true
+      console.debug('[session.hydrate] started', { isHydrating: this.isHydrating })
       try {
         const response = await useApi()<LoginResponse>('/sessions/current')
         const payload = response.data ?? response
@@ -111,6 +122,12 @@ export const useSessionStore = defineStore('session', {
       } catch {
         this.clearSession()
         return false
+      } finally {
+        this.isHydrating = false
+        console.debug('[session.hydrate] finished', {
+          isHydrating: this.isHydrating,
+          isAuthenticated: this.isAuthenticated
+        })
       }
     },
 
