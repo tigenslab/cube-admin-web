@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid'
-
 /**
  * Creates a REST client configured from Nuxt runtimeConfig.
  * Set NUXT_PUBLIC_API_BASE to point the client at another API.
@@ -7,21 +5,12 @@ import { v4 as uuidv4 } from 'uuid'
 export function useApi() {
   const config = useRuntimeConfig()
   const subdomain = getSubdomain(useRequestURL().hostname)
-  const deviceId = import.meta.client
-    ? (localStorage.getItem('device_id') || uuidv4())
-    : ''
-
-  if (import.meta.client && !localStorage.getItem('device_id')) {
-    localStorage.setItem('device_id', deviceId)
-  }
-
   return $fetch.create({
     baseURL: config.public.apiBase,
     credentials: 'include',
     onRequest({ options }) {
       const headers = new Headers(options.headers)
       headers.set('subdomain', subdomain)
-      if (deviceId) headers.set('device_id', deviceId)
       options.headers = headers
     },
     onResponse({ response }) {
