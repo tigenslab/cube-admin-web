@@ -178,6 +178,8 @@ export const useSessionStore = defineStore('session', {
             password_confirmation: passwordConfirmation
           }
         })
+        this.clearSession()
+        await navigateTo('/sessions/login')
       } catch (cause) {
         this.error = getApiErrorMessage(cause, 'Unable to change your password. Please try again.')
         throw cause
