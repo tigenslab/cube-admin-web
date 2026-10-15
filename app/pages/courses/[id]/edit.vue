@@ -11,6 +11,7 @@ const type = ref('')
 const status = ref('new')
 const submitting = ref(false)
 const error = ref<string | null>(null)
+const courseId = String(route.params.id)
 
 onMounted(async () => {
   try {
@@ -33,7 +34,7 @@ async function submit() {
   error.value = null
   try {
     await coursesStore.update(course.value.id, { title: title.value.trim(), code: code.value.trim(), sub_type: subType.value.trim(), type: type.value.trim(), status: status.value })
-    await router.push('/courses')
+    await router.push(`/courses/${course.value.id}/dashboard`)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to update course.')
   } finally {
@@ -45,7 +46,6 @@ async function submit() {
 <template>
   <section class="page-header mb-8">
     <div>
-      fff
       <div class="text-overline text-primary font-weight-bold">LEARNING</div>
       <h1 class="text-h4 font-weight-bold mt-1">Edit course</h1>
     </div>
@@ -60,7 +60,7 @@ async function submit() {
         <VTextField v-model="type" class="mb-4" label="Type" required />
         <VSelect v-model="status" :items="['new', 'draft', 'ready', 'publish']" class="mb-4" label="Status" />
         <div class="d-flex justify-end ga-3">
-          <VBtn to="/courses" variant="text">Cancel</VBtn>
+          <VBtn :to="`/courses/${courseId}/dashboard`" variant="text">Cancel</VBtn>
           <VBtn color="primary" :loading="submitting" type="submit">Save changes</VBtn>
         </div>
       </VForm>
