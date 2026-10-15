@@ -117,7 +117,7 @@ async function deleteCourse(id: string) {
                 <VAvatar color="primary" rounded="lg" size="40" variant="tonal">
                   <VIcon icon="mdi-book-outline" />
                 </VAvatar>
-                <NuxtLink class="text-body-2 font-weight-medium" :to="`/courses/${course.id}`">{{ course.title }}</NuxtLink>
+                <NuxtLink class="text-body-2 font-weight-medium" :to="`/courses/${course.id}/dashboard`">{{ course.title }}</NuxtLink>
               </div>
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
