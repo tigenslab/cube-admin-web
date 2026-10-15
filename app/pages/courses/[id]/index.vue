@@ -30,7 +30,8 @@ onMounted(async () => {
       <div>Type: {{ course.type }}</div>
       <div>Sub-type: {{ course.sub_type }}</div>
     </VCardText>
-    <VCardActions>
+    <VCardActions class="flex-wrap ga-2">
+      <VBtn v-if="course.permissions?.read" :to="`/courses/${course.id}/content`" color="primary" variant="tonal">Course content</VBtn>
       <VBtn v-if="course.permissions?.change_status" color="secondary" variant="tonal" @click="changeStatus">Move to {{
         nextStatus[course.status || 'new'] }}</VBtn>
       <VBtn v-if="course.permissions?.update" :to="`/courses/${course.id}/edit`" color="primary">Edit course</VBtn>
