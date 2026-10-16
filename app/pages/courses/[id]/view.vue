@@ -31,6 +31,7 @@ const groups = computed(() => {
     units: section.units.filter(unit => !query || `${unit.code || ''} ${unit.title || ''}`.toLowerCase().includes(query)),
   })).filter(section => section.units.length)
 })
+const hasGroups = computed(() => outline.value.some(item => item.type === 'CourseUnit::Group'))
 
 async function load() {
   loading.value = true
@@ -73,7 +74,7 @@ onMounted(load)
 
     <VProgressLinear v-if="loading" color="primary" indeterminate />
     <div v-if="!loading && !error && !groups.length" class="pa-8 text-center text-medium-emphasis">No units found.</div>
-    <VExpansionPanels v-else v-model="openGroups" multiple variant="accordion">
+    <VExpansionPanels v-else-if="hasGroups" v-model="openGroups" multiple variant="accordion">
       <VExpansionPanel v-for="group in groups" :key="group.id" :value="group.id">
         <VExpansionPanelTitle>{{ group.title }}</VExpansionPanelTitle>
         <VExpansionPanelText>
@@ -93,6 +94,19 @@ onMounted(load)
         </VExpansionPanelText>
       </VExpansionPanel>
     </VExpansionPanels>
+    <VRow v-else class="pa-5">
+      <VCol v-for="(unit, index) in groups[0]?.units || []" :key="unit.id" cols="12" md="4" sm="6">
+        <VCard class="unit-card h-100" rounded="lg" variant="flat">
+          <div class="unit-banner d-flex align-end pa-3">
+            <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ unit.code || '' }}</span>
+          </div>
+          <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ unit.title || 'Untitled unit' }}</VCardTitle>
+          <VCardText v-if="unit.content?.description" class="text-body-2 text-medium-emphasis">
+            {{ unit.content.description }}
+          </VCardText>
+        </VCard>
+      </VCol>
+    </VRow>
   </VCard>
 </template>
 
