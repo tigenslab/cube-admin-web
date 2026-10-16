@@ -194,6 +194,11 @@ function addGroupSection(block: CourseResourceItem) {
   if (category) addBlockSubtype(category, 'Section', block)
 }
 
+function addChildGroup(block: CourseResourceItem) {
+  const category = groupCategory(block)
+  if (category) addBlockSubtype(category, 'Group', block)
+}
+
 function blockIcon(block: CourseResourceItem) {
   if (['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(block.type)) return 'mdi-folder-outline'
   if (block.type === 'UnitBlock::Theory::Block' || block.type === 'UnitBlock::Assessment::Block') return 'mdi-bookmark-outline'
@@ -247,7 +252,7 @@ async function deleteBlock(block: CourseResourceItem) {
 }
 
 async function addComponent(type: string, variant: string) {
-  if (!activeBlockId.value || componentSaving.value) return
+  if (!activeBlockId.value || !activeBlock.value || isBlockGroup(activeBlock.value) || componentSaving.value) return
   componentSaving.value = true
   error.value = ''
   try {
@@ -336,6 +341,12 @@ onMounted(load)
                   <template v-if="isBlockGroup(block)">
                     <VListItem
                       v-if="groupCategory(block)"
+                      prepend-icon="mdi-folder-plus-outline"
+                      title="Add Group"
+                      @click="addChildGroup(block)"
+                    />
+                    <VListItem
+                      v-if="groupCategory(block)"
                       :prepend-icon="groupCategory(block) === 'Theory' ? 'mdi-bookmark-plus-outline' : 'mdi-clipboard-plus-outline'"
                       title="Add Section"
                       @click="addGroupSection(block)"
@@ -401,7 +412,7 @@ onMounted(load)
               aria-label="Add component"
               icon="mdi-plus-box-multiple-outline"
               :loading="componentSaving"
-              :disabled="!activeBlock"
+              :disabled="!activeBlock || isBlockGroup(activeBlock)"
               variant="flat"
             />
           </template>
