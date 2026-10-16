@@ -22,8 +22,11 @@ const addDialog = ref(false)
 const adding = ref(false)
 const addError = ref('')
 const addKind = ref<'group' | 'unit'>('unit')
+const addUnitMode = ref<'existing' | 'create'>('existing')
 const addTitle = ref('')
 const addUnitId = ref('')
+const newUnitCode = ref('')
+const newUnitTitle = ref('')
 const addTargetParent = ref('')
 const courseId = String(route.params.id)
 
@@ -122,8 +125,11 @@ async function submit() {
 
 function openAddDialog() {
   addKind.value = 'unit'
+  addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
   addTitle.value = ''
   addUnitId.value = availableUnits.value[0]?.value || ''
+  newUnitCode.value = ''
+  newUnitTitle.value = ''
   addTargetParent.value = ''
   addError.value = ''
   addDialog.value = true
@@ -132,8 +138,11 @@ function openAddDialog() {
 function openAddUnitDialog(groupId?: string) {
   const group = groupId ? outline.value.find(item => item.id === groupId) : undefined
   addKind.value = 'unit'
+  addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
   addTitle.value = ''
   addUnitId.value = availableUnits.value[0]?.value || ''
+  newUnitCode.value = ''
+  newUnitTitle.value = ''
   addTargetParent.value = group ? [group.ancestry, group.id].filter(Boolean).join('/') : ''
   addError.value = ''
   addDialog.value = true
@@ -145,8 +154,12 @@ async function addToCourse() {
     addError.value = 'Enter a group name.'
     return
   }
-  if (addKind.value === 'unit' && !addUnitId.value) {
+  if (addKind.value === 'unit' && addUnitMode.value === 'existing' && !addUnitId.value) {
     addError.value = 'Select a unit to add.'
+    return
+  }
+  if (addKind.value === 'unit' && addUnitMode.value === 'create' && (!newUnitCode.value.trim() || !newUnitTitle.value.trim())) {
+    addError.value = 'Enter a code and title for the new unit.'
     return
   }
 
@@ -155,9 +168,19 @@ async function addToCourse() {
   try {
     const siblings = outline.value.filter(item => (item.ancestry || '') === addTargetParent.value)
     const position = Math.max(0, ...siblings.map(item => item.position || 0)) + 1
+    const unitId = addKind.value === 'unit'
+      ? addUnitMode.value === 'create'
+        ? (await contentApi.save(courseId, 'units', {
+            type: 'Unit',
+            code: newUnitCode.value.trim(),
+            title: newUnitTitle.value.trim(),
+            content: {},
+          })).id
+        : addUnitId.value
+      : ''
     await contentApi.save(courseId, 'course_units', addKind.value === 'group'
       ? { type: 'CourseUnit::Group', title: addTitle.value.trim(), ancestry: addTargetParent.value, position }
-      : { type: 'CourseUnit::Unit', unit_id: addUnitId.value, ancestry: addTargetParent.value, position })
+      : { type: 'CourseUnit::Unit', unit_id: unitId, ancestry: addTargetParent.value, position })
     addDialog.value = false
     await loadUnits()
   } catch (cause) {
@@ -193,7 +216,7 @@ async function addToCourse() {
         <VExpansionPanelTitle>{{ group.title }}</VExpansionPanelTitle>
         <VExpansionPanelText>
           <div class="d-flex justify-end mb-3">
-            <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" size="small" variant="tonal" :disabled="!availableUnits.length" @click="openAddUnitDialog(group.id)">Add unit</VBtn>
+            <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" size="small" variant="tonal" @click="openAddUnitDialog(group.id)">Add unit</VBtn>
           </div>
           <div v-if="!group.units.length" class="pa-4 text-body-2 text-medium-emphasis">No units in this group yet.</div>
           <VRow v-else>
@@ -256,13 +279,23 @@ async function addToCourse() {
           <VRadio label="Individual unit" value="unit" />
           <VRadio label="Units group" value="group" />
         </VRadioGroup>
-        <VSelect v-if="addKind === 'unit'" v-model="addUnitId" :items="availableUnits" label="Unit" no-data-text="All available units are already in this course." />
+        <template v-if="addKind === 'unit'">
+          <VRadioGroup v-model="addUnitMode" inline class="mb-2">
+            <VRadio label="Select existing unit" value="existing" :disabled="!availableUnits.length" />
+            <VRadio label="Create new unit" value="create" />
+          </VRadioGroup>
+          <VSelect v-if="addUnitMode === 'existing'" v-model="addUnitId" :items="availableUnits" label="Unit" no-data-text="All available units are already in this course." />
+          <template v-else>
+            <VTextField v-model="newUnitCode" class="mb-3" label="Unit code" required />
+            <VTextField v-model="newUnitTitle" label="Unit title" required />
+          </template>
+        </template>
         <VTextField v-else v-model="addTitle" label="Group name" autofocus />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
         <VBtn :disabled="adding" variant="text" @click="addDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="adding" :disabled="addKind === 'unit' && !availableUnits.length" @click="addToCourse">Add</VBtn>
+        <VBtn color="primary" :loading="adding" @click="addToCourse">Add</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
