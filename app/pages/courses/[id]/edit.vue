@@ -18,27 +18,58 @@ const status = ref('new')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 const detailsDialog = ref(false)
+const addDialog = ref(false)
+const adding = ref(false)
+const addError = ref('')
+const addKind = ref<'group' | 'unit'>('unit')
+const addTitle = ref('')
+const addUnitId = ref('')
+const addTargetParent = ref('')
 const courseId = String(route.params.id)
 
 const groups = computed(() => {
   const unitById = new Map(units.value.map(unit => [unit.id, unit]))
   const groupItems = outline.value.filter(item => item.type === 'CourseUnit::Group')
-  const sections = groupItems.length ? groupItems.map(group => ({
-    id: group.id,
-    title: group.title || group.code || 'Units',
-    units: outline.value
-      .filter(item => item.type === 'CourseUnit::Unit' && item.unit_id && item.ancestry?.split('/').includes(group.id))
-      .map(item => unitById.get(item.unit_id!))
+  const unitRefs = outline.value.filter(item => item.type === 'CourseUnit::Unit' && item.unit_id)
+  const sections = groupItems.length ? [
+    ...groupItems.map(group => {
+      const path = [group.ancestry, group.id].filter(Boolean).join('/')
+      return {
+        id: group.id,
+        title: group.title || group.code || 'Units',
+        units: unitRefs.filter(item => (item.ancestry || '') === path)
+          .map(item => unitById.get(item.unit_id!))
+          .filter((unit): unit is CourseContentItem => Boolean(unit)),
+      }
+    }),
+    ...(unitRefs.some(item => !item.ancestry) ? [{
+      id: 'ungrouped',
+      title: 'Other units',
+      units: unitRefs.filter(item => !item.ancestry)
+        .map(item => unitById.get(item.unit_id!))
+        .filter((unit): unit is CourseContentItem => Boolean(unit)),
+    }] : []),
+  ] : unitRefs.length ? [{
+    id: 'units',
+    title: 'Units',
+    units: unitRefs.map(item => unitById.get(item.unit_id!))
       .filter((unit): unit is CourseContentItem => Boolean(unit)),
-  })) : [{ id: 'units', title: 'Units', units: units.value }]
+  }] : []
   const query = search.value.trim().toLowerCase()
-  return sections.map(section => ({
+  const filtered = sections.map(section => ({
     ...section,
     units: section.units.filter(unit => !query || `${unit.code || ''} ${unit.title || ''}`.toLowerCase().includes(query)),
-  })).filter(section => section.units.length)
+  }))
+  return query ? filtered.filter(section => section.units.length) : filtered
 })
 const hasGroups = computed(() => outline.value.some(item => item.type === 'CourseUnit::Group'))
-
+const availableUnits = computed(() => {
+  const linked = new Set(outline.value.filter(item => item.type === 'CourseUnit::Unit').map(item => item.unit_id))
+  return units.value.filter(unit => !linked.has(unit.id)).map(unit => ({
+    title: `${unit.code || ''} — ${unit.title || 'Untitled unit'}`,
+    value: unit.id,
+  }))
+})
 async function loadUnits() {
   loadingUnits.value = true
   try {
@@ -48,6 +79,9 @@ async function loadUnits() {
     ])
     units.value = unitData.items
     outline.value = outlineData.items
+    for (const referencedUnit of outlineData.units || []) {
+      if (!units.value.some(unit => unit.id === referencedUnit.id)) units.value.push(referencedUnit)
+    }
     openGroups.value = outlineData.items.filter(item => item.type === 'CourseUnit::Group').map(item => item.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load course units.')
@@ -85,6 +119,53 @@ async function submit() {
     submitting.value = false
   }
 }
+
+function openAddDialog() {
+  addKind.value = 'unit'
+  addTitle.value = ''
+  addUnitId.value = availableUnits.value[0]?.value || ''
+  addTargetParent.value = ''
+  addError.value = ''
+  addDialog.value = true
+}
+
+function openAddUnitDialog(groupId?: string) {
+  const group = groupId ? outline.value.find(item => item.id === groupId) : undefined
+  addKind.value = 'unit'
+  addTitle.value = ''
+  addUnitId.value = availableUnits.value[0]?.value || ''
+  addTargetParent.value = group ? [group.ancestry, group.id].filter(Boolean).join('/') : ''
+  addError.value = ''
+  addDialog.value = true
+}
+
+async function addToCourse() {
+  if (adding.value) return
+  if (addKind.value === 'group' && !addTitle.value.trim()) {
+    addError.value = 'Enter a group name.'
+    return
+  }
+  if (addKind.value === 'unit' && !addUnitId.value) {
+    addError.value = 'Select a unit to add.'
+    return
+  }
+
+  adding.value = true
+  addError.value = ''
+  try {
+    const siblings = outline.value.filter(item => (item.ancestry || '') === addTargetParent.value)
+    const position = Math.max(0, ...siblings.map(item => item.position || 0)) + 1
+    await contentApi.save(courseId, 'course_units', addKind.value === 'group'
+      ? { type: 'CourseUnit::Group', title: addTitle.value.trim(), ancestry: addTargetParent.value, position }
+      : { type: 'CourseUnit::Unit', unit_id: addUnitId.value, ancestry: addTargetParent.value, position })
+    addDialog.value = false
+    await loadUnits()
+  } catch (cause) {
+    addError.value = getApiErrorMessage(cause, 'Unable to add item to the course.')
+  } finally {
+    adding.value = false
+  }
+}
 </script>
 
 <template>
@@ -103,7 +184,7 @@ async function submit() {
   <VCard class="mt-6" rounded="xl" variant="flat">
     <div class="d-flex align-center justify-space-between ga-4 bg-grey-lighten-4 px-5 py-2">
       <VTextField v-model="search" class="unit-search" density="compact" hide-details placeholder="Search" prepend-inner-icon="mdi-magnify" rounded="lg" variant="solo" />
-      <span class="text-body-2">Edit course</span>
+      <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" variant="text" @click="openAddDialog">Add to course</VBtn>
     </div>
     <VProgressLinear v-if="loadingUnits" color="primary" indeterminate />
     <div v-if="!loadingUnits && !groups.length" class="pa-8 text-center text-medium-emphasis">No units found.</div>
@@ -111,7 +192,11 @@ async function submit() {
       <VExpansionPanel v-for="group in groups" :key="group.id" :value="group.id">
         <VExpansionPanelTitle>{{ group.title }}</VExpansionPanelTitle>
         <VExpansionPanelText>
-          <VRow>
+          <div class="d-flex justify-end mb-3">
+            <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" size="small" variant="tonal" :disabled="!availableUnits.length" @click="openAddUnitDialog(group.id)">Add unit</VBtn>
+          </div>
+          <div v-if="!group.units.length" class="pa-4 text-body-2 text-medium-emphasis">No units in this group yet.</div>
+          <VRow v-else>
             <VCol v-for="(unit, index) in group.units" :key="unit.id" cols="12" md="4" sm="6">
               <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${unit.id}/edit`" rounded="lg" variant="flat">
                 <div class="unit-banner d-flex align-end pa-3">
@@ -159,6 +244,26 @@ async function submit() {
           </div>
         </VForm>
       </VCardText>
+    </VCard>
+  </VDialog>
+
+  <VDialog v-model="addDialog" max-width="600">
+    <VCard rounded="xl">
+      <VCardTitle class="pa-6 pb-2">Add to course</VCardTitle>
+      <VCardText class="pa-6 pt-2">
+        <VAlert v-if="addError" class="mb-4" color="error" density="compact" variant="tonal">{{ addError }}</VAlert>
+        <VRadioGroup v-model="addKind" inline class="mb-2">
+          <VRadio label="Individual unit" value="unit" />
+          <VRadio label="Units group" value="group" />
+        </VRadioGroup>
+        <VSelect v-if="addKind === 'unit'" v-model="addUnitId" :items="availableUnits" label="Unit" no-data-text="All available units are already in this course." />
+        <VTextField v-else v-model="addTitle" label="Group name" autofocus />
+      </VCardText>
+      <VCardActions class="pa-6 pt-0">
+        <VSpacer />
+        <VBtn :disabled="adding" variant="text" @click="addDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="adding" :disabled="addKind === 'unit' && !availableUnits.length" @click="addToCourse">Add</VBtn>
+      </VCardActions>
     </VCard>
   </VDialog>
 </template>
