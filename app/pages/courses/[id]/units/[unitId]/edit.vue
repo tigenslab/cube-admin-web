@@ -300,12 +300,8 @@ onMounted(load)
         </VList>
       </div>
 
-      <div class="sidebar-tools">
-        <VBtn aria-label="Add block" icon="mdi-plus-box-multiple-outline" variant="flat" @click="openBlockEditor()" />
-        <VBtn aria-label="Block list" icon="mdi-format-list-bulleted" variant="flat" />
-        <VBtn aria-label="Help" icon="mdi-help-circle-outline" variant="flat" />
-        <VBtn aria-label="Files" icon="mdi-folder-outline" variant="flat" />
-        <VBtn aria-label="More tools" icon="mdi-menu" variant="flat" />
+      <div class="sidebar-account">
+        <SessionAccountMenu />
       </div>
     </aside>
 
@@ -333,6 +329,13 @@ onMounted(load)
           <p class="text-body-2 text-medium-emphasis mt-2">Select a block from the outline or add one to get started.</p>
         </div>
       </section>
+      <div class="workspace-toolbar">
+        <VBtn aria-label="Add block" icon="mdi-plus-box-multiple-outline" variant="flat" @click="openBlockEditor()" />
+        <VBtn aria-label="Block list" icon="mdi-format-list-bulleted" variant="flat" />
+        <VBtn aria-label="Help" icon="mdi-help-circle-outline" variant="flat" />
+        <VBtn aria-label="Files" icon="mdi-folder-outline" variant="flat" />
+        <VBtn aria-label="More tools" icon="mdi-menu" variant="flat" />
+      </div>
     </main>
     <footer class="workspace-footer">© 2025 Cube</footer>
   </div>
@@ -374,12 +377,14 @@ onMounted(load)
 .unit-heading-text { flex: 1; min-width: 0; font-size: 14px; }
 .unit-heading-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .block-navigation { flex: 1; overflow: auto; padding-bottom: 12px; }
-.sidebar-tools { display: flex; justify-content: space-around; gap: 8px; padding: 12px; border-top: 1px solid #ddd; }
-.sidebar-tools :deep(.v-btn) { border-radius: 50%; box-shadow: 0 2px 5px #0002; }
+.sidebar-account { display: flex; min-height: 56px; align-items: center; border-top: 1px solid #eee; padding: 4px 8px; }
+.sidebar-account :deep(.account-button) { justify-content: flex-start; width: 100%; }
 .builder-workspace { display: flex; min-width: 0; min-height: 0; flex-direction: column; grid-column: 2; grid-row: 1; }
 .workspace-header { display: flex; min-height: 70px; align-items: center; justify-content: space-between; padding: 0 16px; background: #f5f5f5; }
 .preview-pill { width: 150px; height: 38px; background: #bdbdbd; }
 .workspace-content { flex: 1; padding: 24px 20px; }
+.workspace-toolbar { display: flex; min-height: 72px; align-items: center; gap: 12px; border-top: 1px solid #ddd; background: #f5f5f5; padding: 8px 12px; }
+.workspace-toolbar :deep(.v-btn) { width: 48px; height: 48px; border-radius: 50%; background: white; box-shadow: 0 2px 5px #0002; }
 .workspace-footer { grid-column: 1 / -1; grid-row: 2; padding: 10px 24px; color: white; background: #222; }
 .empty-workspace { padding: 0 0 0 0; }
 @media (max-width: 800px) { .builder-shell { grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); } }
