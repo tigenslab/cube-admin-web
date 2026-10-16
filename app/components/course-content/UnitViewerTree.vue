@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 
-export interface UnitViewerTreeNode extends CourseContentItem {
+export interface UnitViewerTreeNode extends CourseResourceItem {
   children: UnitViewerTreeNode[]
 }
 
@@ -10,7 +10,7 @@ defineOptions({ name: 'UnitViewerTree' })
 const props = defineProps<{
   nodes: UnitViewerTreeNode[]
   activeId: string | null
-  title: (item: CourseContentItem) => string
+  title: (item: CourseResourceItem) => string
 }>()
 
 const emit = defineEmits<{ select: [id: string] }>()

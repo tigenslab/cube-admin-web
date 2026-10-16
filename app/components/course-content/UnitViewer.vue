@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 import type { UnitViewerTreeNode } from '~/components/course-content/UnitViewerTree.vue'
 import UnitViewerTree from '~/components/course-content/UnitViewerTree.vue'
 
@@ -7,9 +7,10 @@ const route = useRoute()
 const router = useRouter()
 const courseId = String(route.params.id)
 const unitId = String(route.params.unitId)
-const contentApi = useCourseContentApi()
-const unit = ref<CourseContentItem | null>(null)
-const blocks = ref<CourseContentItem[]>([])
+const unitsApi = useUnitsApi()
+const unitBlocksApi = useUnitBlocksApi()
+const unit = ref<CourseResourceItem | null>(null)
+const blocks = ref<CourseResourceItem[]>([])
 const activeBlockId = ref<string | null>(null)
 const openGroups = ref<string[]>([])
 const loading = ref(true)
@@ -34,7 +35,7 @@ const tree = computed(() => {
   return roots
 })
 
-function blockTitle(block: CourseContentItem) {
+function blockTitle(block: CourseResourceItem) {
   return block.title || String(block.content?.title || block.metadata?.title || 'Untitled block')
 }
 
@@ -56,8 +57,8 @@ async function load() {
   error.value = ''
   try {
     const [unitData, blockData] = await Promise.all([
-      contentApi.list(courseId, 'units'),
-      contentApi.list(courseId, 'unit_blocks', unitId),
+      unitsApi.list(courseId),
+      unitBlocksApi.list(courseId, unitId),
     ])
     unit.value = unitData.items.find(item => item.id === unitId) || null
     if (!unit.value) throw new Error('Unit not found.')

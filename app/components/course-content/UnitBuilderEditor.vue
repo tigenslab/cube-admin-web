@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 
 const props = withDefaults(defineProps<{ mode?: 'edit' | 'view' }>(), { mode: 'edit' })
 const route = useRoute()
@@ -8,10 +8,11 @@ const router = useRouter()
 const courseId = String(route.params.id)
 const unitId = String(route.params.unitId)
 const courses = useCoursesStore()
-const contentApi = useCourseContentApi()
+const unitsApi = useUnitsApi()
+const unitBlocksApi = useUnitBlocksApi()
 const course = ref<Course | null>(null)
-const unit = ref<CourseContentItem | null>(null)
-const blocks = ref<CourseContentItem[]>([])
+const unit = ref<CourseResourceItem | null>(null)
+const blocks = ref<CourseResourceItem[]>([])
 const activeBlockId = ref<string | null>(null)
 const loading = ref(true)
 const saving = ref(false)
@@ -19,14 +20,14 @@ const unitInfoSaving = ref(false)
 const error = ref('')
 const dialog = ref(false)
 const unitInfoDialog = ref(false)
-const editingBlock = ref<CourseContentItem | null>(null)
+const editingBlock = ref<CourseResourceItem | null>(null)
 const form = reactive({ type: 'UnitBlock::Theory::Block', title: '', parent: '', position: '' as number | string })
 const unitInfoForm = reactive({ code: '', title: '' })
 const editable = computed(() => props.mode === 'edit')
 const courseRoute = computed(() => `/courses/${courseId}/${props.mode === 'view' ? 'view' : 'edit'}`)
 
 const orderedBlocks = computed(() => {
-  const byParent = new Map<string, CourseContentItem[]>()
+  const byParent = new Map<string, CourseResourceItem[]>()
   for (const block of blocks.value) {
     const parentId = block.ancestry?.split('/').filter(Boolean).at(-1) || ''
     const siblings = byParent.get(parentId) || []
@@ -34,7 +35,7 @@ const orderedBlocks = computed(() => {
     byParent.set(parentId, siblings)
   }
   for (const siblings of byParent.values()) siblings.sort((a, b) => (a.position || 0) - (b.position || 0))
-  const ordered: CourseContentItem[] = []
+  const ordered: CourseResourceItem[] = []
   const visited = new Set<string>()
   const addChildren = (parentId: string) => {
     for (const block of byParent.get(parentId) || []) {
@@ -62,7 +63,7 @@ watch(() => route.params.blockId, (value) => {
   }
 })
 
-function blockTitle(block: CourseContentItem) {
+function blockTitle(block: CourseResourceItem) {
   return block.title || String(block.content?.title || block.metadata?.title || 'Untitled block')
 }
 
@@ -72,8 +73,8 @@ async function load() {
   try {
     const [courseData, unitData, blockData] = await Promise.all([
       courses.show(courseId),
-      contentApi.list(courseId, 'units'),
-      contentApi.list(courseId, 'unit_blocks', unitId),
+      unitsApi.list(courseId),
+      unitBlocksApi.list(courseId, unitId),
     ])
     course.value = courseData
     unit.value = unitData.items.find(item => item.id === unitId) || null
@@ -99,7 +100,7 @@ async function load() {
   }
 }
 
-function openBlockEditor(block: CourseContentItem | null = null, defaults: { type?: string; parent?: string; title?: string } = {}) {
+function openBlockEditor(block: CourseResourceItem | null = null, defaults: { type?: string; parent?: string; title?: string } = {}) {
   editingBlock.value = block
   Object.assign(form, {
     type: block?.type || defaults.type || 'UnitBlock::Theory::Block',
@@ -110,7 +111,7 @@ function openBlockEditor(block: CourseContentItem | null = null, defaults: { typ
   dialog.value = true
 }
 
-function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Section', parent?: CourseContentItem) {
+function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Section', parent?: CourseResourceItem) {
   const categoryType = `UnitBlock::${kind}`
   const type = subtype === 'Group'
     ? parent ? 'UnitBlock::Group' : categoryType
@@ -136,7 +137,7 @@ async function saveUnitInfo() {
   unitInfoSaving.value = true
   error.value = ''
   try {
-    unit.value = await contentApi.save(courseId, 'units', {
+    unit.value = await unitsApi.save(courseId, {
       type: unit.value.type,
       code: unitInfoForm.code.trim(),
       title: unitInfoForm.title.trim(),
@@ -151,11 +152,11 @@ async function saveUnitInfo() {
   }
 }
 
-function isBlockGroup(block: CourseContentItem) {
+function isBlockGroup(block: CourseResourceItem) {
   return ['UnitBlock::Group', 'UnitBlock::Theory', 'UnitBlock::Assessment'].includes(block.type)
 }
 
-function groupCategory(block: CourseContentItem): 'Theory' | 'Assessment' | null {
+function groupCategory(block: CourseResourceItem): 'Theory' | 'Assessment' | null {
   if (block.type === 'UnitBlock::Theory') return 'Theory'
   if (block.type === 'UnitBlock::Assessment') return 'Assessment'
   const ancestors = block.ancestry?.split('/').filter(Boolean).reverse() || []
@@ -167,12 +168,12 @@ function groupCategory(block: CourseContentItem): 'Theory' | 'Assessment' | null
   return null
 }
 
-function addGroupSection(block: CourseContentItem) {
+function addGroupSection(block: CourseResourceItem) {
   const category = groupCategory(block)
   if (category) addBlockSubtype(category, 'Section', block)
 }
 
-function blockIcon(block: CourseContentItem) {
+function blockIcon(block: CourseResourceItem) {
   if (block.type === 'UnitBlock::Theory') return 'mdi-book-open-variant'
   if (block.type === 'UnitBlock::Assessment') return 'mdi-clipboard-list-outline'
   if (block.type === 'UnitBlock::Group') return 'mdi-folder-outline'
@@ -180,7 +181,7 @@ function blockIcon(block: CourseContentItem) {
   return String(block.merged_content?.icon || 'mdi-book-outline')
 }
 
-function blockChildCount(block: CourseContentItem) {
+function blockChildCount(block: CourseResourceItem) {
   return blocks.value.filter(candidate => candidate.ancestry?.split('/').filter(Boolean).at(-1) === block.id).length
 }
 
@@ -204,7 +205,7 @@ async function saveBlock() {
       content: { ...editingBlock.value?.content, ...(form.title.trim() ? { title: form.title.trim() } : {}) },
       ...(form.position !== '' ? { position: Number(form.position) } : {}),
     }
-    const saved = await contentApi.save(courseId, 'unit_blocks', data, editingBlock.value?.id, unitId)
+    const saved = await unitBlocksApi.save(courseId, unitId, data, editingBlock.value?.id)
     dialog.value = false
     await load()
     selectBlock(saved.id)
@@ -215,10 +216,10 @@ async function saveBlock() {
   }
 }
 
-async function deleteBlock(block: CourseContentItem) {
+async function deleteBlock(block: CourseResourceItem) {
   if (!confirm(`Delete “${blockTitle(block)}”?`)) return
   try {
-    await contentApi.remove(courseId, 'unit_blocks', block.id, unitId)
+    await unitBlocksApi.remove(courseId, unitId, block.id)
     if (activeBlockId.value === block.id) activeBlockId.value = null
     await load()
   } catch (cause) {

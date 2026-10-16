@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 
 const route = useRoute()
 const courseId = String(route.params.id)
 const courses = useCoursesStore()
-const contentApi = useCourseContentApi()
+const courseUnitsApi = useCourseUnitsApi()
+const unitsApi = useUnitsApi()
 const course = ref<Course | null>(null)
-const units = ref<CourseContentItem[]>([])
-const outline = ref<CourseContentItem[]>([])
+const units = ref<CourseResourceItem[]>([])
+const outline = ref<CourseResourceItem[]>([])
 const search = ref('')
 const openGroups = ref<string[]>([])
 const loading = ref(true)
@@ -26,7 +27,7 @@ const groups = computed(() => {
         title: group.title || group.code || 'Units',
         units: unitRefs.filter(item => (item.ancestry || '') === path)
           .map(item => unitById.get(item.unit_id!))
-          .filter((unit): unit is CourseContentItem => Boolean(unit)),
+          .filter((unit): unit is CourseResourceItem => Boolean(unit)),
       }
     }),
     ...(unitRefs.some(item => !item.ancestry) ? [{
@@ -34,13 +35,13 @@ const groups = computed(() => {
       title: 'Other units',
       units: unitRefs.filter(item => !item.ancestry)
         .map(item => unitById.get(item.unit_id!))
-        .filter((unit): unit is CourseContentItem => Boolean(unit)),
+        .filter((unit): unit is CourseResourceItem => Boolean(unit)),
     }] : []),
   ] : unitRefs.length ? [{
     id: 'units',
     title: 'Units',
     units: unitRefs.map(item => unitById.get(item.unit_id!))
-      .filter((unit): unit is CourseContentItem => Boolean(unit)),
+      .filter((unit): unit is CourseResourceItem => Boolean(unit)),
   }] : []
   const query = search.value.trim().toLowerCase()
   const filtered = sections.map(section => ({
@@ -57,8 +58,8 @@ async function load() {
   try {
     const [courseData, unitData, outlineData] = await Promise.all([
       courses.show(courseId),
-      contentApi.list(courseId, 'units'),
-      contentApi.list(courseId, 'course_units'),
+      unitsApi.list(courseId),
+      courseUnitsApi.list(courseId),
     ])
     course.value = courseData
     units.value = unitData.items

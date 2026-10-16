@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 
-export interface CourseBlockNode extends CourseContentItem {
+export interface CourseBlockNode extends CourseResourceItem {
   children: CourseBlockNode[]
 }
 
 defineProps<{
   nodes: CourseBlockNode[]
   activeId: string | null
-  title: (item: CourseContentItem) => string
+  title: (item: CourseResourceItem) => string
 }>()
 
 const emit = defineEmits<{ select: [id: string] }>()

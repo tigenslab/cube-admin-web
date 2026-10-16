@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 import CourseUnitGroupPanels from '~/components/course-content/CourseUnitGroupPanels.vue'
 import type { CourseUnitGroupNode } from '~/components/course-content/CourseUnitGroupPanels.vue'
 const route = useRoute()
 const coursesStore = useCoursesStore()
-const contentApi = useCourseContentApi()
+const courseUnitsApi = useCourseUnitsApi()
+const unitsApi = useUnitsApi()
 const course = ref<Course | null>(null)
-const units = ref<CourseContentItem[]>([])
-const outline = ref<CourseContentItem[]>([])
+const units = ref<CourseResourceItem[]>([])
+const outline = ref<CourseResourceItem[]>([])
 const search = ref('')
 const openGroups = ref<string[]>([])
 const loadingUnits = ref(false)
@@ -26,7 +27,7 @@ const addError = ref('')
 const addKind = ref<'group' | 'unit'>('unit')
 const addUnitMode = ref<'existing' | 'create'>('existing')
 const addTitle = ref('')
-const editingGroup = ref<CourseContentItem | null>(null)
+const editingGroup = ref<CourseResourceItem | null>(null)
 const addUnitId = ref('')
 const newUnitCode = ref('')
 const newUnitTitle = ref('')
@@ -95,11 +96,11 @@ const addParentLabel = computed(() => {
   const parent = outline.value.find(item => item.id === addParentGroupId.value)
   return parent?.title || parent?.code || 'Selected group'
 })
-async function deleteOutlineItem(item: CourseContentItem) {
+async function deleteOutlineItem(item: CourseResourceItem) {
   const label = item.type === 'CourseUnit::Group' ? item.title || 'this group' : 'this unit from the course'
   if (!confirm(`Remove ${label}?`)) return
   try {
-    await contentApi.remove(courseId, 'course_units', item.id)
+    await courseUnitsApi.remove(courseId, item.id)
     await loadUnits()
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to remove this course item.')
@@ -120,8 +121,8 @@ async function loadUnits() {
   loadingUnits.value = true
   try {
     const [unitData, outlineData] = await Promise.all([
-      contentApi.list(courseId, 'units'),
-      contentApi.list(courseId, 'course_units'),
+      unitsApi.list(courseId),
+      courseUnitsApi.list(courseId),
     ])
     units.value = unitData.items
     outline.value = outlineData.items
@@ -230,7 +231,7 @@ async function addToCourse() {
     const position = Math.max(0, ...siblings.map(item => item.position || 0)) + 1
     const unitId = addKind.value === 'unit'
       ? addUnitMode.value === 'create'
-        ? (await contentApi.save(courseId, 'units', {
+        ? (await unitsApi.save(courseId, {
             type: 'Unit',
             code: newUnitCode.value.trim(),
             title: newUnitTitle.value.trim(),
@@ -238,7 +239,7 @@ async function addToCourse() {
           })).id
         : addUnitId.value
       : ''
-    await contentApi.save(courseId, 'course_units', addKind.value === 'group'
+    await courseUnitsApi.save(courseId, addKind.value === 'group'
       ? { type: 'CourseUnit::Group', title: addTitle.value.trim(), ancestry, position: editingGroup.value?.position || position }
       : { type: 'CourseUnit::Unit', unit_id: unitId, ancestry, position }, editingGroup.value?.id)
     addDialog.value = false

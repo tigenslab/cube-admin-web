@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { CourseContentItem } from '~/composables/useCourseContentApi'
+import type { CourseResourceItem } from '~/types/course-resources'
 
 export interface CourseUnitGroupNode {
   id: string
   title: string
   hasDescendants: boolean
   children: CourseUnitGroupNode[]
-  units: Array<{ unit: CourseContentItem; reference: CourseContentItem }>
+  units: Array<{ unit: CourseResourceItem; reference: CourseResourceItem }>
 }
 
 defineOptions({ name: 'CourseUnitGroupPanels' })
