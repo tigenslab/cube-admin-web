@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
-import type { CourseResourceItem } from '~/types/course-resources'
+import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-resources'
 
 const props = withDefaults(defineProps<{ mode?: 'edit' | 'view' }>(), { mode: 'edit' })
 const route = useRoute()
@@ -10,12 +10,16 @@ const unitId = String(route.params.unitId)
 const courses = useCoursesStore()
 const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
+const unitBlockComponentsApi = useUnitBlockComponentsApi()
 const course = ref<Course | null>(null)
 const unit = ref<CourseResourceItem | null>(null)
 const blocks = ref<CourseResourceItem[]>([])
+const blockComponents = ref<UnitBlockComponent[]>([])
 const activeBlockId = ref<string | null>(null)
+const componentsLoading = ref(false)
 const loading = ref(true)
 const saving = ref(false)
+const componentSaving = ref(false)
 const unitInfoSaving = ref(false)
 const error = ref('')
 const dialog = ref(false)
@@ -56,6 +60,26 @@ const orderedBlocks = computed(() => {
   return ordered
 })
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
+let componentsRequest = 0
+
+watch(activeBlockId, async (blockId) => {
+  const request = ++componentsRequest
+  blockComponents.value = []
+  error.value = ''
+  if (!blockId) {
+    componentsLoading.value = false
+    return
+  }
+  componentsLoading.value = true
+  try {
+    const result = await unitBlockComponentsApi.list(courseId, unitId, blockId)
+    if (request === componentsRequest) blockComponents.value = result.items
+  } catch (cause) {
+    if (request === componentsRequest) error.value = getApiErrorMessage(cause, 'Unable to load block components.')
+  } finally {
+    if (request === componentsRequest) componentsLoading.value = false
+  }
+})
 
 watch(() => route.params.blockId, (value) => {
   if (typeof value === 'string' && blocks.value.some(block => block.id === value)) {
@@ -195,7 +219,7 @@ function selectBlock(blockId: string) {
 }
 
 async function saveBlock() {
-  if (saving.value || (!form.title.trim() && !editingBlock.value?.linked_block_id)) return
+  if (saving.value || !form.title.trim()) return
   saving.value = true
   error.value = ''
   try {
@@ -224,6 +248,23 @@ async function deleteBlock(block: CourseResourceItem) {
     await load()
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to delete block.')
+  }
+}
+
+async function addComponent(type: string, variant: string) {
+  if (!activeBlockId.value || componentSaving.value) return
+  componentSaving.value = true
+  error.value = ''
+  try {
+    const { item } = await unitBlockComponentsApi.save(courseId, unitId, activeBlockId.value, {
+      type,
+      content: { variant, list: [{}] },
+    })
+    blockComponents.value = [...blockComponents.value, item]
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to add component.')
+  } finally {
+    componentSaving.value = false
   }
 }
 
@@ -337,6 +378,17 @@ onMounted(load)
               <div v-else class="text-medium-emphasis">This block has no content yet.</div>
             </VCardText>
           </VCard>
+          <div class="mt-8">
+            <h2 class="text-h6 font-weight-bold mb-3">Components</h2>
+            <div v-if="componentsLoading" class="text-body-2 text-medium-emphasis">Loading components…</div>
+            <div v-else-if="!blockComponents.length" class="text-body-2 text-medium-emphasis">No components attached to this block.</div>
+            <template v-else>
+              <VCard v-for="component in blockComponents" :key="component.id" class="mb-3" rounded="lg" variant="outlined">
+                <VCardTitle class="text-subtitle-1">{{ component.type }}</VCardTitle>
+                <VCardText><pre class="component-content">{{ JSON.stringify(component.content, null, 2) }}</pre></VCardText>
+              </VCard>
+            </template>
+          </div>
         </template>
         <div v-else class="empty-workspace">
           <h1 class="text-h5 font-weight-bold">Content Builder 0</h1>
@@ -344,7 +396,25 @@ onMounted(load)
         </div>
       </section>
       <div class="workspace-toolbar">
-        <VBtn v-if="editable" aria-label="Add block" icon="mdi-plus-box-multiple-outline" variant="flat" @click="openBlockEditor()" />
+        <VMenu v-if="editable" location="top">
+          <template #activator="{ props: menuProps }">
+            <VBtn
+              v-bind="menuProps"
+              aria-label="Add component"
+              icon="mdi-plus-box-multiple-outline"
+              :loading="componentSaving"
+              :disabled="!activeBlock"
+              variant="flat"
+            />
+          </template>
+          <VList density="comfortable" min-width="200">
+            <VListItem prepend-icon="mdi-text" title="Text" @click="addComponent('text', 'paragraph')" />
+            <VListItem prepend-icon="mdi-format-list-bulleted" title="List" @click="addComponent('list', 'list')" />
+            <VListItem prepend-icon="mdi-help-circle-outline" title="Question" @click="addComponent('question', 'list')" />
+            <VListItem prepend-icon="mdi-tab" title="Tab" @click="addComponent('tab', 'tab')" />
+            <VListItem prepend-icon="mdi-multimedia" title="H5P" @click="addComponent('h5p', 'default')" />
+          </VList>
+        </VMenu>
         <VBtn aria-label="Block list" icon="mdi-format-list-bulleted" variant="flat" />
         <VBtn aria-label="Help" icon="mdi-help-circle-outline" variant="flat" />
         <VBtn aria-label="Files" icon="mdi-folder-outline" variant="flat" />
@@ -387,6 +457,7 @@ onMounted(load)
 <style scoped>
 .builder-shell { display: grid; grid-template-columns: 390px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 42px; height: 100vh; background: #fff; }
 .builder-sidebar { display: flex; min-height: 0; flex-direction: column; grid-column: 1; grid-row: 1; border-right: 1px solid #ddd; }
+.component-content { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font: inherit; }
 .unit-heading { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px; background: #f0f0f0; }
 .unit-heading-text { flex: 1; min-width: 0; font-size: 14px; }
 .unit-heading-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

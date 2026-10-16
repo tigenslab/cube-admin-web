@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CourseResourceItem } from '~/types/course-resources'
+import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-resources'
 import type { UnitViewerTreeNode } from '~/components/course-content/UnitViewerTree.vue'
 import UnitViewerTree from '~/components/course-content/UnitViewerTree.vue'
 
@@ -9,14 +9,37 @@ const courseId = String(route.params.id)
 const unitId = String(route.params.unitId)
 const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
+const unitBlockComponentsApi = useUnitBlockComponentsApi()
 const unit = ref<CourseResourceItem | null>(null)
 const blocks = ref<CourseResourceItem[]>([])
+const blockComponents = ref<UnitBlockComponent[]>([])
 const activeBlockId = ref<string | null>(null)
+const componentsLoading = ref(false)
 const openGroups = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
 
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
+let componentsRequest = 0
+
+watch(activeBlockId, async (blockId) => {
+  const request = ++componentsRequest
+  blockComponents.value = []
+  error.value = ''
+  if (!blockId) {
+    componentsLoading.value = false
+    return
+  }
+  componentsLoading.value = true
+  try {
+    const result = await unitBlockComponentsApi.list(courseId, unitId, blockId)
+    if (request === componentsRequest) blockComponents.value = result.items
+  } catch (cause) {
+    if (request === componentsRequest) error.value = getApiErrorMessage(cause, 'Unable to load block components.')
+  } finally {
+    if (request === componentsRequest) componentsLoading.value = false
+  }
+})
 const tree = computed(() => {
   const nodes = new Map<string, UnitViewerTreeNode>()
   for (const block of blocks.value) nodes.set(block.id, { ...block, children: [] })
@@ -134,6 +157,17 @@ onMounted(load)
               <div v-else class="text-medium-emphasis">No content available.</div>
             </VCardText>
           </VCard>
+          <div class="mt-8">
+            <h2 class="text-h6 font-weight-bold mb-3">Components</h2>
+            <div v-if="componentsLoading" class="text-body-2 text-medium-emphasis">Loading components…</div>
+            <div v-else-if="!blockComponents.length" class="text-body-2 text-medium-emphasis">No components attached to this block.</div>
+            <template v-else>
+              <VCard v-for="component in blockComponents" :key="component.id" class="mb-3" rounded="lg" variant="outlined">
+                <VCardTitle class="text-subtitle-1">{{ component.type }}</VCardTitle>
+                <VCardText><pre class="component-content">{{ JSON.stringify(component.content, null, 2) }}</pre></VCardText>
+              </VCard>
+            </template>
+          </div>
         </template>
         <div v-else class="text-medium-emphasis">Select a block from the outline.</div>
       </section>
@@ -161,6 +195,7 @@ onMounted(load)
 .viewer-header { display: flex; min-height: 70px; align-items: center; justify-content: space-between; padding: 0 16px; background: #f5f5f5; }
 .preview-pill { width: 150px; height: 38px; background: #bdbdbd; }
 .viewer-content { flex: 1; overflow: auto; padding: 24px 20px; }
+.component-content { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font: inherit; }
 .viewer-toolbar { display: flex; min-height: 72px; align-items: center; gap: 12px; border-top: 1px solid #ddd; background: #f5f5f5; padding: 8px 12px; }
 .viewer-toolbar :deep(.v-btn) { width: 48px; height: 48px; border-radius: 50%; background: white; box-shadow: 0 2px 5px #0002; }
 .viewer-footer { grid-column: 1 / -1; grid-row: 2; padding: 10px 24px; color: white; background: #222; }
