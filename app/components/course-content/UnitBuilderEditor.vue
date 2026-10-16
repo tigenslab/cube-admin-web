@@ -272,7 +272,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="builder-shell">
+  <NuxtLayout name="unit-builder">
+    <template #sidebar>
     <aside class="builder-sidebar">
       <div class="unit-heading">
         <VBtn :aria-label="`Back to course ${props.mode}`" icon="mdi-chevron-left" :to="courseRoute" variant="text" />
@@ -281,8 +282,8 @@ onMounted(load)
           <strong>{{ unit?.title }}</strong>
         </div>
         <VMenu location="end">
-          <template #activator="{ props }">
-            <VBtn v-bind="props" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
+          <template #activator="{ props: menuProps }">
+            <VBtn v-bind="menuProps" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList v-if="editable" density="comfortable" min-width="250">
             <VListItem prepend-icon="mdi-eye-outline" title="View unit" :to="`/courses/${courseId}/units/${unitId}/view`" />
@@ -290,8 +291,8 @@ onMounted(load)
             <VListItem prepend-icon="mdi-pencil-outline" title="Edit unit Info" @click="openUnitInfo" />
             <VDivider class="my-1" />
             <VMenu location="end" open-on-hover>
-              <template #activator="{ props }">
-                <VListItem v-bind="props" prepend-icon="mdi-book-plus-outline" append-icon="mdi-chevron-right" title="Add Theory" />
+              <template #activator="{ props: submenuProps }">
+                <VListItem v-bind="submenuProps" prepend-icon="mdi-book-plus-outline" append-icon="mdi-chevron-right" title="Add Theory" />
               </template>
               <VList density="comfortable" min-width="180">
                 <VListItem prepend-icon="mdi-folder-plus-outline" title="Group" @click="addBlockSubtype('Theory', 'Group')" />
@@ -299,8 +300,8 @@ onMounted(load)
               </VList>
             </VMenu>
             <VMenu location="end" open-on-hover>
-              <template #activator="{ props }">
-                <VListItem v-bind="props" prepend-icon="mdi-comment-question-outline" append-icon="mdi-chevron-right" title="Add Assessment" />
+              <template #activator="{ props: submenuProps }">
+                <VListItem v-bind="submenuProps" prepend-icon="mdi-comment-question-outline" append-icon="mdi-chevron-right" title="Add Assessment" />
               </template>
               <VList density="comfortable" min-width="180">
                 <VListItem prepend-icon="mdi-folder-plus-outline" title="Group" @click="addBlockSubtype('Assessment', 'Group')" />
@@ -333,8 +334,8 @@ onMounted(load)
           >
             <template #append>
               <VMenu v-if="editable" location="end">
-                <template #activator="{ props }">
-                  <VBtn v-bind="props" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
+                <template #activator="{ props: menuProps }">
+                  <VBtn v-bind="menuProps" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
                 </template>
                 <VList density="comfortable" min-width="210">
                   <template v-if="isBlockGroup(block)">
@@ -359,7 +360,9 @@ onMounted(load)
         <SessionAccountMenu />
       </div>
     </aside>
+    </template>
 
+    <div class="builder-shell">
     <main class="builder-workspace">
       <header class="workspace-header">
         <strong>{{ activeBlock ? blockTitle(activeBlock) : unit?.title || course?.title }}</strong>
@@ -421,8 +424,8 @@ onMounted(load)
         <VBtn aria-label="More tools" icon="mdi-menu" variant="flat" />
       </div>
     </main>
-    <footer class="workspace-footer">© 2025 Cube</footer>
-  </div>
+    </div>
+  </NuxtLayout>
 
   <VDialog v-if="editable" v-model="dialog" max-width="560">
     <VCard rounded="xl">
@@ -455,8 +458,8 @@ onMounted(load)
 </template>
 
 <style scoped>
-.builder-shell { display: grid; grid-template-columns: 390px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 42px; height: 100vh; background: #fff; }
-.builder-sidebar { display: flex; min-height: 0; flex-direction: column; grid-column: 1; grid-row: 1; border-right: 1px solid #ddd; }
+.builder-shell { height: 100%; min-width: 0; min-height: 0; background: #fff; }
+.builder-sidebar { display: flex; width: 100%; height: 100%; min-height: 0; flex-direction: column; border-right: 1px solid #ddd; }
 .component-content { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font: inherit; }
 .unit-heading { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px; background: #f0f0f0; }
 .unit-heading-text { flex: 1; min-width: 0; font-size: 14px; }
@@ -464,13 +467,11 @@ onMounted(load)
 .block-navigation { flex: 1; overflow: auto; padding-bottom: 12px; }
 .sidebar-account { display: flex; min-height: 56px; align-items: center; border-top: 1px solid #eee; padding: 4px 8px; }
 .sidebar-account :deep(.account-button) { justify-content: flex-start; width: 100%; }
-.builder-workspace { display: flex; min-width: 0; min-height: 0; flex-direction: column; grid-column: 2; grid-row: 1; }
+.builder-workspace { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; flex-direction: column; }
 .workspace-header { display: flex; min-height: 70px; align-items: center; justify-content: space-between; padding: 0 16px; background: #f5f5f5; }
 .preview-pill { width: 150px; height: 38px; background: #bdbdbd; }
 .workspace-content { flex: 1; padding: 24px 20px; }
 .workspace-toolbar { display: flex; min-height: 72px; align-items: center; gap: 12px; border-top: 1px solid #ddd; background: #f5f5f5; padding: 8px 12px; }
 .workspace-toolbar :deep(.v-btn) { width: 48px; height: 48px; border-radius: 50%; background: white; box-shadow: 0 2px 5px #0002; }
-.workspace-footer { grid-column: 1 / -1; grid-row: 2; padding: 10px 24px; color: white; background: #222; }
 .empty-workspace { padding: 0 0 0 0; }
-@media (max-width: 800px) { .builder-shell { grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); } }
 </style>

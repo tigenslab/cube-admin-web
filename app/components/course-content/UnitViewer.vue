@@ -111,7 +111,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="viewer-shell">
+  <NuxtLayout name="unit-builder">
+    <template #sidebar>
     <aside class="viewer-sidebar">
       <div class="unit-heading">
         <VBtn aria-label="Back to course view" icon="mdi-chevron-left" :to="`/courses/${courseId}/view`" variant="text" />
@@ -141,7 +142,9 @@ onMounted(load)
       </div>
       <div class="viewer-account"><SessionAccountMenu /></div>
     </aside>
+    </template>
 
+    <div class="viewer-shell">
     <main class="viewer-main">
       <header class="viewer-header">
         <strong>{{ activeBlock ? blockTitle(activeBlock) : unit?.title }}</strong>
@@ -167,7 +170,8 @@ onMounted(load)
                 <VCardText><pre class="component-content">{{ JSON.stringify(component.content, null, 2) }}</pre></VCardText>
               </VCard>
             </template>
-          </div>
+    </div>
+  </NuxtLayout>
         </template>
         <div v-else class="text-medium-emphasis">Select a block from the outline.</div>
       </section>
@@ -178,26 +182,24 @@ onMounted(load)
         <VBtn aria-label="More tools" icon="mdi-menu" variant="flat" />
       </div>
     </main>
-    <footer class="viewer-footer">© 2025 Cube</footer>
   </div>
+
 </template>
 
 <style scoped>
-.viewer-shell { display: grid; grid-template-columns: 390px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 42px; height: 100vh; background: #fff; }
-.viewer-sidebar { display: flex; min-height: 0; flex-direction: column; grid-column: 1; grid-row: 1; border-right: 1px solid #ddd; }
+.viewer-shell { height: 100%; min-width: 0; min-height: 0; background: #fff; }
+.viewer-sidebar { display: flex; width: 100%; height: 100%; min-height: 0; flex-direction: column; border-right: 1px solid #ddd; }
 .unit-heading { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px; background: #f0f0f0; }
 .unit-heading-text { flex: 1; min-width: 0; font-size: 14px; }
 .unit-heading-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-tree { flex: 1; min-height: 0; overflow: auto; }
 .viewer-account { display: flex; min-height: 56px; align-items: center; border-top: 1px solid #eee; padding: 4px 8px; }
 .viewer-account :deep(.account-button) { justify-content: flex-start; width: 100%; }
-.viewer-main { display: flex; min-width: 0; min-height: 0; flex-direction: column; grid-column: 2; grid-row: 1; }
+.viewer-main { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; flex-direction: column; }
 .viewer-header { display: flex; min-height: 70px; align-items: center; justify-content: space-between; padding: 0 16px; background: #f5f5f5; }
 .preview-pill { width: 150px; height: 38px; background: #bdbdbd; }
 .viewer-content { flex: 1; overflow: auto; padding: 24px 20px; }
 .component-content { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font: inherit; }
 .viewer-toolbar { display: flex; min-height: 72px; align-items: center; gap: 12px; border-top: 1px solid #ddd; background: #f5f5f5; padding: 8px 12px; }
 .viewer-toolbar :deep(.v-btn) { width: 48px; height: 48px; border-radius: 50%; background: white; box-shadow: 0 2px 5px #0002; }
-.viewer-footer { grid-column: 1 / -1; grid-row: 2; padding: 10px 24px; color: white; background: #222; }
-@media (max-width: 800px) { .viewer-shell { grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); } }
 </style>
