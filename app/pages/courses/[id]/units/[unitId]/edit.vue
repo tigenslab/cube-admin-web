@@ -16,10 +16,13 @@ const blocks = ref<CourseContentItem[]>([])
 const activeBlockId = ref<string | null>(null)
 const loading = ref(true)
 const saving = ref(false)
+const unitInfoSaving = ref(false)
 const error = ref('')
 const dialog = ref(false)
+const unitInfoDialog = ref(false)
 const editingBlock = ref<CourseContentItem | null>(null)
 const form = reactive({ type: 'UnitBlock::Theory::Block', title: '', parent: '', position: '' as number | string })
+const unitInfoForm = reactive({ code: '', title: '' })
 
 const orderedBlocks = computed(() => {
   const byParent = new Map<string, CourseContentItem[]>()
@@ -51,20 +54,12 @@ const orderedBlocks = computed(() => {
   return ordered
 })
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
-const parentOptions = computed(() => [
-  { title: 'Top level', value: '' },
-  ...blocks.value
-    .filter(block => block.id !== editingBlock.value?.id && !block.ancestry?.split('/').includes(editingBlock.value?.id || '\0'))
-    .map(block => ({ title: `${'— '.repeat((block.ancestry?.split('/').filter(Boolean).length || 0) + 1)}${block.title || 'Untitled block'}`, value: [block.ancestry, block.id].filter(Boolean).join('/') })),
-])
-const blockTypes = [
-  { title: 'Theory', value: 'UnitBlock::Theory' },
-  { title: 'Theory block', value: 'UnitBlock::Theory::Block' },
-  { title: 'Assessment', value: 'UnitBlock::Assessment' },
-  { title: 'Assessment block', value: 'UnitBlock::Assessment::Block' },
-  { title: 'Group', value: 'UnitBlock::Group' },
-  { title: 'Block', value: 'UnitBlock' },
-]
+
+watch(() => route.query.block, (value) => {
+  if (typeof value === 'string' && blocks.value.some(block => block.id === value)) {
+    activeBlockId.value = value
+  }
+})
 
 function blockTitle(block: CourseContentItem) {
   return block.title || String(block.content?.title || block.metadata?.title || 'Untitled block')
@@ -83,9 +78,16 @@ async function load() {
     unit.value = unitData.items.find(item => item.id === unitId) || null
     if (!unit.value) throw new Error('Unit not found.')
     blocks.value = blockData.items
-    if (!blocks.value.some(block => block.id === activeBlockId.value)) {
+    const requestedBlockId = typeof route.query.block === 'string' ? route.query.block : null
+    if (requestedBlockId && blocks.value.some(block => block.id === requestedBlockId)) {
+      activeBlockId.value = requestedBlockId
+    } else if (!blocks.value.some(block => block.id === activeBlockId.value)) {
       activeBlockId.value = blocks.value.find(block => !blocks.value.some(candidate => candidate.ancestry?.split('/').includes(block.id)))?.id || null
     }
+    const query = { ...route.query }
+    if (activeBlockId.value) query.block = activeBlockId.value
+    else delete query.block
+    await router.replace({ query })
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load unit content.')
   } finally {
@@ -93,15 +95,94 @@ async function load() {
   }
 }
 
-function openBlockEditor(block: CourseContentItem | null = null) {
+function openBlockEditor(block: CourseContentItem | null = null, defaults: { type?: string; parent?: string; title?: string } = {}) {
   editingBlock.value = block
   Object.assign(form, {
-    type: block?.type || 'UnitBlock::Theory::Block',
-    title: String(block?.content?.title ?? block?.metadata?.title ?? block?.title ?? ''),
-    parent: block?.ancestry || '',
+    type: block?.type || defaults.type || 'UnitBlock::Theory::Block',
+    title: String(block?.content?.title ?? block?.metadata?.title ?? block?.title ?? defaults.title ?? ''),
+    parent: block?.ancestry ?? defaults.parent ?? '',
     position: block?.position ?? '',
   })
   dialog.value = true
+}
+
+function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Section', parent?: CourseContentItem) {
+  const categoryType = `UnitBlock::${kind}`
+  const type = subtype === 'Group'
+    ? parent ? 'UnitBlock::Group' : categoryType
+    : `${categoryType}::Block`
+  const category = !parent && subtype === 'Section'
+    ? blocks.value.find(block => block.type === categoryType && !block.ancestry)
+    : undefined
+  const parentPath = parent
+    ? [parent.ancestry, parent.id].filter(Boolean).join('/')
+    : category?.id || ''
+  const title = subtype === 'Group' && !parent ? kind : subtype
+  openBlockEditor(null, { type, title, parent: parentPath })
+}
+
+function openUnitInfo() {
+  unitInfoForm.code = unit.value?.code || ''
+  unitInfoForm.title = unit.value?.title || ''
+  unitInfoDialog.value = true
+}
+
+async function saveUnitInfo() {
+  if (!unit.value || unitInfoSaving.value || !unitInfoForm.code.trim() || !unitInfoForm.title.trim()) return
+  unitInfoSaving.value = true
+  error.value = ''
+  try {
+    unit.value = await contentApi.save(courseId, 'units', {
+      type: unit.value.type,
+      code: unitInfoForm.code.trim(),
+      title: unitInfoForm.title.trim(),
+      status: unit.value.status,
+      content: unit.value.content,
+    }, unitId)
+    unitInfoDialog.value = false
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to update unit information.')
+  } finally {
+    unitInfoSaving.value = false
+  }
+}
+
+function isBlockGroup(block: CourseContentItem) {
+  return ['UnitBlock::Group', 'UnitBlock::Theory', 'UnitBlock::Assessment'].includes(block.type)
+}
+
+function groupCategory(block: CourseContentItem): 'Theory' | 'Assessment' | null {
+  if (block.type === 'UnitBlock::Theory') return 'Theory'
+  if (block.type === 'UnitBlock::Assessment') return 'Assessment'
+  const ancestors = block.ancestry?.split('/').filter(Boolean).reverse() || []
+  for (const ancestorId of ancestors) {
+    const ancestor = blocks.value.find(candidate => candidate.id === ancestorId)
+    if (ancestor?.type === 'UnitBlock::Theory') return 'Theory'
+    if (ancestor?.type === 'UnitBlock::Assessment') return 'Assessment'
+  }
+  return null
+}
+
+function addGroupSection(block: CourseContentItem) {
+  const category = groupCategory(block)
+  if (category) addBlockSubtype(category, 'Section', block)
+}
+
+function blockIcon(block: CourseContentItem) {
+  if (block.type === 'UnitBlock::Theory') return 'mdi-book-open-variant'
+  if (block.type === 'UnitBlock::Assessment') return 'mdi-clipboard-list-outline'
+  if (block.type === 'UnitBlock::Group') return 'mdi-folder-outline'
+  if (block.type === 'UnitBlock::Theory::Block' || block.type === 'UnitBlock::Assessment::Block') return 'mdi-bookmark-outline'
+  return String(block.merged_content?.icon || 'mdi-book-outline')
+}
+
+function blockChildCount(block: CourseContentItem) {
+  return blocks.value.filter(candidate => candidate.ancestry?.split('/').filter(Boolean).at(-1) === block.id).length
+}
+
+function selectBlock(blockId: string) {
+  activeBlockId.value = blockId
+  if (route.query.block !== blockId) router.push({ query: { ...route.query, block: blockId } })
 }
 
 async function saveBlock() {
@@ -118,7 +199,7 @@ async function saveBlock() {
     const saved = await contentApi.save(courseId, 'unit_blocks', data, editingBlock.value?.id, unitId)
     dialog.value = false
     await load()
-    activeBlockId.value = saved.id
+    selectBlock(saved.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to save block.')
   } finally {
@@ -149,7 +230,33 @@ onMounted(load)
           <div>{{ unit?.code }}</div>
           <strong>{{ unit?.title }}</strong>
         </div>
-        <VBtn aria-label="Edit unit details" icon="mdi-dots-vertical" variant="text" @click="router.push(`/courses/${courseId}/edit` )" />
+        <VMenu location="end">
+          <template #activator="{ props }">
+            <VBtn v-bind="props" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
+          </template>
+          <VList density="comfortable" min-width="250">
+            <VListItem prepend-icon="mdi-pencil-outline" title="Edit unit Info" @click="openUnitInfo" />
+            <VDivider class="my-1" />
+            <VMenu location="end" open-on-hover>
+              <template #activator="{ props }">
+                <VListItem v-bind="props" prepend-icon="mdi-book-plus-outline" append-icon="mdi-chevron-right" title="Add Theory" />
+              </template>
+              <VList density="comfortable" min-width="180">
+                <VListItem prepend-icon="mdi-folder-plus-outline" title="Group" @click="addBlockSubtype('Theory', 'Group')" />
+                <VListItem prepend-icon="mdi-bookmark-plus-outline" title="Section" @click="addBlockSubtype('Theory', 'Section')" />
+              </VList>
+            </VMenu>
+            <VMenu location="end" open-on-hover>
+              <template #activator="{ props }">
+                <VListItem v-bind="props" prepend-icon="mdi-comment-question-outline" append-icon="mdi-chevron-right" title="Add Assessment" />
+              </template>
+              <VList density="comfortable" min-width="180">
+                <VListItem prepend-icon="mdi-folder-plus-outline" title="Group" @click="addBlockSubtype('Assessment', 'Group')" />
+                <VListItem prepend-icon="mdi-bookmark-plus-outline" title="Section" @click="addBlockSubtype('Assessment', 'Section')" />
+              </VList>
+            </VMenu>
+          </VList>
+        </VMenu>
       </div>
 
       <VProgressLinear v-if="loading" color="primary" indeterminate />
@@ -164,14 +271,30 @@ onMounted(load)
             :key="block.id"
             :active="activeBlockId === block.id"
             :title="blockTitle(block)"
-            :subtitle="`${block.type} · ${block.position || '—'}`"
-            :prepend-icon="String(block.merged_content?.icon || (block.type.includes('Group') ? 'mdi-folder-outline' : 'mdi-book-outline'))"
+            :subtitle="isBlockGroup(block) ? String(blockChildCount(block)) : String(block.position || '—')"
+            :prepend-icon="blockIcon(block)"
             :style="{ paddingLeft: `${16 + (block.ancestry?.split('/').filter(Boolean).length || 0) * 20}px` }"
-            @click="activeBlockId = block.id"
+            @click="selectBlock(block.id)"
           >
             <template #append>
-              <VBtn aria-label="Edit block" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="openBlockEditor(block)" />
-              <VBtn aria-label="Delete block" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteBlock(block)" />
+              <VMenu location="end">
+                <template #activator="{ props }">
+                  <VBtn v-bind="props" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
+                </template>
+                <VList density="comfortable" min-width="210">
+                  <template v-if="isBlockGroup(block)">
+                    <VListItem
+                      v-if="groupCategory(block)"
+                      :prepend-icon="groupCategory(block) === 'Theory' ? 'mdi-bookmark-plus-outline' : 'mdi-clipboard-plus-outline'"
+                      title="Add Section"
+                      @click="addGroupSection(block)"
+                    />
+                    <VDivider v-if="groupCategory(block)" class="my-1" />
+                  </template>
+                  <VListItem prepend-icon="mdi-pencil-outline" title="Edit" @click="openBlockEditor(block)" />
+                  <VListItem prepend-icon="mdi-delete-outline" title="Delete" @click="deleteBlock(block)" />
+                </VList>
+              </VMenu>
             </template>
           </VListItem>
         </VList>
@@ -188,16 +311,16 @@ onMounted(load)
 
     <main class="builder-workspace">
       <header class="workspace-header">
-        <strong>{{ course?.title }}</strong>
+        <strong>{{ activeBlock ? blockTitle(activeBlock) : unit?.title || course?.title }}</strong>
         <VBtn aria-label="Preview unit" class="preview-pill" rounded="pill" />
       </header>
       <section class="workspace-content">
         <template v-if="activeBlock">
           <div class="d-flex align-center justify-space-between ga-4">
-            <h1 class="text-h5 font-weight-bold">{{ blockTitle(activeBlock) }}</h1>
-            <VBtn prepend-icon="mdi-pencil-outline" variant="tonal" @click="openBlockEditor(activeBlock)">Edit block</VBtn>
+            <h1 class="text-h5 font-weight-bold">Content Builder 0</h1>
+            <VBtn prepend-icon="mdi-pencil-outline" variant="tonal" @click="openBlockEditor(activeBlock)">Edit</VBtn>
           </div>
-          <div class="text-body-2 text-medium-emphasis mt-2">{{ activeBlock.type }} · Position {{ activeBlock.position || '—' }}</div>
+          <div class="text-body-2 text-medium-emphasis mt-2">{{ blockTitle(activeBlock) }}</div>
           <VCard class="mt-6" min-height="240" rounded="lg" variant="outlined">
             <VCardText class="pa-6">
               <div v-if="activeBlock.content?.description">{{ activeBlock.content.description }}</div>
@@ -210,18 +333,15 @@ onMounted(load)
           <p class="text-body-2 text-medium-emphasis mt-2">Select a block from the outline or add one to get started.</p>
         </div>
       </section>
-      <footer class="workspace-footer">© 2025 Cube</footer>
     </main>
+    <footer class="workspace-footer">© 2025 Cube</footer>
   </div>
 
   <VDialog v-model="dialog" max-width="560">
     <VCard rounded="xl">
       <VCardTitle class="pa-6 pb-2">{{ editingBlock ? 'Edit block' : 'Add content block' }}</VCardTitle>
       <VCardText class="pa-6 pt-2">
-        <VSelect v-model="form.type" :items="blockTypes" class="mb-3" label="Block type" />
-        <VTextField v-model="form.title" class="mb-3" label="Title" />
-        <VSelect v-model="form.parent" :items="parentOptions" label="Parent group" />
-        <VTextField v-model.number="form.position" label="Position" min="1" type="number" />
+        <VTextField v-model="form.title" label="Title" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
@@ -230,22 +350,37 @@ onMounted(load)
       </VCardActions>
     </VCard>
   </VDialog>
+
+  <VDialog v-model="unitInfoDialog" max-width="560">
+    <VCard rounded="xl">
+      <VCardTitle class="pa-6 pb-2">Edit unit Info</VCardTitle>
+      <VCardText class="pa-6 pt-2">
+        <VTextField v-model="unitInfoForm.code" class="mb-3" label="Unit code" required />
+        <VTextField v-model="unitInfoForm.title" label="Unit title" required />
+      </VCardText>
+      <VCardActions class="pa-6 pt-0">
+        <VSpacer />
+        <VBtn :disabled="unitInfoSaving" variant="text" @click="unitInfoDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="unitInfoSaving" @click="saveUnitInfo">Save changes</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
 </template>
 
 <style scoped>
-.builder-shell { display: grid; grid-template-columns: 390px minmax(0, 1fr); height: 100vh; background: #fff; }
-.builder-sidebar { display: flex; min-height: 0; flex-direction: column; border-right: 1px solid #ddd; }
+.builder-shell { display: grid; grid-template-columns: 390px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 42px; height: 100vh; background: #fff; }
+.builder-sidebar { display: flex; min-height: 0; flex-direction: column; grid-column: 1; grid-row: 1; border-right: 1px solid #ddd; }
 .unit-heading { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px; background: #f0f0f0; }
 .unit-heading-text { flex: 1; min-width: 0; font-size: 14px; }
 .unit-heading-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .block-navigation { flex: 1; overflow: auto; padding-bottom: 12px; }
 .sidebar-tools { display: flex; justify-content: space-around; gap: 8px; padding: 12px; border-top: 1px solid #ddd; }
 .sidebar-tools :deep(.v-btn) { border-radius: 50%; box-shadow: 0 2px 5px #0002; }
-.builder-workspace { display: flex; min-width: 0; flex-direction: column; }
+.builder-workspace { display: flex; min-width: 0; min-height: 0; flex-direction: column; grid-column: 2; grid-row: 1; }
 .workspace-header { display: flex; min-height: 70px; align-items: center; justify-content: space-between; padding: 0 16px; background: #f5f5f5; }
 .preview-pill { width: 150px; height: 38px; background: #bdbdbd; }
 .workspace-content { flex: 1; padding: 24px 20px; }
-.workspace-footer { padding: 12px 24px; color: white; background: #222; }
+.workspace-footer { grid-column: 1 / -1; grid-row: 2; padding: 10px 24px; color: white; background: #222; }
 .empty-workspace { padding: 0 0 0 0; }
 @media (max-width: 800px) { .builder-shell { grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); } }
 </style>
