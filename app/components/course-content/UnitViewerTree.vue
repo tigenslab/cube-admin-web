@@ -16,13 +16,11 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [id: string] }>()
 
 function isGroup(node: UnitViewerTreeNode) {
-  return ['UnitBlock::Group', 'UnitBlock::Theory', 'UnitBlock::Assessment'].includes(node.type)
+  return ['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(node.type)
 }
 
 function icon(node: UnitViewerTreeNode) {
-  if (node.type === 'UnitBlock::Theory') return 'mdi-book-open-variant'
-  if (node.type === 'UnitBlock::Assessment') return 'mdi-clipboard-list-outline'
-  if (node.type === 'UnitBlock::Group') return 'mdi-folder-outline'
+  if (['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(node.type)) return 'mdi-folder-outline'
   if (node.type === 'UnitBlock::Assessment::Block') return 'mdi-clipboard-text-outline'
   return 'mdi-bookmark-outline'
 }

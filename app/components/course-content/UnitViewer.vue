@@ -87,7 +87,7 @@ async function load() {
     if (!unit.value) throw new Error('Unit not found.')
     blocks.value = blockData.items
     openGroups.value = blocks.value
-      .filter(block => ['UnitBlock::Group', 'UnitBlock::Theory', 'UnitBlock::Assessment'].includes(block.type))
+      .filter(block => ['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(block.type))
       .map(block => block.id)
     const requestedId = typeof route.params.blockId === 'string' ? route.params.blockId : null
     if (requestedId && blocks.value.some(block => block.id === requestedId)) {

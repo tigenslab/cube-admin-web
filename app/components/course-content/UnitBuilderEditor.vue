@@ -138,14 +138,11 @@ function openBlockEditor(block: CourseResourceItem | null = null, defaults: { ty
 function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Section', parent?: CourseResourceItem) {
   const categoryType = `UnitBlock::${kind}`
   const type = subtype === 'Group'
-    ? parent ? 'UnitBlock::Group' : categoryType
+    ? `${categoryType}::Group`
     : `${categoryType}::Block`
-  const category = !parent && subtype === 'Section'
-    ? blocks.value.find(block => block.type === categoryType && !block.ancestry)
-    : undefined
   const parentPath = parent
     ? [parent.ancestry, parent.id].filter(Boolean).join('/')
-    : category?.id || ''
+    : ''
   const title = subtype === 'Group' && !parent ? kind : subtype
   openBlockEditor(null, { type, title, parent: parentPath })
 }
@@ -177,17 +174,17 @@ async function saveUnitInfo() {
 }
 
 function isBlockGroup(block: CourseResourceItem) {
-  return ['UnitBlock::Group', 'UnitBlock::Theory', 'UnitBlock::Assessment'].includes(block.type)
+  return ['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(block.type)
 }
 
 function groupCategory(block: CourseResourceItem): 'Theory' | 'Assessment' | null {
-  if (block.type === 'UnitBlock::Theory') return 'Theory'
-  if (block.type === 'UnitBlock::Assessment') return 'Assessment'
+  if (block.type.startsWith('UnitBlock::Theory::')) return 'Theory'
+  if (block.type.startsWith('UnitBlock::Assessment::')) return 'Assessment'
   const ancestors = block.ancestry?.split('/').filter(Boolean).reverse() || []
   for (const ancestorId of ancestors) {
     const ancestor = blocks.value.find(candidate => candidate.id === ancestorId)
-    if (ancestor?.type === 'UnitBlock::Theory') return 'Theory'
-    if (ancestor?.type === 'UnitBlock::Assessment') return 'Assessment'
+    if (ancestor?.type.startsWith('UnitBlock::Theory::')) return 'Theory'
+    if (ancestor?.type.startsWith('UnitBlock::Assessment::')) return 'Assessment'
   }
   return null
 }
@@ -198,9 +195,7 @@ function addGroupSection(block: CourseResourceItem) {
 }
 
 function blockIcon(block: CourseResourceItem) {
-  if (block.type === 'UnitBlock::Theory') return 'mdi-book-open-variant'
-  if (block.type === 'UnitBlock::Assessment') return 'mdi-clipboard-list-outline'
-  if (block.type === 'UnitBlock::Group') return 'mdi-folder-outline'
+  if (['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(block.type)) return 'mdi-folder-outline'
   if (block.type === 'UnitBlock::Theory::Block' || block.type === 'UnitBlock::Assessment::Block') return 'mdi-bookmark-outline'
   return String(block.merged_content?.icon || 'mdi-book-outline')
 }
