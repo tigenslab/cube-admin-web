@@ -102,7 +102,7 @@ onMounted(load)
           <div v-if="!group.units.length" class="pa-4 text-body-2 text-medium-emphasis">No units in this group yet.</div>
           <VRow v-else>
             <VCol v-for="(unit, index) in group.units" :key="unit.id" cols="12" md="4" sm="6">
-              <VCard class="unit-card h-100" rounded="lg" variant="flat">
+              <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${unit.id}/view`" rounded="lg" variant="flat">
                 <div class="unit-banner d-flex align-end pa-3">
                   <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ unit.code || '' }}</span>
                 </div>
@@ -118,7 +118,7 @@ onMounted(load)
     </VExpansionPanels>
     <VRow v-else class="pa-5">
       <VCol v-for="(unit, index) in groups[0]?.units || []" :key="unit.id" cols="12" md="4" sm="6">
-        <VCard class="unit-card h-100" rounded="lg" variant="flat">
+        <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${unit.id}/view`" rounded="lg" variant="flat">
           <div class="unit-banner d-flex align-end pa-3">
             <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ unit.code || '' }}</span>
           </div>
