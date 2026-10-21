@@ -8,6 +8,7 @@ const primaryNavigation = [
   { title: 'Users', icon: 'mdi-account-group-outline', to: '/users', subject: 'User' },
   { title: 'Active sessions', icon: 'mdi-shield-account-outline', to: '/sessions/active', subject: 'Session' },
   { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses', subject: 'Course' },
+  { title: 'Packages', icon: 'mdi-folder-multiple-outline', to: '/packages', subject: 'Package' },
   { title: 'Notifications', icon: 'mdi-bell-outline', to: '/notifications', subject: 'Notification' },
   { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics', subject: 'Analytics' },
 ]
