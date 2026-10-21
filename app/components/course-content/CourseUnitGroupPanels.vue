@@ -57,8 +57,7 @@ function updateOpenGroups(value: string[] | string | null) {
             icon="mdi-delete-outline"
             size="small"
             variant="text"
-            :disabled="group.hasDescendants"
-            :title="group.hasDescendants ? 'Remove its units and subgroups before deleting this group.' : 'Delete group'"
+            title="Delete group and its contents"
             @click.stop="emit('delete-group', group.id)"
           />
         </div>

@@ -97,9 +97,15 @@ const addParentLabel = computed(() => {
   return parent?.title || parent?.code || 'Selected group'
 })
 async function deleteOutlineItem(item: CourseResourceItem) {
-  const label = item.type === 'CourseUnit::Group' ? item.title || 'this group' : 'this unit from the course'
-  if (!confirm(`Remove ${label}?`)) return
+  const label = item.type === 'CourseUnit::Group' ? item.title || 'this group and its contents' : 'this unit from the course'
+  if (!confirm(`Remove ${label}?${item.type === 'CourseUnit::Group' ? ' Its nested groups and unit links will also be removed from this course.' : ''}`)) return
   try {
+    if (item.type === 'CourseUnit::Group') {
+      const descendants = outline.value
+        .filter(candidate => candidate.ancestry?.split('/').filter(Boolean).includes(item.id))
+        .sort((a, b) => (b.ancestry?.split('/').filter(Boolean).length || 0) - (a.ancestry?.split('/').filter(Boolean).length || 0))
+      for (const descendant of descendants) await courseUnitsApi.remove(courseId, descendant.id)
+    }
     await courseUnitsApi.remove(courseId, item.id)
     await loadUnits()
   } catch (cause) {
