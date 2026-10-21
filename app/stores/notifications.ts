@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 export type NotificationType = 'email' | 'sms' | 'notification'
+export type NotificationAction = 'mailer' | 'delete' | 'import' | 'clone' | 'export'
 
 export interface NotificationMessage {
   [key: string]: unknown
@@ -9,6 +10,7 @@ export interface NotificationMessage {
 export interface NotificationInput {
   user_id: string
   type: NotificationType
+  action?: NotificationAction
   message: NotificationMessage
 }
 export interface Notification extends NotificationInput { id: string; status?: string; created_at?: string; read?: number }

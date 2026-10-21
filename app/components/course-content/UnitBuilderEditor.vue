@@ -50,13 +50,6 @@ const orderedBlocks = computed(() => {
     }
   }
   addChildren('')
-  for (const block of blocks.value) {
-    if (!visited.has(block.id)) {
-      visited.add(block.id)
-      ordered.push(block)
-      addChildren(block.id)
-    }
-  }
   return ordered
 })
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)

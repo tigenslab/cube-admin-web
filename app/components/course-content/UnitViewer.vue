@@ -170,8 +170,7 @@ onMounted(load)
                 <VCardText><pre class="component-content">{{ JSON.stringify(component.content, null, 2) }}</pre></VCardText>
               </VCard>
             </template>
-    </div>
-  </NuxtLayout>
+          </div>
         </template>
         <div v-else class="text-medium-emphasis">Select a block from the outline.</div>
       </section>
@@ -182,8 +181,8 @@ onMounted(load)
         <VBtn aria-label="More tools" icon="mdi-menu" variant="flat" />
       </div>
     </main>
-  </div>
-
+    </div>
+  </NuxtLayout>
 </template>
 
 <style scoped>
