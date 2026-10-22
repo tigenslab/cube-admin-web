@@ -25,7 +25,7 @@ const error = ref('')
 const dialog = ref(false)
 const unitInfoDialog = ref(false)
 const editingBlock = ref<CourseResourceItem | null>(null)
-const form = reactive({ type: 'UnitBlock::Theory::Block', title: '', parent: '', position: '' as number | string })
+const form = reactive({ type: 'T:B', title: '', parent: '', position: '' as number | string })
 const unitInfoForm = reactive({ code: '', title: '' })
 const editable = computed(() => props.mode === 'edit')
 const courseRoute = computed(() => `/courses/${courseId}/${props.mode === 'view' ? 'view' : 'edit'}`)
@@ -120,7 +120,7 @@ async function load() {
 function openBlockEditor(block: CourseResourceItem | null = null, defaults: { type?: string; parent?: string; title?: string } = {}) {
   editingBlock.value = block
   Object.assign(form, {
-    type: block?.type || defaults.type || 'UnitBlock::Theory::Block',
+    type: block?.type || defaults.type || 'T:B',
     title: String(block?.content?.title ?? block?.metadata?.title ?? block?.title ?? defaults.title ?? ''),
     parent: block?.ancestry ?? defaults.parent ?? '',
     position: block?.position ?? '',
@@ -129,10 +129,9 @@ function openBlockEditor(block: CourseResourceItem | null = null, defaults: { ty
 }
 
 function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Section', parent?: CourseResourceItem) {
-  const categoryType = `UnitBlock::${kind}`
-  const type = subtype === 'Group'
-    ? `${categoryType}::Group`
-    : `${categoryType}::Block`
+  const type = kind === 'Theory'
+    ? subtype === 'Group' ? 'T:G' : 'T:B'
+    : subtype === 'Group' ? 'A:G' : 'A:B'
   const parentPath = parent
     ? [parent.ancestry, parent.id].filter(Boolean).join('/')
     : ''
@@ -167,17 +166,17 @@ async function saveUnitInfo() {
 }
 
 function isBlockGroup(block: CourseResourceItem) {
-  return ['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(block.type)
+  return ['T:G', 'A:G'].includes(block.type)
 }
 
 function groupCategory(block: CourseResourceItem): 'Theory' | 'Assessment' | null {
-  if (block.type.startsWith('UnitBlock::Theory::')) return 'Theory'
-  if (block.type.startsWith('UnitBlock::Assessment::')) return 'Assessment'
+  if (['T:G', 'T:B'].includes(block.type)) return 'Theory'
+  if (['A:G', 'A:B'].includes(block.type)) return 'Assessment'
   const ancestors = block.ancestry?.split('/').filter(Boolean).reverse() || []
   for (const ancestorId of ancestors) {
     const ancestor = blocks.value.find(candidate => candidate.id === ancestorId)
-    if (ancestor?.type.startsWith('UnitBlock::Theory::')) return 'Theory'
-    if (ancestor?.type.startsWith('UnitBlock::Assessment::')) return 'Assessment'
+    if (['T:G', 'T:B'].includes(ancestor?.type || '')) return 'Theory'
+    if (['A:G', 'A:B'].includes(ancestor?.type || '')) return 'Assessment'
   }
   return null
 }
@@ -193,8 +192,8 @@ function addChildGroup(block: CourseResourceItem) {
 }
 
 function blockIcon(block: CourseResourceItem) {
-  if (['UnitBlock::Theory::Group', 'UnitBlock::Assessment::Group'].includes(block.type)) return 'mdi-folder-outline'
-  if (block.type === 'UnitBlock::Theory::Block' || block.type === 'UnitBlock::Assessment::Block') return 'mdi-bookmark-outline'
+  if (['T:G', 'A:G'].includes(block.type)) return 'mdi-folder-outline'
+  if (['T:B', 'A:B'].includes(block.type)) return 'mdi-bookmark-outline'
   return String(block.merged_content?.icon || 'mdi-book-outline')
 }
 
@@ -410,11 +409,17 @@ onMounted(load)
             />
           </template>
           <VList density="comfortable" min-width="200">
-            <VListItem prepend-icon="mdi-text" title="Text" @click="addComponent('text', 'paragraph')" />
-            <VListItem prepend-icon="mdi-format-list-bulleted" title="List" @click="addComponent('list', 'list')" />
-            <VListItem prepend-icon="mdi-help-circle-outline" title="Question" @click="addComponent('question', 'list')" />
-            <VListItem prepend-icon="mdi-tab" title="Tab" @click="addComponent('tab', 'tab')" />
-            <VListItem prepend-icon="mdi-multimedia" title="H5P" @click="addComponent('h5p', 'default')" />
+            <VListItem prepend-icon="mdi-text" title="Text" @click="addComponent('T:TXT', 'paragraph')" />
+            <VListItem prepend-icon="mdi-format-list-bulleted" title="List" @click="addComponent('T:LST', 'list')" />
+            <VListItem prepend-icon="mdi-help-circle-outline" title="Theory question" @click="addComponent('T:MCQ', 'list')" />
+            <VListItem prepend-icon="mdi-tab" title="Tab" @click="addComponent('T:TAB', 'tab')" />
+            <VListItem prepend-icon="mdi-image-outline" title="Image" @click="addComponent('T:IMG', 'default')" />
+            <VListItem prepend-icon="mdi-video-outline" title="Video" @click="addComponent('T:VID', 'default')" />
+            <VDivider class="my-1" />
+            <VListItem prepend-icon="mdi-help-circle-outline" title="Multiple choice" @click="addComponent('A:MCQ', 'list')" />
+            <VListItem prepend-icon="mdi-text-box-outline" title="Essay" @click="addComponent('A:ESS', 'default')" />
+            <VListItem prepend-icon="mdi-checkbox-marked-outline" title="True or false" @click="addComponent('A:TRF', 'default')" />
+            <VListItem prepend-icon="mdi-drag" title="Drag and drop" @click="addComponent('A:DND', 'default')" />
           </VList>
         </VMenu>
         <VBtn aria-label="Block list" icon="mdi-format-list-bulleted" variant="flat" />

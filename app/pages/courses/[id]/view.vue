@@ -17,8 +17,8 @@ const error = ref('')
 
 const groups = computed(() => {
   const unitById = new Map(units.value.map(unit => [unit.id, unit]))
-  const groupItems = outline.value.filter(item => item.type === 'CourseUnit::Group')
-  const unitRefs = outline.value.filter(item => item.type === 'CourseUnit::Unit' && item.unit_id)
+  const groupItems = outline.value.filter(item => item.type === 'G')
+  const unitRefs = outline.value.filter(item => item.type === 'U' && item.unit_id)
   const sections = groupItems.length ? [
     ...groupItems.map(group => {
       const path = [group.ancestry, group.id].filter(Boolean).join('/')
@@ -50,7 +50,7 @@ const groups = computed(() => {
   }))
   return query ? filtered.filter(section => section.units.length) : filtered
 })
-const hasGroups = computed(() => outline.value.some(item => item.type === 'CourseUnit::Group'))
+const hasGroups = computed(() => outline.value.some(item => item.type === 'G'))
 
 async function load() {
   loading.value = true
@@ -67,7 +67,7 @@ async function load() {
     for (const referencedUnit of outlineData.units || []) {
       if (!units.value.some(unit => unit.id === referencedUnit.id)) units.value.push(referencedUnit)
     }
-    openGroups.value = outlineData.items.filter(item => item.type === 'CourseUnit::Group').map(item => item.id)
+    openGroups.value = outlineData.items.filter(item => item.type === 'G').map(item => item.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load course units.')
   } finally {

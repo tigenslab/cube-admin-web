@@ -34,7 +34,7 @@ const courseId = String(route.params.id)
 const groups = computed(() => {
   const unitById = new Map(units.value.map(unit => [unit.id, unit]))
   const nodes = new Map<string, CourseUnitGroupNode & { ancestry: string }>()
-  for (const item of outline.value.filter(entry => entry.type === 'CourseUnit::Group')) {
+  for (const item of outline.value.filter(entry => entry.type === 'G')) {
     nodes.set(item.id, {
       id: item.id,
       title: item.title || item.code || 'Units',
@@ -51,7 +51,7 @@ const groups = computed(() => {
     if (parent) parent.children.push(node)
     else roots.push(node)
   }
-  for (const reference of outline.value.filter(item => item.type === 'CourseUnit::Unit' && item.unit_id)) {
+  for (const reference of outline.value.filter(item => item.type === 'U' && item.unit_id)) {
     const unit = unitById.get(reference.unit_id!)
     if (!unit) continue
     const parentId = reference.ancestry?.split('/').filter(Boolean).at(-1)
@@ -72,17 +72,17 @@ const groups = computed(() => {
   }
   return roots.map(filterNode).filter((node): node is CourseUnitGroupNode => Boolean(node))
 })
-const hasGroups = computed(() => outline.value.some(item => item.type === 'CourseUnit::Group'))
+const hasGroups = computed(() => outline.value.some(item => item.type === 'G'))
 const rootUnits = computed(() => {
   const unitById = new Map(units.value.map(unit => [unit.id, unit]))
   const query = search.value.trim().toLowerCase()
   return outline.value
-    .filter(item => item.type === 'CourseUnit::Unit' && item.unit_id && !item.ancestry)
+    .filter(item => item.type === 'U' && item.unit_id && !item.ancestry)
     .map(reference => ({ unit: unitById.get(reference.unit_id!)!, reference }))
     .filter(({ unit }) => unit && (!query || `${unit.code || ''} ${unit.title || ''}`.toLowerCase().includes(query)))
 })
 const availableUnits = computed(() => {
-  const linked = new Set(outline.value.filter(item => item.type === 'CourseUnit::Unit').map(item => item.unit_id))
+  const linked = new Set(outline.value.filter(item => item.type === 'U').map(item => item.unit_id))
   return units.value.filter(unit => !linked.has(unit.id)).map(unit => ({
     title: `${unit.code || ''} — ${unit.title || 'Untitled unit'}`,
     value: unit.id,
@@ -94,10 +94,11 @@ const addParentLabel = computed(() => {
   return parent?.title || parent?.code || 'Selected group'
 })
 async function deleteOutlineItem(item: CourseResourceItem) {
-  const label = item.type === 'CourseUnit::Group' ? item.title || 'this group and its contents' : 'this unit from the course'
-  if (!confirm(`Remove ${label}?${item.type === 'CourseUnit::Group' ? ' Its nested groups and unit links will also be removed from this course.' : ''}`)) return
+  const isGroup = item.type === 'G'
+  const label = isGroup ? item.title || 'this group and its contents' : 'this unit from the course'
+  if (!confirm(`Remove ${label}?${isGroup ? ' Its nested groups and unit links will also be removed from this course.' : ''}`)) return
   try {
-    if (item.type === 'CourseUnit::Group') {
+    if (isGroup) {
       const descendants = outline.value
         .filter(candidate => candidate.ancestry?.split('/').filter(Boolean).includes(item.id))
         .sort((a, b) => (b.ancestry?.split('/').filter(Boolean).length || 0) - (a.ancestry?.split('/').filter(Boolean).length || 0))
@@ -132,7 +133,7 @@ async function loadUnits() {
     for (const referencedUnit of outlineData.units || []) {
       if (!units.value.some(unit => unit.id === referencedUnit.id)) units.value.push(referencedUnit)
     }
-    openGroups.value = outlineData.items.filter(item => item.type === 'CourseUnit::Group').map(item => item.id)
+    openGroups.value = outlineData.items.filter(item => item.type === 'G').map(item => item.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load course units.')
   } finally {
@@ -236,7 +237,7 @@ async function addToCourse() {
     const unitId = addKind.value === 'unit'
       ? addUnitMode.value === 'create'
         ? (await unitsApi.save(courseId, {
-            type: 'Unit',
+            type: course.value?.type || '',
             code: newUnitCode.value.trim(),
             title: newUnitTitle.value.trim(),
             content: {},
@@ -244,8 +245,8 @@ async function addToCourse() {
         : addUnitId.value
       : ''
     await courseUnitsApi.save(courseId, addKind.value === 'group'
-      ? { type: 'CourseUnit::Group', title: addTitle.value.trim(), ancestry, position: editingGroup.value?.position || position }
-      : { type: 'CourseUnit::Unit', unit_id: unitId, ancestry, position }, editingGroup.value?.id)
+      ? { type: 'G', title: addTitle.value.trim(), ancestry, position: editingGroup.value?.position || position }
+      : { type: 'U', unit_id: unitId, ancestry, position }, editingGroup.value?.id)
     addDialog.value = false
     editingGroup.value = null
     await loadUnits()
