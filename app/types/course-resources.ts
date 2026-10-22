@@ -2,6 +2,7 @@ export interface CourseResourceItem {
   id: string
   type: string
   course_id?: string
+  package_id?: string
   unit_id?: string
   code?: string
   title?: string

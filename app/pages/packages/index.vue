@@ -74,7 +74,7 @@ onMounted(load)
           <template #append><VChip size="small" variant="tonal">{{ category.type }}</VChip></template>
         </VCardItem>
         <VList v-if="category.packages.length" lines="two">
-          <VListItem v-for="item in category.packages" :key="item.id" :title="item.title" :subtitle="item.description || item.code">
+          <VListItem v-for="item in category.packages" :key="item.id" :to="`/packages/${item.id}`" :title="item.title" :subtitle="item.description || item.code">
             <template #prepend>
               <VAvatar color="primary" rounded="lg" variant="tonal"><VIcon icon="mdi-folder-multiple-outline" /></VAvatar>
             </template>

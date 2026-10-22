@@ -4,6 +4,7 @@ export interface Course {
   id: string
   title: string
   code: string
+  package_id?: string
   sub_type: string
   type: string
   status: string
@@ -44,11 +45,11 @@ export const useCoursesStore = defineStore('courses', () => {
     return api<Course>(`/courses/${id}`)
   }
 
-  async function create(course: Pick<Course, 'title' | 'code' | 'sub_type' | 'type'> & Partial<Pick<Course, 'status'>>) {
+  async function create(course: Pick<Course, 'title' | 'code' | 'sub_type' | 'type'> & { package_id: string } & Partial<Pick<Course, 'status'>>) {
     const api = useApi()
     return api<Course>('/courses/create', {
       method: 'POST',
-      body: { title: course.title, code: course.code, sub_type: course.sub_type, type: course.type, status: course.status ?? 'new', content: {} }
+      body: { package_id: course.package_id, title: course.title, code: course.code, sub_type: course.sub_type, type: course.type, status: course.status ?? 'new', content: {} }
     })
   }
 
