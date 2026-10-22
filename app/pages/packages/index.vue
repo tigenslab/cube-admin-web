@@ -8,10 +8,10 @@ const loading = ref(true)
 const error = ref('')
 
 const categories: { type: PackageType; title: string; description: string }[] = [
-  { type: 'SCHOOL::PRIMARY', title: 'Primary school', description: 'Subject packages for primary year levels.' },
-  { type: 'SCHOOL::SECONDARY', title: 'Secondary school', description: 'Subject packages for secondary year levels.' },
-  { type: 'RTO::NRT', title: 'Nationally recognised training', description: 'Accredited training packages and qualifications.' },
-  { type: 'RTO::NON_NRT', title: 'Non nationally recognised training', description: 'Other RTO training packages.' },
+  { type: 'SCH:PRY', title: 'School Primary', description: 'Subject packages for primary year levels.' },
+  { type: 'SCH:SEC', title: 'School Secondary', description: 'Subject packages for secondary year levels.' },
+  { type: 'RTO:NRT', title: 'Nationally Recognised Training', description: 'Accredited training packages and qualifications.' },
+  { type: 'RTO:NAT', title: 'Non-accredited training', description: 'Other RTO training packages.' },
 ]
 
 const packagesByCategory = computed(() => {

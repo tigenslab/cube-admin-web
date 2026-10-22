@@ -1,4 +1,4 @@
-export type PackageType = 'SCHOOL::PRIMARY' | 'SCHOOL::SECONDARY' | 'RTO::NRT' | 'RTO::NON_NRT'
+export type PackageType = 'SCH:PRY' | 'SCH:SEC' | 'RTO:NRT' | 'RTO:NAT'
 
 export interface CoursePackage {
   id: string
