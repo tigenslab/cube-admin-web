@@ -9,6 +9,11 @@ export interface Account {
   created_at?: string
 }
 
+export interface AccountEditForm {
+  schema: Record<string, unknown>
+  model: Partial<Account>
+}
+
 export const useAccountsStore = defineStore('accounts', () => {
   const accounts = ref<Account[]>([])
   const currentAccount = ref<Account | null>(null)
@@ -36,6 +41,10 @@ export const useAccountsStore = defineStore('accounts', () => {
     return data
   }
 
+  async function editForm(id: string | number) {
+    return request(() => useApi()<{ vjsf: AccountEditForm }>(`/accounts/${id}/edit`))
+  }
+
   async function create(data: Partial<Account>) {
     const created = await request(() => useApi<Account>('/accounts/create', { method: 'POST', body: data }))
     accounts.value.push(created)
@@ -50,5 +59,5 @@ export const useAccountsStore = defineStore('accounts', () => {
     return updated
   }
 
-  return { accounts, currentAccount, loading, error, index, show, create, update }
+  return { accounts, currentAccount, loading, error, index, show, editForm, create, update }
 })

@@ -5,6 +5,8 @@ import CourseUnitGroupPanels from '~/components/course-content/CourseUnitGroupPa
 import type { CourseUnitGroupNode } from '~/components/course-content/CourseUnitGroupPanels.vue'
 const route = useRoute()
 const coursesStore = useCoursesStore()
+const courseEdit = useCourseEditModel()
+const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const courseUnitsApi = useCourseUnitsApi()
 const unitsApi = useUnitsApi()
 const course = ref<Course | null>(null)
@@ -13,11 +15,6 @@ const outline = ref<CourseResourceItem[]>([])
 const search = ref('')
 const openGroups = ref<string[]>([])
 const loadingUnits = ref(false)
-const title = ref('')
-const code = ref('')
-const subType = ref('')
-const type = ref('')
-const status = ref('new')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 const detailsDialog = ref(false)
@@ -150,21 +147,22 @@ onMounted(async () => {
     error.value = getApiErrorMessage(cause, 'Unable to load course.')
   }
   if (course.value) {
-    title.value = course.value.title
-    code.value = course.value.code
-    subType.value = course.value.sub_type
-    type.value = course.value.type
-    status.value = course.value.status ?? 'new'
+    if (!await courseEdit.load(course.value)) error.value = courseEdit.error.value
     await loadUnits()
   }
 })
 
 async function submit() {
-  if (!course.value || !title.value.trim() || !code.value.trim() || !subType.value.trim() || !type.value.trim()) return
+  if (!course.value || !courseEdit.form.value) return
   submitting.value = true
   error.value = null
   try {
-    course.value = await coursesStore.update(course.value.id, { title: title.value.trim(), code: code.value.trim(), sub_type: subType.value.trim(), type: type.value.trim(), status: status.value })
+    const updated = await courseEdit.save()
+    if (!updated) {
+      error.value = courseEdit.error.value
+      return
+    }
+    course.value = updated
     detailsDialog.value = false
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to update course.')
@@ -329,11 +327,7 @@ async function addToCourse() {
       <VCardText class="pa-6 pt-2">
         <VAlert v-if="error" class="mb-5" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
         <VForm @submit.prevent="submit">
-          <VTextField v-model="title" class="mb-3" label="Title" required />
-          <VTextField v-model="code" class="mb-3" label="Code" required />
-          <VTextField v-model="subType" class="mb-3" label="Sub-type" required />
-          <VTextField v-model="type" class="mb-3" label="Type" required />
-          <VSelect v-model="status" :items="['new', 'draft', 'ready', 'published']" label="Status" />
+          <Vjsf v-if="courseEdit.form.value" v-model="courseEdit.form.value.model" :schema="courseEdit.form.value.schema" />
           <div class="d-flex justify-end ga-3 mt-4">
             <VBtn :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</VBtn>
             <VBtn color="primary" :loading="submitting" type="submit">Save changes</VBtn>

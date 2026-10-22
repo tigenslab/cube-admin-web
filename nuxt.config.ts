@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { commonjsDeps, commonjsDepsPaths } from '@koumoul/vjsf/utils/build.js'
+
 const apiBase = process.env.NUXT_PUBLIC_API_BASE || 'https://klut4stnw2.execute-api.ap-southeast-2.amazonaws.com/v1'
 const apiOrigin = (() => {
   try {
@@ -25,6 +27,33 @@ export default defineNuxtConfig({
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
   modules: ['@pinia/nuxt', 'vuetify-nuxt-module'],
   vite: {
+    legacy: {
+      inconsistentCjsInterop: true,
+    },
+    optimizeDeps: {
+      force: true,
+      include: [
+        '@koumoul/vjsf',
+        '@json-layout/core',
+        '@json-layout/vocabulary',
+        ...commonjsDeps,
+        'ajv-formats/dist/index.js',
+        '@json-layout/core > ajv-formats',
+        '@json-layout/vocabulary > ajv-formats',
+      ],
+      needsInterop: [
+        'ajv-formats',
+        'ajv-formats/dist/index.js',
+        '@json-layout/core > ajv-formats',
+        '@json-layout/vocabulary > ajv-formats',
+      ],
+    },
+    build: {
+      commonjsOptions: {
+        include: commonjsDepsPaths,
+        transformMixedEsModules: true,
+      },
+    },
     server: {
       allowedHosts: process.env.NODE_ENV === 'production'
         ? []

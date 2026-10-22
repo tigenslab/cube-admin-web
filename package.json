@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@koumoul/vjsf": "^4.7.1",
     "@pinia/nuxt": "^1.0.1",
     "nuxt": "^4.5.2",
     "pinia": "^4.0.2",

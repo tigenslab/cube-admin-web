@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import type { User } from '~/stores/users'
+import type { User, UpdateUserInput } from '~/stores/users'
 
 type UserStatus = 'Active' | 'Invited' | 'Suspended'
 
@@ -9,6 +9,8 @@ const { users, loading, error } = storeToRefs(usersStore)
 const search = ref('')
 const status = ref<'All' | UserStatus>('All')
 const deletingUserId = ref<string | number | null>(null)
+const editingUser = ref<User | null>(null)
+const editDialog = ref(false)
 
 onMounted(() => {
   usersStore.index().catch(() => {
@@ -27,6 +29,21 @@ async function deleteUser(user: User) {
   } finally {
     deletingUserId.value = null
   }
+}
+
+function openEditUser(user: User) {
+  editingUser.value = user
+  editDialog.value = true
+}
+
+async function loadUserEditForm() {
+  if (!editingUser.value) throw new Error('No user selected.')
+  return usersStore.editForm(editingUser.value.id)
+}
+
+async function saveUserEditForm(model: Record<string, any>) {
+  if (!editingUser.value) throw new Error('No user selected.')
+  return usersStore.update(editingUser.value.id, model as UpdateUserInput)
 }
 
 const displayUsers = computed(() => users.value.map((user) => {
@@ -172,7 +189,7 @@ const statusColor: Record<UserStatus, string> = {
             <td><VChip :color="statusColor[user.status]" size="small" variant="tonal">{{ user.status }}</VChip></td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ user.lastActive }}</td>
             <td>
-              <VBtn v-if="user.permissions?.update" :to="`/users/${user.id}/edit`" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" />
+              <VBtn v-if="user.permissions?.update" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" @click="openEditUser(user)" />
               <VBtn v-if="user.permissions?.delete" :loading="deletingUserId === user.id" aria-label="Delete user" color="error" icon="mdi-delete-outline" size="small" variant="text" @click="deleteUser(user)" />
             </td>
           </tr>
@@ -186,6 +203,14 @@ const statusColor: Record<UserStatus, string> = {
       </div>
     </VCardText>
   </VCard>
+
+  <FormsVjsfFormDialog
+    v-model="editDialog"
+    :load-form="loadUserEditForm"
+    :load-key="editingUser?.id ?? null"
+    :save-form="saveUserEditForm"
+    :title="`Edit ${editingUser?.name || editingUser?.email || 'user'}`"
+  />
 </template>
 
 <style scoped>

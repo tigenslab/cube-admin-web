@@ -7,9 +7,20 @@ const error = ref('')
 async function markReady() {
   if (!course.value) return
   try {
-    course.value = await courses.changeStatus(course.value.id, 'ready')
+    const updated = await courses.changeStatus(course.value.id, 'ready')
+    course.value = await courses.show(updated.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to mark course as ready.')
+  }
+}
+
+async function moveToDraft() {
+  if (!course.value) return
+  try {
+    const updated = await courses.changeStatus(course.value.id, 'draft')
+    course.value = await courses.show(updated.id)
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to move course to draft.')
   }
 }
 
@@ -31,8 +42,9 @@ onMounted(async () => {
       </div>
       <div class="d-flex flex-wrap align-center ga-2">
         <VBtn v-if="course?.permissions?.read" prepend-icon="mdi-eye-outline" :to="`/courses/${course.id}/view`" variant="text">View course</VBtn>
+        <VBtn v-if="course?.permissions?.change_status && course.status === 'new'" prepend-icon="mdi-file-edit-outline" variant="text" @click="moveToDraft">Move to draft</VBtn>
         <VBtn v-if="course?.permissions?.change_status" prepend-icon="mdi-check" :disabled="course.status !== 'draft'" variant="text" @click="markReady">Mark as ready</VBtn>
-        <VBtn v-if="course?.permissions?.update" :to="`/courses/${course.id}/edit`" variant="text">Edit course</VBtn>
+        <VBtn v-if="course?.permissions?.update" :to="`/courses/${encodeURIComponent(course.id)}/edit`" variant="text">Edit course</VBtn>
       </div>
     </div>
 

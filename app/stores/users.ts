@@ -8,6 +8,7 @@ export interface User {
   first_name?: string
   last_name?: string
   role?: string
+  roles?: string[]
   user_type?: string
   team?: string
   status?: string
@@ -22,6 +23,10 @@ export interface User {
 
 export type CreateUserInput = Omit<User, 'id'>
 export type UpdateUserInput = Partial<CreateUserInput>
+export interface UserEditForm {
+  schema: Record<string, unknown>
+  model: UpdateUserInput
+}
 
 export const useUsersStore = defineStore('users', () => {
   const users = ref<User[]>([])
@@ -64,6 +69,11 @@ export const useUsersStore = defineStore('users', () => {
     return data
   }
 
+  async function editForm(id: string | number) {
+    const api = useApi()
+    return request(() => api<{ vjsf: UserEditForm }>(`/users/${id}/edit`))
+  }
+
   async function create(data: CreateUserInput) {
     const api = useApi()
     const createdUser = await request(() => api<User>('/users/create', {
@@ -103,6 +113,7 @@ export const useUsersStore = defineStore('users', () => {
     error,
     index,
     show,
+    editForm,
     create,
     update,
     destroy
