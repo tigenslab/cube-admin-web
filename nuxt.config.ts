@@ -28,7 +28,7 @@ export default defineNuxtConfig({
     server: {
       allowedHosts: process.env.NODE_ENV === 'production'
         ? []
-        : ['localhost', '127.0.0.1', 'buddhi']
+        : ['localhost', '127.0.0.1', 'buddhi', 'admin']
     }
   },
   runtimeConfig: {

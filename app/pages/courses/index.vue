@@ -20,7 +20,7 @@ const filteredCourses = computed(() => {
   ))
 })
 
-const nextStatus: Record<string, string> = { new: 'draft', draft: 'ready', ready: 'publish', publish: 'draft' }
+const nextStatus: Record<string, string> = { new: 'draft', draft: 'ready', ready: 'published', published: 'draft' }
 
 async function changeStatus(course: { id: string; status: string }) {
   const next = nextStatus[course.status || 'new']
@@ -121,7 +121,7 @@ async function deleteCourse(id: string) {
               </div>
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
-            <td><VChip :color="course.status === 'publish' ? 'success' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip>
+            <td><VChip :color="course.status === 'published' ? 'success' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip>
               <VBtn v-if="course.permissions?.change_status" class="ml-2" size="x-small" variant="text" @click="changeStatus(course)">{{ nextStatus[course.status || 'new'] }}</VBtn></td>
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
             <td class="text-no-wrap">

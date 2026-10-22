@@ -71,7 +71,7 @@ async function submit() {
         <VTextField v-model="title" class="mb-4" label="Title" placeholder="Year 5 Mathematics" required />
         <VTextField v-model="code" class="mb-4" label="Code" placeholder="Mathematics Year 7" required />
         <VTextField v-model="subType" class="mb-4" label="Sub-type" required />
-        <VSelect v-model="status" :items="['new', 'draft', 'ready', 'publish']" class="mb-4" label="Status" />
+        <VSelect v-model="status" :items="['new', 'draft', 'ready', 'published']" class="mb-4" label="Status" />
         <div class="d-flex justify-end ga-3">
           <VBtn to="/courses" variant="text">Cancel</VBtn>
           <VBtn color="primary" :disabled="!packageId" :loading="submitting" type="submit">Create course</VBtn>

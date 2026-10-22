@@ -333,7 +333,7 @@ async function addToCourse() {
           <VTextField v-model="code" class="mb-3" label="Code" required />
           <VTextField v-model="subType" class="mb-3" label="Sub-type" required />
           <VTextField v-model="type" class="mb-3" label="Type" required />
-          <VSelect v-model="status" :items="['new', 'draft', 'ready', 'publish']" label="Status" />
+          <VSelect v-model="status" :items="['new', 'draft', 'ready', 'published']" label="Status" />
           <div class="d-flex justify-end ga-3 mt-4">
             <VBtn :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</VBtn>
             <VBtn color="primary" :loading="submitting" type="submit">Save changes</VBtn>
