@@ -1,4 +1,5 @@
 import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-resources'
+import type { ApiNewForm } from '~/types/api-form'
 
 export function useUnitBlockComponentsApi() {
   const api = useApi()
@@ -6,6 +7,9 @@ export function useUnitBlockComponentsApi() {
     `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/blocks/${encodeURIComponent(blockId)}/components`
 
   return {
+    newForm(courseId: string, unitId: string, blockId: string) {
+      return api<{ vjsf: ApiNewForm<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>> }>(`${collection(courseId, unitId, blockId)}/new`)
+    },
     list(courseId: string, unitId: string, blockId: string) {
       return api<{ items: UnitBlockComponent[] }>(collection(courseId, unitId, blockId))
     },

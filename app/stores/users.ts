@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { ApiFormSchema } from '~/types/api-form'
 
 export interface User {
   id: string | number
@@ -24,8 +25,12 @@ export interface User {
 export type CreateUserInput = Omit<User, 'id'>
 export type UpdateUserInput = Partial<CreateUserInput>
 export interface UserEditForm {
-  schema: Record<string, unknown>
+  schema: ApiFormSchema
   model: UpdateUserInput
+}
+export interface UserCreateForm {
+  schema: ApiFormSchema
+  model: CreateUserInput & { password?: string }
 }
 
 export const useUsersStore = defineStore('users', () => {
@@ -74,6 +79,11 @@ export const useUsersStore = defineStore('users', () => {
     return request(() => api<{ vjsf: UserEditForm }>(`/users/${id}/edit`))
   }
 
+  async function newForm() {
+    const api = useApi()
+    return request(() => api<{ vjsf: UserCreateForm }>('/users/new'))
+  }
+
   async function create(data: CreateUserInput) {
     const api = useApi()
     const createdUser = await request(() => api<User>('/users/create', {
@@ -114,6 +124,7 @@ export const useUsersStore = defineStore('users', () => {
     index,
     show,
     editForm,
+    newForm,
     create,
     update,
     destroy

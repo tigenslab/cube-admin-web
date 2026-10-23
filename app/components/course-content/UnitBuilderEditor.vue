@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-resources'
+import type { ApiFormSchema } from '~/types/api-form'
 
+const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const props = withDefaults(defineProps<{ mode?: 'edit' | 'view' }>(), { mode: 'edit' })
 const route = useRoute()
 const router = useRouter()
@@ -23,9 +25,13 @@ const componentSaving = ref(false)
 const unitInfoSaving = ref(false)
 const error = ref('')
 const dialog = ref(false)
+const blockFormSchema = ref<ApiFormSchema | null>(null)
+const componentFormSchema = ref<ApiFormSchema | null>(null)
+const componentFormModel = ref<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>>({})
 const unitInfoDialog = ref(false)
 const editingBlock = ref<CourseResourceItem | null>(null)
-const form = reactive({ type: 'T:B', title: '', parent: '', position: '' as number | string })
+const form = reactive({ type: 'T:B', parent: '', position: '' as number | string })
+const blockForm = reactive({ title: '' })
 const unitInfoForm = reactive({ code: '', title: '' })
 const editable = computed(() => props.mode === 'edit')
 const courseRoute = computed(() => `/courses/${courseId}/${props.mode === 'view' ? 'view' : 'edit'}`)
@@ -53,6 +59,10 @@ const orderedBlocks = computed(() => {
   return ordered
 })
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
+const blockVjsfSchema = computed<ApiFormSchema | null>(() => {
+  const title = blockFormSchema.value?.properties?.content?.properties?.title
+  return title ? { type: 'object', title: 'Block details', properties: { title }, required: ['title'] } : null
+})
 let componentsRequest = 0
 
 watch(activeBlockId, async (blockId) => {
@@ -88,14 +98,13 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [courseData, unitData, blockData] = await Promise.all([
+    const [courseData, unitForm, blockData] = await Promise.all([
       courses.show(courseId),
-      unitsApi.list(courseId),
+      unitsApi.editForm(courseId, unitId),
       unitBlocksApi.list(courseId, unitId),
     ])
     course.value = courseData
-    unit.value = unitData.items.find(item => item.id === unitId) || null
-    if (!unit.value) throw new Error('Unit not found.')
+    unit.value = { id: unitId, ...unitForm.vjsf.model } as CourseResourceItem
     blocks.value = blockData.items
     const requestedBlockId = typeof route.params.blockId === 'string'
       ? route.params.blockId
@@ -117,14 +126,23 @@ async function load() {
   }
 }
 
-function openBlockEditor(block: CourseResourceItem | null = null, defaults: { type?: string; parent?: string; title?: string } = {}) {
+async function openBlockEditor(block: CourseResourceItem | null = null, defaults: { type?: string; parent?: string; title?: string } = {}) {
+  if (!blockFormSchema.value) {
+    try {
+      const { vjsf } = await unitBlocksApi.newForm(courseId, unitId)
+      blockFormSchema.value = vjsf.schema
+    } catch (cause) {
+      error.value = getApiErrorMessage(cause, 'Unable to load the block form.')
+      return
+    }
+  }
   editingBlock.value = block
   Object.assign(form, {
     type: block?.type || defaults.type || 'T:B',
-    title: String(block?.content?.title ?? block?.metadata?.title ?? block?.title ?? defaults.title ?? ''),
     parent: block?.ancestry ?? defaults.parent ?? '',
     position: block?.position ?? '',
   })
+  blockForm.title = String(block?.content?.title ?? block?.metadata?.title ?? block?.title ?? defaults.title ?? '')
   dialog.value = true
 }
 
@@ -154,7 +172,6 @@ async function saveUnitInfo() {
       type: unit.value.type,
       code: unitInfoForm.code.trim(),
       title: unitInfoForm.title.trim(),
-      status: unit.value.status,
       content: unit.value.content,
     }, unitId)
     unitInfoDialog.value = false
@@ -211,14 +228,14 @@ function selectBlock(blockId: string) {
 }
 
 async function saveBlock() {
-  if (saving.value || !form.title.trim()) return
+  if (saving.value || !blockForm.title.trim()) return
   saving.value = true
   error.value = ''
   try {
     const data = {
       type: form.type,
       ancestry: form.parent,
-      content: { ...editingBlock.value?.content, ...(form.title.trim() ? { title: form.title.trim() } : {}) },
+      content: { ...editingBlock.value?.content, ...(blockForm.title.trim() ? { title: blockForm.title.trim() } : {}) },
       ...(form.position !== '' ? { position: Number(form.position) } : {}),
     }
     const saved = await unitBlocksApi.save(courseId, unitId, data, editingBlock.value?.id)
@@ -244,13 +261,21 @@ async function deleteBlock(block: CourseResourceItem) {
 }
 
 async function addComponent(type: string, variant: string) {
-  if (!activeBlockId.value || !activeBlock.value || isBlockGroup(activeBlock.value) || componentSaving.value) return
+  const blockId = activeBlockId.value
+  if (!blockId || !activeBlock.value || isBlockGroup(activeBlock.value) || componentSaving.value) return
   componentSaving.value = true
   error.value = ''
   try {
-    const { item } = await unitBlockComponentsApi.save(courseId, unitId, activeBlockId.value, {
+    if (!componentFormSchema.value) {
+      const { vjsf } = await unitBlockComponentsApi.newForm(courseId, unitId, blockId)
+      componentFormSchema.value = vjsf.schema
+      componentFormModel.value = vjsf.model
+    }
+    if (!componentFormSchema.value.properties?.type?.enum?.includes(type)) throw new Error('This component type is not available.')
+    const { item } = await unitBlockComponentsApi.save(courseId, unitId, blockId, {
+      ...componentFormModel.value,
       type,
-      content: { variant, list: [{}] },
+      content: { ...(componentFormModel.value.content || {}), variant, list: [{}] },
     })
     blockComponents.value = [...blockComponents.value, item]
   } catch (cause) {
@@ -435,7 +460,7 @@ onMounted(load)
     <VCard rounded="xl">
       <VCardTitle class="pa-6 pb-2">{{ editingBlock ? 'Edit block' : 'Add content block' }}</VCardTitle>
       <VCardText class="pa-6 pt-2">
-        <VTextField v-model="form.title" label="Title" />
+        <Vjsf v-if="blockVjsfSchema" v-model="blockForm" :schema="blockVjsfSchema" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />

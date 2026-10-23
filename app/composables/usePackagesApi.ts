@@ -1,3 +1,5 @@
+import type { ApiNewForm } from '~/types/api-form'
+
 export type PackageType = 'SCH:PRY' | 'SCH:SEC' | 'RTO:NRT' | 'RTO:NAT'
 
 export interface CoursePackage {
@@ -44,6 +46,9 @@ export function usePackagesApi() {
     },
     show(id: string) {
       return api<PackageDetail>(`/packages/${encodeURIComponent(id)}`)
+    },
+    newUnitForm(id: string) {
+      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title' | 'status'>> & { type?: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
     },
     createUnit(id: string, type: string, data: { code: string; title: string; status?: string }) {
       return api<{ item: PackageUnit }>(`/packages/${encodeURIComponent(id)}/units/create`, {

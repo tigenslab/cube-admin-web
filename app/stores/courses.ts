@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { ApiFormSchema } from '~/types/api-form'
 
 export interface Course {
   id: string
@@ -50,6 +51,11 @@ export const useCoursesStore = defineStore('courses', () => {
     return api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`)
   }
 
+  async function newForm() {
+    const api = useApi()
+    return api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id: string } } }>('/courses/new')
+  }
+
   async function create(course: Pick<Course, 'title' | 'code' | 'sub_type' | 'type'> & { package_id: string } & Partial<Pick<Course, 'status'>>) {
     const api = useApi()
     return api<Course>('/courses/create', {
@@ -60,7 +66,7 @@ export const useCoursesStore = defineStore('courses', () => {
 
   async function changeStatus(id: string, status: string) {
     const api = useApi()
-    const updated = await api<Course>(`/courses/${id}/change-status`, { method: 'POST', body: { status } })
+    const updated = await api<Course>(`/courses/${id}/update_status`, { method: 'POST', body: { status } })
     const index = courses.value.findIndex(course => course.id === id)
     if (index !== -1) courses.value[index] = updated
     return updated
@@ -77,5 +83,5 @@ export const useCoursesStore = defineStore('courses', () => {
     courses.value = courses.value.filter(course => course.id !== id)
   }
 
-  return { courses, loading, error, search, show, editForm, create, update, changeStatus, remove }
+  return { courses, loading, error, search, show, editForm, newForm, create, update, changeStatus, remove }
 })

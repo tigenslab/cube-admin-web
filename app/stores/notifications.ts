@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
+import type { ApiFormSchema } from '~/types/api-form'
 
-export type NotificationType = 'email' | 'sms' | 'notification'
+export type NotificationType = 'EML' | 'SMS' | 'NTF'
 export type NotificationAction = 'mailer' | 'delete' | 'import' | 'clone' | 'export'
 
 export interface NotificationMessage {
@@ -15,6 +16,15 @@ export interface NotificationInput {
 }
 export interface Notification extends NotificationInput { id: string; status?: string; created_at?: string; read?: number }
 
+export interface NotificationCreateForm {
+  schema: ApiFormSchema
+  model: {
+    user_id: string
+    type: NotificationType
+    message: string
+  }
+}
+
 export const useNotificationsStore = defineStore('notifications', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -24,6 +34,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
     const api = useApi()
     notifications.value = await api<Notification[]>('/notifications', { method: 'POST', body: {} })
     return notifications.value
+  }
+
+  async function createForm() {
+    const api = useApi()
+    return api<{ vjsf: NotificationCreateForm }>('/notifications/new')
   }
 
   async function create(notification: NotificationInput) {
@@ -50,5 +65,5 @@ export const useNotificationsStore = defineStore('notifications', () => {
     notifications.value = notifications.value.filter(item => item.id !== id)
   }
 
-  return { notifications, loading, error, search, create, update, remove }
+  return { notifications, loading, error, search, createForm, create, update, remove }
 })

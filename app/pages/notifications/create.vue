@@ -1,8 +1,24 @@
 <script setup lang="ts">
+import type { ApiFormSchema } from '~/types/api-form'
+
 const store = useNotificationsStore()
 const router = useRouter()
-const form = reactive({ user_id: '', type: 'notification' as NotificationType, message: '{\n  "title": "",\n  "body": ""\n}' })
+const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
+const form = reactive({ user_id: '', type: '' as NotificationType, message: '' })
+const formSchema = ref<ApiFormSchema | null>(null)
+const loadingForm = ref(true)
 const error = ref('')
+onMounted(async () => {
+  try {
+    const { vjsf } = await store.createForm()
+    formSchema.value = vjsf.schema
+    Object.assign(form, vjsf.model)
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to load the notification form.')
+  } finally {
+    loadingForm.value = false
+  }
+})
 
 async function submit() {
   try {
@@ -22,10 +38,8 @@ async function submit() {
     <h1 class="text-h4 font-weight-bold">Create notification</h1>
     <VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert>
     <VForm class="mt-6" @submit.prevent="submit">
-      <VTextField v-model="form.user_id" label="User ID" required />
-      <VSelect v-model="form.type" :items="['email', 'sms', 'notification']" label="Type" required />
-      <VTextarea v-model="form.message" class="mt-2" label="Message JSON" required rows="10" />
-      <VBtn class="mt-4" color="primary" :loading="store.loading" type="submit">Create notification</VBtn>
+      <Vjsf v-if="formSchema" v-model="form" :schema="formSchema" />
+      <VBtn class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.loading" type="submit">Create notification</VBtn>
     </VForm>
   </VContainer>
 </template>

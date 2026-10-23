@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { PackageDetail, PackageUnit } from '~/composables/usePackagesApi'
+import type { ApiFormSchema } from '~/types/api-form'
 
+const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const route = useRoute()
 const router = useRouter()
 const packagesApi = usePackagesApi()
@@ -8,9 +10,15 @@ const detail = ref<PackageDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
 const unitDialog = ref(false)
-const unitCode = ref('')
-const unitTitle = ref('')
+const unitForm = reactive({ code: '', title: '' })
 const unitSaving = ref(false)
+const unitFormLoading = ref(false)
+const unitFormSchema = ref<ApiFormSchema | null>(null)
+const unitVjsfSchema = computed<ApiFormSchema | null>(() => {
+  const properties = unitFormSchema.value?.properties
+  if (!properties?.code || !properties.title) return null
+  return { type: 'object', title: 'Reusable unit', properties: { code: properties.code, title: properties.title }, required: ['code', 'title'] }
+})
 const unitError = ref('')
 
 const packageId = computed(() => String(route.params.id))
@@ -28,15 +36,24 @@ async function load() {
   }
 }
 
-function openUnitDialog() {
-  unitCode.value = ''
-  unitTitle.value = ''
+async function openUnitDialog() {
   unitError.value = ''
   unitDialog.value = true
+  unitFormLoading.value = true
+  try {
+    const { vjsf } = await packagesApi.newUnitForm(packageId.value)
+    unitFormSchema.value = vjsf.schema
+    unitForm.code = String(vjsf.model.code || '')
+    unitForm.title = String(vjsf.model.title || '')
+  } catch (cause) {
+    unitError.value = getApiErrorMessage(cause, 'Unable to load the unit form.')
+  } finally {
+    unitFormLoading.value = false
+  }
 }
 
 async function createUnit() {
-  if (!unitCode.value.trim() || !unitTitle.value.trim()) {
+  if (!unitForm.code.trim() || !unitForm.title.trim()) {
     unitError.value = 'Enter a unit code and title.'
     return
   }
@@ -44,8 +61,8 @@ async function createUnit() {
   unitError.value = ''
   try {
     const { item } = await packagesApi.createUnit(packageId.value, detail.value?.item.type || '', {
-      code: unitCode.value.trim(),
-      title: unitTitle.value.trim(),
+      code: unitForm.code.trim(),
+      title: unitForm.title.trim(),
     })
     if (detail.value) detail.value.units.push(item)
     unitDialog.value = false
@@ -119,13 +136,12 @@ onMounted(load)
       <VCardTitle class="pa-6 pb-2">Create reusable unit</VCardTitle>
       <VCardText class="pa-6 pt-2">
         <VAlert v-if="unitError" class="mb-4" color="error" density="compact" variant="tonal">{{ unitError }}</VAlert>
-        <VTextField v-model="unitCode" class="mb-3" label="Unit code" required />
-        <VTextField v-model="unitTitle" label="Unit title" required />
+        <Vjsf v-if="unitVjsfSchema" v-model="unitForm" :schema="unitVjsfSchema" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <VBtn :disabled="unitSaving" variant="text" @click="unitDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="unitSaving" @click="createUnit">Create unit</VBtn>
+        <VBtn :disabled="unitSaving || unitFormLoading" variant="text" @click="unitDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :disabled="unitFormLoading || !unitVjsfSchema" :loading="unitSaving || unitFormLoading" @click="createUnit">Create unit</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

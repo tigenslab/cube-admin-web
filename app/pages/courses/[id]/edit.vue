@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
+import type { ApiFormSchema } from '~/types/api-form'
 import CourseUnitGroupPanels from '~/components/course-content/CourseUnitGroupPanels.vue'
 import type { CourseUnitGroupNode } from '~/components/course-content/CourseUnitGroupPanels.vue'
 const route = useRoute()
@@ -21,13 +22,15 @@ const detailsDialog = ref(false)
 const addDialog = ref(false)
 const adding = ref(false)
 const addError = ref('')
+const addFormLoading = ref(false)
+const courseUnitFormSchema = ref<ApiFormSchema | null>(null)
+const unitCreateFormSchema = ref<ApiFormSchema | null>(null)
 const addKind = ref<'group' | 'unit'>('unit')
 const addUnitMode = ref<'existing' | 'create'>('existing')
-const addTitle = ref('')
+const groupForm = reactive({ title: '' })
+const existingUnitForm = reactive({ unit_id: '' })
+const newUnitForm = reactive({ code: '', title: '' })
 const editingGroup = ref<CourseResourceItem | null>(null)
-const addUnitId = ref('')
-const newUnitCode = ref('')
-const newUnitTitle = ref('')
 const addParentGroupId = ref<string | null>(null)
 const courseId = String(route.params.id)
 
@@ -92,6 +95,34 @@ const addParentLabel = computed(() => {
   if (!addParentGroupId.value) return 'Course root'
   const parent = outline.value.find(item => item.id === addParentGroupId.value)
   return parent?.title || parent?.code || 'Selected group'
+})
+const addVjsfSchema = computed<ApiFormSchema | null>(() => {
+  if (addKind.value === 'group') {
+    const title = courseUnitFormSchema.value?.properties?.title
+    return title ? { type: 'object', title: 'Group details', properties: { title }, required: ['title'] } : null
+  }
+  if (addUnitMode.value === 'existing') {
+    const unitId = courseUnitFormSchema.value?.properties?.unit_id
+    return unitId ? {
+      type: 'object',
+      title: 'Select a unit',
+      properties: {
+        unit_id: {
+          ...unitId,
+          oneOf: availableUnits.value.map(({ title, value }) => ({ const: value, title })),
+        },
+      },
+      required: ['unit_id'],
+    } : null
+  }
+  const code = unitCreateFormSchema.value?.properties?.code
+  const title = unitCreateFormSchema.value?.properties?.title
+  return code && title ? {
+    type: 'object',
+    title: 'New unit details',
+    properties: { code, title },
+    required: ['code', 'title'],
+  } : null
 })
 async function deleteOutlineItem(item: CourseResourceItem) {
   const isGroup = item.type === 'G'
@@ -172,54 +203,88 @@ async function submit() {
   }
 }
 
-function openAddDialog() {
+async function loadAddFormSchemas() {
+  addFormLoading.value = true
+  addError.value = ''
+  try {
+    if (editingGroup.value) {
+      const { vjsf } = await courseUnitsApi.editForm(courseId, editingGroup.value.id)
+      courseUnitFormSchema.value = vjsf.schema
+      unitCreateFormSchema.value = null
+      groupForm.title = String(vjsf.model.title || '')
+      return
+    }
+    const [courseUnitForm, unitForm] = await Promise.all([
+      courseUnitsApi.newForm(courseId),
+      unitsApi.newForm(courseId),
+    ])
+    courseUnitFormSchema.value = courseUnitForm.vjsf.schema
+    unitCreateFormSchema.value = unitForm.vjsf.schema
+    groupForm.title = String(courseUnitForm.vjsf.model.title || '')
+    existingUnitForm.unit_id = addUnitIdForNewForm()
+    newUnitForm.code = String(unitForm.vjsf.model.code || '')
+    newUnitForm.title = String(unitForm.vjsf.model.title || '')
+  } catch (cause) {
+    addError.value = getApiErrorMessage(cause, 'Unable to load the create form.')
+  } finally {
+    addFormLoading.value = false
+  }
+}
+
+function addUnitIdForNewForm() {
+  return availableUnits.value[0]?.value || ''
+}
+
+async function openAddDialog() {
   editingGroup.value = null
   addKind.value = 'unit'
   addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
-  addTitle.value = ''
-  addUnitId.value = availableUnits.value[0]?.value || ''
-  newUnitCode.value = ''
-  newUnitTitle.value = ''
+  Object.assign(groupForm, { title: '' })
+  Object.assign(existingUnitForm, { unit_id: '' })
+  Object.assign(newUnitForm, { code: '', title: '' })
   addParentGroupId.value = null
   addError.value = ''
   addDialog.value = true
+  await loadAddFormSchemas()
 }
 
-function openAddUnitDialog(groupId?: string, kind: 'group' | 'unit' = 'unit') {
+async function openAddUnitDialog(groupId?: string, kind: 'group' | 'unit' = 'unit') {
   editingGroup.value = null
   const group = groupId ? outline.value.find(item => item.id === groupId) : undefined
   addKind.value = kind
   addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
-  addTitle.value = ''
-  addUnitId.value = availableUnits.value[0]?.value || ''
-  newUnitCode.value = ''
-  newUnitTitle.value = ''
+  Object.assign(groupForm, { title: '' })
+  Object.assign(existingUnitForm, { unit_id: '' })
+  Object.assign(newUnitForm, { code: '', title: '' })
   addParentGroupId.value = group?.id || null
   addError.value = ''
   addDialog.value = true
+  await loadAddFormSchemas()
 }
 
-function editGroup(groupId: string) {
+async function editGroup(groupId: string) {
   editingGroup.value = outline.value.find(item => item.id === groupId) || null
   if (!editingGroup.value) return
   addKind.value = 'group'
-  addTitle.value = editingGroup.value.title || ''
+  groupForm.title = editingGroup.value.title || ''
   addParentGroupId.value = editingGroup.value.ancestry?.split('/').filter(Boolean).at(-1) || null
   addError.value = ''
   addDialog.value = true
+  await loadAddFormSchemas()
+  groupForm.title = editingGroup.value?.title || ''
 }
 
 async function addToCourse() {
   if (adding.value) return
-  if (addKind.value === 'group' && !addTitle.value.trim()) {
+  if (addKind.value === 'group' && !groupForm.title.trim()) {
     addError.value = 'Enter a group name.'
     return
   }
-  if (addKind.value === 'unit' && addUnitMode.value === 'existing' && !addUnitId.value) {
+  if (addKind.value === 'unit' && addUnitMode.value === 'existing' && !existingUnitForm.unit_id) {
     addError.value = 'Select a unit to add.'
     return
   }
-  if (addKind.value === 'unit' && addUnitMode.value === 'create' && (!newUnitCode.value.trim() || !newUnitTitle.value.trim())) {
+  if (addKind.value === 'unit' && addUnitMode.value === 'create' && (!newUnitForm.code.trim() || !newUnitForm.title.trim())) {
     addError.value = 'Enter a code and title for the new unit.'
     return
   }
@@ -238,14 +303,14 @@ async function addToCourse() {
       ? addUnitMode.value === 'create'
         ? (await unitsApi.save(courseId, {
             type: course.value?.type || '',
-            code: newUnitCode.value.trim(),
-            title: newUnitTitle.value.trim(),
+            code: newUnitForm.code.trim(),
+            title: newUnitForm.title.trim(),
             content: {},
           })).id
-        : addUnitId.value
+        : existingUnitForm.unit_id
       : ''
     await courseUnitsApi.save(courseId, addKind.value === 'group'
-      ? { type: 'G', title: addTitle.value.trim(), ancestry, position: editingGroup.value?.position || position }
+      ? { type: 'G', title: groupForm.title.trim(), ancestry, position: editingGroup.value?.position || position }
       : { type: 'U', unit_id: unitId, ancestry, position }, editingGroup.value?.id)
     addDialog.value = false
     editingGroup.value = null
@@ -353,18 +418,17 @@ async function addToCourse() {
             <VRadio label="Select existing unit" value="existing" :disabled="!availableUnits.length" />
             <VRadio label="Create new unit" value="create" />
           </VRadioGroup>
-          <VSelect v-if="addUnitMode === 'existing'" v-model="addUnitId" :items="availableUnits" label="Unit" no-data-text="All available units are already in this course." />
-          <template v-else>
-            <VTextField v-model="newUnitCode" class="mb-3" label="Unit code" required />
-            <VTextField v-model="newUnitTitle" label="Unit title" required />
-          </template>
+          <VProgressLinear v-if="addFormLoading" class="mb-3" color="primary" indeterminate />
+          <div v-if="addUnitMode === 'existing' && !availableUnits.length" class="text-body-2 text-medium-emphasis">All available units are already in this course.</div>
         </template>
-        <VTextField v-else v-model="addTitle" label="Group name" autofocus />
+        <Vjsf v-if="addKind === 'group' && addVjsfSchema" v-model="groupForm" :schema="addVjsfSchema" />
+        <Vjsf v-else-if="addUnitMode === 'existing' && addVjsfSchema" v-model="existingUnitForm" :schema="addVjsfSchema" />
+        <Vjsf v-else-if="addVjsfSchema" v-model="newUnitForm" :schema="addVjsfSchema" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <VBtn :disabled="adding" variant="text" @click="addDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="adding" @click="addToCourse">{{ editingGroup ? 'Save group' : 'Add' }}</VBtn>
+        <VBtn :disabled="adding || addFormLoading" variant="text" @click="addDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :disabled="addFormLoading || !addVjsfSchema" :loading="adding" @click="addToCourse">{{ editingGroup ? 'Save group' : 'Add' }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

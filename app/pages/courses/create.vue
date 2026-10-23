@@ -1,32 +1,47 @@
 <script setup lang="ts">
 import type { CoursePackage } from '~/composables/usePackagesApi'
+import type { ApiFormSchema } from '~/types/api-form'
 
 const coursesStore = useCoursesStore()
 const packagesApi = usePackagesApi()
+const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const route = useRoute()
 const router = useRouter()
 const packages = ref<CoursePackage[]>([])
 const packagesLoading = ref(true)
-const packageId = ref('')
-const title = ref('')
-const code = ref('')
-const subType = ref('')
-const status = ref('new')
+const formSchema = ref<ApiFormSchema | null>(null)
+const form = reactive({ package_id: '', title: '', code: '', sub_type: '', type: '', status: 'new' })
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
-const selectedPackage = computed(() => packages.value.find(item => item.id === packageId.value) || null)
-const packageOptions = computed(() => packages.value.map(item => ({
-  title: `${item.title} (${item.type})`,
-  value: item.id,
-})))
+const selectedPackage = computed(() => packages.value.find(item => item.id === form.package_id) || null)
+const courseTypes = computed(() => formSchema.value?.properties?.type?.enum ?? [])
+const vjsfSchema = computed<ApiFormSchema | null>(() => {
+  if (!formSchema.value) return null
+  return {
+    ...formSchema.value,
+    properties: {
+      ...formSchema.value.properties,
+      package_id: {
+        ...formSchema.value.properties?.package_id,
+        oneOf: packages.value.map(item => ({ const: item.id, title: `${item.title} (${item.type})` })),
+      },
+    },
+  }
+})
+
+watch(selectedPackage, (item) => { form.type = item?.type || '' })
 
 onMounted(async () => {
   packagesLoading.value = true
   try {
-    packages.value = (await packagesApi.list()).items
+    const [packageData, { vjsf }] = await Promise.all([packagesApi.list(), coursesStore.newForm()])
+    formSchema.value = vjsf.schema
+    Object.assign(form, vjsf.model)
+    packages.value = packageData.items.filter(item => courseTypes.value.includes(item.type))
     const requestedPackageId = String(route.query.package_id || '')
-    if (packages.value.some(item => item.id === requestedPackageId)) packageId.value = requestedPackageId
+    if (packages.value.some(item => item.id === requestedPackageId)) form.package_id = requestedPackageId
+    form.type = selectedPackage.value?.type || ''
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load packages.')
   } finally {
@@ -35,13 +50,13 @@ onMounted(async () => {
 })
 
 async function submit() {
-  if (!packageId.value || !title.value.trim() || !code.value.trim() || !subType.value.trim()) return
+  if (!form.package_id || !form.title.trim() || !form.code.trim() || !form.sub_type.trim()) return
 
   submitting.value = true
   error.value = null
   try {
-    await coursesStore.create({ package_id: packageId.value, title: title.value.trim(), code: code.value.trim(), sub_type: subType.value.trim(), type: selectedPackage.value?.type || '', status: status.value })
-    await router.push(`/packages/${encodeURIComponent(packageId.value)}`)
+    await coursesStore.create({ package_id: form.package_id, title: form.title.trim(), code: form.code.trim(), sub_type: form.sub_type.trim(), type: form.type, status: form.status })
+    await router.push(`/packages/${encodeURIComponent(form.package_id)}`)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to create course.')
   } finally {
@@ -66,15 +81,10 @@ async function submit() {
     <VCardText class="pa-6">
       <VAlert v-if="error" class="mb-5" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
       <VForm @submit.prevent="submit">
-        <VSelect v-model="packageId" :items="packageOptions" :loading="packagesLoading" class="mb-4" label="Package" no-data-text="No packages available" required />
-        <VTextField :model-value="selectedPackage?.type || ''" class="mb-4" label="Education category" readonly />
-        <VTextField v-model="title" class="mb-4" label="Title" placeholder="Year 5 Mathematics" required />
-        <VTextField v-model="code" class="mb-4" label="Code" placeholder="Mathematics Year 7" required />
-        <VTextField v-model="subType" class="mb-4" label="Sub-type" required />
-        <VSelect v-model="status" :items="['new', 'draft', 'ready', 'published']" class="mb-4" label="Status" />
+        <Vjsf v-if="vjsfSchema" v-model="form" :schema="vjsfSchema" />
         <div class="d-flex justify-end ga-3">
           <VBtn to="/courses" variant="text">Cancel</VBtn>
-          <VBtn color="primary" :disabled="!packageId" :loading="submitting" type="submit">Create course</VBtn>
+          <VBtn color="primary" :disabled="!form.package_id || !vjsfSchema" :loading="submitting || packagesLoading" type="submit">Create course</VBtn>
         </div>
       </VForm>
     </VCardText>
