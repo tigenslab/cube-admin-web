@@ -10,7 +10,7 @@ export function useCourseUnitsApi() {
     },
     async save(courseId: string, data: CourseResourceInput, id?: string) {
       const path = collection(courseId)
-      const response = await api<{ item: CourseResourceItem }>(id ? `${path}/${encodeURIComponent(id)}` : path, {
+      const response = await api<{ item: CourseResourceItem }>(id ? `${path}/${encodeURIComponent(id)}` : `${path}/create`, {
         method: id ? 'PUT' : 'POST', body: data,
       })
       return response.item

@@ -11,7 +11,7 @@ export function useUnitBlockComponentsApi() {
     },
     save(courseId: string, unitId: string, blockId: string, data: Partial<Pick<UnitBlockComponent, 'type' | 'content'>>, id?: string) {
       const path = collection(courseId, unitId, blockId)
-      return api<{ item: UnitBlockComponent }>(id ? `${path}/${encodeURIComponent(id)}` : path, {
+      return api<{ item: UnitBlockComponent }>(id ? `${path}/${encodeURIComponent(id)}` : `${path}/create`, {
         method: id ? 'PUT' : 'POST', body: data,
       })
     },

@@ -46,7 +46,7 @@ export function usePackagesApi() {
       return api<PackageDetail>(`/packages/${encodeURIComponent(id)}`)
     },
     createUnit(id: string, type: string, data: { code: string; title: string; status?: string }) {
-      return api<{ item: PackageUnit }>(`/packages/${encodeURIComponent(id)}/units`, {
+      return api<{ item: PackageUnit }>(`/packages/${encodeURIComponent(id)}/units/create`, {
         method: 'POST',
         body: { ...data, type, content: {} },
       })
