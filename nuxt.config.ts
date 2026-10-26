@@ -18,9 +18,21 @@ const contentSecurityPolicy = [
   "img-src 'self' data:",
   "font-src 'self' data: https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   `connect-src 'self' ${apiOrigin}`,
 ].filter(Boolean).join('; ')
+const vjsfOptimizeDeps = {
+  include: [
+    '@koumoul/vjsf',
+    '@json-layout/core',
+    '@json-layout/vocabulary',
+    ...commonjsDeps,
+    'ajv-formats/dist/index.js',
+    '@json-layout/core > ajv-formats',
+    '@json-layout/vocabulary > ajv-formats',
+  ],
+  needsInterop: ['ajv-formats', 'ajv-formats/dist/index.js'],
+}
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -32,21 +44,15 @@ export default defineNuxtConfig({
     },
     optimizeDeps: {
       force: true,
-      include: [
-        '@koumoul/vjsf',
-        '@json-layout/core',
-        '@json-layout/vocabulary',
-        ...commonjsDeps,
-        'ajv-formats/dist/index.js',
-        '@json-layout/core > ajv-formats',
-        '@json-layout/vocabulary > ajv-formats',
-      ],
-      needsInterop: [
-        'ajv-formats',
-        'ajv-formats/dist/index.js',
-        '@json-layout/core > ajv-formats',
-        '@json-layout/vocabulary > ajv-formats',
-      ],
+      ...vjsfOptimizeDeps,
+    },
+    environments: {
+      client: {
+        optimizeDeps: {
+          force: true,
+          ...vjsfOptimizeDeps,
+        },
+      },
     },
     build: {
       commonjsOptions: {

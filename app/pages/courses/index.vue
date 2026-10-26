@@ -3,16 +3,9 @@ import { storeToRefs } from 'pinia'
 import type { Course } from '~/stores/courses'
 
 const coursesStore = useCoursesStore()
-const courseEdit = useCourseEditModel()
+const vjsfDialog = useVjsfFormDialog()
 const { courses, loading, error } = storeToRefs(coursesStore)
-const { courseTitle, form: courseEditForm, loading: editLoading, saving: editSaving, error: editError } = courseEdit
 const search = ref('')
-const editDialog = ref(false)
-
-function enumOptions(key: 'type' | 'status') {
-  const properties = courseEditForm.value?.schema.properties as Record<string, { enum?: unknown[] }> | undefined
-  return (properties?.[key]?.enum ?? []).map(value => ({ title: String(value), value }))
-}
 
 onMounted(() => {
   coursesStore.search().catch(() => {
@@ -32,12 +25,19 @@ const filteredCourses = computed(() => {
 const nextStatus: Record<string, string> = { new: 'draft', draft: 'ready', ready: 'published', published: 'draft' }
 
 async function openEdit(course: Course) {
-  editDialog.value = true
-  await courseEdit.load(course)
+  await vjsfDialog.showDialog({
+    title: `Edit ${course.title || 'course'}`,
+    loadKey: course.id,
+    loadForm: () => coursesStore.editForm(course.id),
+    saveForm: (model: Partial<Course>) => saveCourse(course, model),
+  })
 }
 
-async function saveCourse() {
-  if (await courseEdit.save()) editDialog.value = false
+async function saveCourse(course: Course, model: Partial<Course>) {
+  const updated = await coursesStore.update(course.id, model)
+  const index = courses.value.findIndex(course => course.id === updated.id)
+  if (index !== -1) courses.value[index] = { ...courses.value[index], ...updated }
+  return updated
 }
 
 async function changeStatus(course: { id: string; status: string }) {
@@ -158,25 +158,6 @@ async function deleteCourse(id: string) {
     </VCardText>
   </VCard>
 
-  <VDialog v-model="editDialog" max-width="640">
-    <VCard rounded="xl">
-      <VCardTitle class="pa-6 pb-2">Edit {{ courseTitle }}</VCardTitle>
-      <VCardText class="pa-6 pt-2">
-        <VProgressLinear v-if="editLoading" class="mb-4" color="primary" indeterminate />
-        <VAlert v-if="editError" class="mb-4" color="error" density="compact" variant="tonal">{{ editError }}</VAlert>
-        <VForm v-if="courseEditForm" @submit.prevent="saveCourse">
-          <VTextField v-model="courseEditForm.model.title" label="Title" required />
-          <VTextField v-model="courseEditForm.model.code" label="Code" required />
-          <VSelect v-model="courseEditForm.model.type" :items="enumOptions('type')" label="Type" required />
-          <VSelect v-model="courseEditForm.model.status" :items="enumOptions('status')" label="Status" required />
-          <div class="d-flex justify-end ga-3 mt-4">
-            <VBtn :disabled="editSaving" variant="text" @click="editDialog = false">Cancel</VBtn>
-            <VBtn color="primary" :loading="editSaving" type="submit">Save changes</VBtn>
-          </div>
-        </VForm>
-      </VCardText>
-    </VCard>
-  </VDialog>
 </template>
 
 <style scoped>

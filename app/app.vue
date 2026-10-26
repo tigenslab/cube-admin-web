@@ -23,6 +23,7 @@ onMounted(() => {
       <VProgressLinear class="session-progress" indeterminate color="primary" rounded height="6" aria-label="Checking your session" />
     </div>
     <NuxtRouteAnnouncer />
+    <DialogServiceHost />
     <NuxtLayout v-if="!showLoader">
       <NuxtPage />
     </NuxtLayout>
