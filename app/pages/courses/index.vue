@@ -4,6 +4,7 @@ import type { Course } from '~/stores/courses'
 
 const coursesStore = useCoursesStore()
 const vjsfDialog = useVjsfFormDialog()
+const confirmDialog = useConfirmDialog()
 const { courses, loading, error } = storeToRefs(coursesStore)
 const search = ref('')
 
@@ -50,9 +51,15 @@ function contentCount(course: { content?: Record<string, unknown> }) {
   return Object.keys(course.content ?? {}).length
 }
 
-async function deleteCourse(id: string) {
-  if (!confirm('Delete this course?')) return
-  await coursesStore.remove(id)
+async function deleteCourse(course: Course) {
+  const confirmed = await confirmDialog.confirm({
+    title: 'Delete course?',
+    message: `Delete “${course.title}”? This action cannot be undone.`,
+    confirmText: 'Delete',
+    confirmColor: 'error',
+  })
+  if (!confirmed) return
+  await coursesStore.remove(course.id)
 }
 </script>
 
@@ -144,7 +151,7 @@ async function deleteCourse(id: string) {
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
             <td class="text-no-wrap">
               <VBtn v-if="course.permissions?.update" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" @click="openEdit(course)" />
-              <VBtn v-if="course.permissions?.delete" aria-label="Delete course" icon="mdi-delete-outline" size="small" variant="text" @click="deleteCourse(course.id)" />
+              <VBtn v-if="course.permissions?.delete" aria-label="Delete course" icon="mdi-delete-outline" size="small" variant="text" @click="deleteCourse(course)" />
             </td>
           </tr>
         </tbody>
