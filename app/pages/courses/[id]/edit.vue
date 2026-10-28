@@ -366,8 +366,9 @@ async function addToCourse() {
             </div>
             <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
             <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
-            <VCardActions v-if="course?.permissions?.delete" class="justify-end">
-              <VBtn aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
+            <VCardActions v-if="course?.permissions?.update || course?.permissions?.delete" class="justify-end">
+              <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
+              <VBtn v-if="course?.permissions?.delete" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
             </VCardActions>
           </VCard>
         </VCol>
@@ -379,8 +380,9 @@ async function addToCourse() {
           <div class="unit-banner d-flex align-end pa-3"><span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ entry.unit.code || '' }}</span></div>
           <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
           <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
-          <VCardActions v-if="course?.permissions?.delete" class="justify-end">
-            <VBtn aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
+          <VCardActions v-if="course?.permissions?.update || course?.permissions?.delete" class="justify-end">
+            <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
+            <VBtn v-if="course?.permissions?.delete" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
           </VCardActions>
         </VCard>
       </VCol>
@@ -421,9 +423,9 @@ async function addToCourse() {
           <VProgressLinear v-if="addFormLoading" class="mb-3" color="primary" indeterminate />
           <div v-if="addUnitMode === 'existing' && !availableUnits.length" class="text-body-2 text-medium-emphasis">All available units are already in this course.</div>
         </template>
-        <Vjsf v-if="addKind === 'group' && addVjsfSchema" v-model="groupForm" :schema="addVjsfSchema" />
-        <Vjsf v-else-if="addUnitMode === 'existing' && addVjsfSchema" v-model="existingUnitForm" :schema="addVjsfSchema" />
-        <Vjsf v-else-if="addVjsfSchema" v-model="newUnitForm" :schema="addVjsfSchema" />
+        <Vjsf v-if="addKind === 'group' && addVjsfSchema" :model-value="groupForm" :schema="addVjsfSchema" @update:model-value="Object.assign(groupForm, $event)" />
+        <Vjsf v-else-if="addUnitMode === 'existing' && addVjsfSchema" :model-value="existingUnitForm" :schema="addVjsfSchema" @update:model-value="Object.assign(existingUnitForm, $event)" />
+        <Vjsf v-else-if="addVjsfSchema" :model-value="newUnitForm" :schema="addVjsfSchema" @update:model-value="Object.assign(newUnitForm, $event)" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />

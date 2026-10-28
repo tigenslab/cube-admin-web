@@ -72,8 +72,9 @@ function updateOpenGroups(value: string[] | string | null) {
               </div>
               <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
               <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
-              <VCardActions v-if="deletable" class="justify-end">
-                <VBtn aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="emit('remove-unit', entry.reference.id)">Remove from course</VBtn>
+              <VCardActions v-if="editable || deletable" class="justify-end">
+                <VBtn v-if="editable" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
+                <VBtn v-if="deletable" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="emit('remove-unit', entry.reference.id)">Remove from course</VBtn>
               </VCardActions>
             </VCard>
           </VCol>
