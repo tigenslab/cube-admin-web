@@ -6,7 +6,6 @@ export interface Course {
   title: string
   code: string
   package_id?: string
-  sub_type: string
   type: string
   status: string
   permissions?: Record<string, boolean>
@@ -56,11 +55,11 @@ export const useCoursesStore = defineStore('courses', () => {
     return api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id: string } } }>('/courses/new')
   }
 
-  async function create(course: Pick<Course, 'title' | 'code' | 'sub_type' | 'type'> & { package_id: string } & Partial<Pick<Course, 'status'>>) {
+  async function create(course: Pick<Course, 'title' | 'code' | 'type'> & { package_id: string }) {
     const api = useApi()
     return api<Course>('/courses/create', {
       method: 'POST',
-      body: { package_id: course.package_id, title: course.title, code: course.code, sub_type: course.sub_type, type: course.type, status: course.status ?? 'new', content: {} }
+      body: { package_id: course.package_id, title: course.title, code: course.code, type: course.type, content: {} }
     })
   }
 

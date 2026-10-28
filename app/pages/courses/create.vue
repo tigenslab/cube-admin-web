@@ -10,7 +10,7 @@ const router = useRouter()
 const packages = ref<CoursePackage[]>([])
 const packagesLoading = ref(true)
 const formSchema = ref<ApiFormSchema | null>(null)
-const form = reactive({ package_id: '', title: '', code: '', sub_type: '', type: '', status: 'new' })
+const form = reactive({ package_id: '', title: '', code: '', type: '' })
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
@@ -50,12 +50,12 @@ onMounted(async () => {
 })
 
 async function submit() {
-  if (!form.package_id || !form.title.trim() || !form.code.trim() || !form.sub_type.trim()) return
+  if (!form.package_id || !form.title.trim() || !form.code.trim()) return
 
   submitting.value = true
   error.value = null
   try {
-    await coursesStore.create({ package_id: form.package_id, title: form.title.trim(), code: form.code.trim(), sub_type: form.sub_type.trim(), type: form.type, status: form.status })
+    await coursesStore.create({ package_id: form.package_id, title: form.title.trim(), code: form.code.trim(), type: form.type })
     await router.push(`/packages/${encodeURIComponent(form.package_id)}`)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to create course.')
