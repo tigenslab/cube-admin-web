@@ -7,6 +7,7 @@ const route = useRoute()
 const router = useRouter()
 const courseId = String(route.params.id)
 const unitId = String(route.params.unitId)
+const courses = useCoursesStore()
 const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
 const unitBlockComponentsApi = useUnitBlockComponentsApi()
@@ -18,6 +19,11 @@ const componentsLoading = ref(false)
 const openGroups = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
+const selectedVersion = computed(() => {
+  const value = Number(route.query.version)
+  return Number.isInteger(value) && value > 0 ? value : null
+})
+const courseViewPath = computed(() => selectedVersion.value ? `/courses/${courseId}/view?version=${selectedVersion.value}` : `/courses/${courseId}/view`)
 
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
 let componentsRequest = 0
@@ -27,6 +33,12 @@ watch(activeBlockId, async (blockId) => {
   blockComponents.value = []
   error.value = ''
   if (!blockId) {
+    componentsLoading.value = false
+    return
+  }
+  if (selectedVersion.value) {
+    const block = activeBlock.value as (CourseResourceItem & { components?: UnitBlockComponent[] }) | null
+    blockComponents.value = block?.components || []
     componentsLoading.value = false
     return
   }
@@ -63,7 +75,8 @@ function blockTitle(block: CourseResourceItem) {
 }
 
 function blockPath(blockId: string) {
-  return `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
+  const path = `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
+  return selectedVersion.value ? `${path}?version=${selectedVersion.value}` : path
 }
 
 function selectBlock(blockId: string) {
@@ -79,13 +92,19 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [unitData, blockData] = await Promise.all([
-      unitsApi.list(courseId),
-      unitBlocksApi.list(courseId, unitId),
-    ])
-    unit.value = unitData.items.find(item => item.id === unitId) || null
+    if (selectedVersion.value) {
+      const snapshot = await courses.versionUnit(courseId, selectedVersion.value, unitId)
+      unit.value = { id: unitId, ...snapshot.unit } as CourseResourceItem
+      blocks.value = flattenSnapshotBlocks(snapshot.blocks)
+    } else {
+      const [unitData, blockData] = await Promise.all([
+        unitsApi.list(courseId),
+        unitBlocksApi.list(courseId, unitId),
+      ])
+      unit.value = unitData.items.find(item => item.id === unitId) || null
+      blocks.value = blockData.items
+    }
     if (!unit.value) throw new Error('Unit not found.')
-    blocks.value = blockData.items
     openGroups.value = blocks.value
       .filter(block => ['T:G', 'A:G'].includes(block.type))
       .map(block => block.id)
@@ -98,13 +117,22 @@ async function load() {
     if (activeBlockId.value && route.params.blockId !== activeBlockId.value) {
       await router.replace(blockPath(activeBlockId.value))
     } else if (!activeBlockId.value && route.params.blockId) {
-      await router.replace(`/courses/${courseId}/units/${unitId}/view`)
+      await router.replace(selectedVersion.value ? { path: `/courses/${courseId}/units/${unitId}/view`, query: { version: String(selectedVersion.value) } } : `/courses/${courseId}/units/${unitId}/view`)
     }
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load unit content.')
   } finally {
     loading.value = false
   }
+}
+
+function flattenSnapshotBlocks(rows: Record<string, any>[], ancestry = '', result: CourseResourceItem[] = []) {
+  for (const block of rows) {
+    const blockAncestry = String(block.ancestry ?? ancestry)
+    result.push({ ...block, ancestry: blockAncestry })
+    flattenSnapshotBlocks(block.children || [], [blockAncestry, block.id].filter(Boolean).join('/'), result)
+  }
+  return result
 }
 
 onMounted(load)
@@ -115,7 +143,7 @@ onMounted(load)
     <template #sidebar>
     <aside class="viewer-sidebar">
       <div class="unit-heading">
-        <VBtn aria-label="Back to course view" icon="mdi-chevron-left" :to="`/courses/${courseId}/view`" variant="text" />
+        <VBtn aria-label="Back to course view" icon="mdi-chevron-left" :to="courseViewPath" variant="text" />
         <div class="unit-heading-text">
           <div>{{ unit?.code }}</div>
           <strong>{{ unit?.title }}</strong>
@@ -125,9 +153,9 @@ onMounted(load)
             <VBtn v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList>
-            <VListItem prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/units/${unitId}/edit`" />
+            <VListItem v-if="!selectedVersion" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/units/${unitId}/edit`" />
             <VDivider class="my-1" />
-            <VListItem prepend-icon="mdi-arrow-left" title="Course view" :to="`/courses/${courseId}/view`" />
+            <VListItem prepend-icon="mdi-arrow-left" title="Course view" :to="courseViewPath" />
           </VList>
         </VMenu>
       </div>

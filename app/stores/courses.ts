@@ -50,6 +50,18 @@ export const useCoursesStore = defineStore('courses', () => {
     return api<Course>(`/courses/${id}`)
   }
 
+  async function version(id: string, version: number) {
+    const api = useApi()
+    return api<Record<string, any>>(`/courses/${encodeURIComponent(id)}/versions/${version}`)
+  }
+
+  async function versionUnit(id: string, version: number, unitId: string) {
+    const api = useApi()
+    return api<{ course: Partial<Course>; version: number; unit: Record<string, any>; blocks: Record<string, any>[] }>(
+      `/courses/${encodeURIComponent(id)}/versions/${version}/units/${encodeURIComponent(unitId)}`,
+    )
+  }
+
   async function editForm(id: string) {
     const api = useApi()
     return api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`)
@@ -88,5 +100,5 @@ export const useCoursesStore = defineStore('courses', () => {
     courses.value = courses.value.filter(course => course.id !== id)
   }
 
-  return { courses, loading, error, search, show, editForm, newForm, create, update, changeStatus, remove }
+  return { courses, loading, error, search, show, version, versionUnit, editForm, newForm, create, update, changeStatus, remove }
 })

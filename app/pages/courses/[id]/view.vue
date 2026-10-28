@@ -3,6 +3,7 @@ import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
 
 const route = useRoute()
+const router = useRouter()
 const courseId = String(route.params.id)
 const courses = useCoursesStore()
 const courseUnitsApi = useCourseUnitsApi()
@@ -14,6 +15,8 @@ const search = ref('')
 const openGroups = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
+const selectedVersion = ref<number | null>(null)
+const isVersionView = computed(() => Boolean(course.value && course.value.status !== 'draft'))
 
 const groups = computed(() => {
   const unitById = new Map(units.value.map(unit => [unit.id, unit]))
@@ -52,16 +55,60 @@ const groups = computed(() => {
 })
 const hasGroups = computed(() => outline.value.some(item => item.type === 'G'))
 
+function flattenSnapshotOutline(rows: Record<string, any>[], ancestry = '', result: CourseResourceItem[] = []) {
+  for (const row of rows) {
+    const rowAncestry = String(row.ancestry ?? ancestry)
+    result.push({ id: String(row.id), type: String(row.type), title: row.title, unit_id: row.unit_id, ancestry: rowAncestry, position: row.position })
+    const childAncestry = row.type === 'G' ? [rowAncestry, row.id].filter(Boolean).join('/') : rowAncestry
+    flattenSnapshotOutline(row.children || [], childAncestry, result)
+  }
+  return result
+}
+
+function setSnapshot(snapshot: Record<string, any>) {
+  course.value = { ...course.value, ...snapshot.course, id: courseId } as Course
+  units.value = (snapshot.units || []).map((reference: Record<string, any>) => reference.unit).filter(Boolean)
+  outline.value = flattenSnapshotOutline(snapshot.course_units || [])
+  openGroups.value = outline.value.filter(item => item.type === 'G').map(item => item.id)
+}
+
+async function loadVersion(version: number) {
+  setSnapshot(await courses.version(courseId, version))
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [courseData, unitData, outlineData] = await Promise.all([
-      courses.show(courseId),
-      unitsApi.list(courseId),
-      courseUnitsApi.list(courseId),
-    ])
+    const courseData = await courses.show(courseId)
     course.value = courseData
+    if (courseData.status !== 'draft') {
+      const latest = [...(courseData.versions || [])].sort((a, b) => b.version - a.version)[0]?.version ?? courseData.published_version
+      const requestedVersion = Number(route.query.version)
+      selectedVersion.value = courseData.versions?.some(item => item.version === requestedVersion)
+        ? requestedVersion
+        : selectedVersion.value && courseData.versions?.some(item => item.version === selectedVersion.value)
+          ? selectedVersion.value
+          : latest || null
+      if (!selectedVersion.value) {
+        units.value = []
+        outline.value = []
+        error.value = 'No saved course version is available yet.'
+        return
+      }
+      if (String(route.query.version || '') !== String(selectedVersion.value)) {
+        await router.replace({ query: { ...route.query, version: String(selectedVersion.value) } })
+      }
+      await loadVersion(selectedVersion.value)
+      return
+    }
+    selectedVersion.value = null
+    if (route.query.version) {
+      const query = { ...route.query }
+      delete query.version
+      await router.replace({ query })
+    }
+    const [unitData, outlineData] = await Promise.all([unitsApi.list(courseId), courseUnitsApi.list(courseId)])
     units.value = unitData.items
     outline.value = outlineData.items
     for (const referencedUnit of outlineData.units || []) {
@@ -73,6 +120,26 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function switchVersion(version: number | null) {
+  if (!version || version === selectedVersion.value) return
+  selectedVersion.value = version
+  await router.replace({ query: { ...route.query, version: String(version) } })
+  loading.value = true
+  error.value = ''
+  try {
+    await loadVersion(version)
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to load this course version.')
+  } finally {
+    loading.value = false
+  }
+}
+
+function unitViewPath(unitId: string) {
+  const path = `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/view`
+  return isVersionView.value && selectedVersion.value ? `${path}?version=${selectedVersion.value}` : path
 }
 
 onMounted(load)
@@ -91,7 +158,22 @@ onMounted(load)
   <VCard rounded="xl" variant="flat">
     <div class="d-flex align-center justify-space-between ga-4 bg-grey-lighten-4 px-5 py-2">
       <VTextField v-model="search" class="unit-search" density="compact" hide-details placeholder="Search" prepend-inner-icon="mdi-magnify" rounded="lg" variant="solo" />
-      <span class="text-body-2">View only</span>
+      <div class="d-flex align-center ga-3">
+        <VSelect
+          v-if="isVersionView && course?.versions?.length"
+          :model-value="selectedVersion"
+          class="version-select"
+          density="compact"
+          hide-details
+          item-title="label"
+          item-value="version"
+          :items="course.versions.slice().sort((a, b) => b.version - a.version).map(item => ({ ...item, label: `Version ${item.version}` }))"
+          label="Course version"
+          variant="outlined"
+          @update:model-value="switchVersion(Number($event))"
+        />
+        <span class="text-body-2">{{ isVersionView ? `Version ${selectedVersion ?? '—'}` : 'View only' }}</span>
+      </div>
     </div>
 
     <VProgressLinear v-if="loading" color="primary" indeterminate />
@@ -103,7 +185,7 @@ onMounted(load)
           <div v-if="!group.units.length" class="pa-4 text-body-2 text-medium-emphasis">No units in this group yet.</div>
           <VRow v-else>
             <VCol v-for="(unit, index) in group.units" :key="unit.id" cols="12" md="4" sm="6">
-              <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${unit.id}/view`" rounded="lg" variant="flat">
+              <VCard class="unit-card h-100" :to="unitViewPath(unit.id)" rounded="lg" variant="flat">
                 <div class="unit-banner d-flex align-end pa-3">
                   <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ unit.code || '' }}</span>
                 </div>
@@ -119,7 +201,7 @@ onMounted(load)
     </VExpansionPanels>
     <VRow v-else class="pa-5">
       <VCol v-for="(unit, index) in groups[0]?.units || []" :key="unit.id" cols="12" md="4" sm="6">
-        <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${unit.id}/view`" rounded="lg" variant="flat">
+        <VCard class="unit-card h-100" :to="unitViewPath(unit.id)" rounded="lg" variant="flat">
           <div class="unit-banner d-flex align-end pa-3">
             <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ unit.code || '' }}</span>
           </div>
@@ -135,6 +217,7 @@ onMounted(load)
 
 <style scoped>
 .unit-search { max-width: 320px; }
+.version-select { width: 180px; }
 .unit-banner {
   min-height: 100px;
   background: linear-gradient(145deg, #d9987d, #f2c0a3 58%, #c87860);
