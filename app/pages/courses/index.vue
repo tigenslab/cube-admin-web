@@ -164,7 +164,7 @@ async function deleteCourse(course: Course) {
               </div>
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
-            <td><VChip :color="course.status === 'published' ? 'success' : course.status === 'publishing' ? 'info' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip><VChip v-if="course.published_version" class="ml-1" size="small" variant="outlined">V{{ course.published_version }}</VChip>
+            <td><VChip :color="course.status === 'published' ? 'success' : course.status === 'publishing' ? 'info' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip><VChip v-if="course.status === 'draft'" class="ml-1" size="small" variant="outlined">Current</VChip><VChip v-else-if="course.published_version" class="ml-1" size="small" variant="outlined">V{{ course.published_version }}</VChip>
               <VBtn v-if="course.status === 'publishing'" class="ml-2" color="info" prepend-icon="mdi-progress-clock" size="small" variant="tonal" disabled>Publishing…</VBtn>
               <VBtn v-else-if="course.permissions?.change_status && nextStatus[course.status || 'new']" class="ml-2" color="primary" prepend-icon="mdi-arrow-right-circle" size="small" variant="flat" @click="changeStatus(course)">{{ nextActionLabel[course.status || 'new'] }}</VBtn>
               <VBtn v-if="course.permissions?.change_status && course.status === 'ready'" class="ml-2" color="secondary" size="small" variant="outlined" @click="changeStatus(course, 'draft')">Move to draft</VBtn></td>

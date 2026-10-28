@@ -23,7 +23,10 @@ const selectedVersion = computed(() => {
   const value = Number(route.query.version)
   return Number.isInteger(value) && value > 0 ? value : null
 })
-const courseViewPath = computed(() => selectedVersion.value ? `/courses/${courseId}/view?version=${selectedVersion.value}` : `/courses/${courseId}/view`)
+const isCurrentView = computed(() => route.query.current === 'true')
+const courseViewPath = computed(() => selectedVersion.value
+  ? `/courses/${courseId}/view?version=${selectedVersion.value}`
+  : isCurrentView.value ? `/courses/${courseId}/view?current=true` : `/courses/${courseId}/view`)
 
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
 let componentsRequest = 0
@@ -76,7 +79,8 @@ function blockTitle(block: CourseResourceItem) {
 
 function blockPath(blockId: string) {
   const path = `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
-  return selectedVersion.value ? `${path}?version=${selectedVersion.value}` : path
+  if (selectedVersion.value) return `${path}?version=${selectedVersion.value}`
+  return isCurrentView.value ? `${path}?current=true` : path
 }
 
 function selectBlock(blockId: string) {
@@ -117,7 +121,11 @@ async function load() {
     if (activeBlockId.value && route.params.blockId !== activeBlockId.value) {
       await router.replace(blockPath(activeBlockId.value))
     } else if (!activeBlockId.value && route.params.blockId) {
-      await router.replace(selectedVersion.value ? { path: `/courses/${courseId}/units/${unitId}/view`, query: { version: String(selectedVersion.value) } } : `/courses/${courseId}/units/${unitId}/view`)
+      await router.replace(selectedVersion.value
+        ? { path: `/courses/${courseId}/units/${unitId}/view`, query: { version: String(selectedVersion.value) } }
+        : isCurrentView.value
+          ? { path: `/courses/${courseId}/units/${unitId}/view`, query: { current: 'true' } }
+          : `/courses/${courseId}/units/${unitId}/view`)
     }
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load unit content.')
