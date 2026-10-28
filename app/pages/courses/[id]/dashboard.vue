@@ -8,6 +8,7 @@ async function markReady() {
   if (!course.value) return
   try {
     const updated = await courses.changeStatus(course.value.id, 'ready')
+    if ('job' in updated) return
     course.value = await courses.show(updated.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to mark course as ready.')
@@ -18,6 +19,7 @@ async function moveToDraft() {
   if (!course.value) return
   try {
     const updated = await courses.changeStatus(course.value.id, 'draft')
+    if ('job' in updated) return
     course.value = await courses.show(updated.id)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to move course to draft.')

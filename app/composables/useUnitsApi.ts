@@ -22,11 +22,5 @@ export function useUnitsApi() {
       })
       return response.item
     },
-    async updateStatus(courseId: string, id: string, status: string) {
-      const response = await api<{ item: CourseResourceItem }>(`${collection(courseId)}/${encodeURIComponent(id)}/update_status`, {
-        method: 'POST', body: { status },
-      })
-      return response.item
-    },
   }
 }

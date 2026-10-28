@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import type { ApiFormSchema } from '~/types/api-form'
 
 export type NotificationType = 'EML' | 'SMS' | 'NTF'
-export type NotificationAction = 'mailer' | 'delete' | 'import' | 'clone' | 'export'
+export type NotificationAction = 'mailer' | 'delete' | 'import' | 'clone' | 'export' | 'course_publish'
 
 export interface NotificationMessage {
   [key: string]: unknown

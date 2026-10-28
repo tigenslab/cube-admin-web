@@ -1,4 +1,5 @@
 import type { ApiNewForm } from '~/types/api-form'
+import type { VersionMetadata } from '~/types/course-resources'
 
 export type PackageType = 'SCH:PRY' | 'SCH:SEC' | 'RTO:NRT' | 'RTO:NAT'
 
@@ -24,7 +25,7 @@ export interface PackageUnit {
   id: string
   code: string
   title: string
-  status?: string
+  versions?: VersionMetadata[]
   content?: Record<string, unknown>
 }
 
@@ -48,9 +49,9 @@ export function usePackagesApi() {
       return api<PackageDetail>(`/packages/${encodeURIComponent(id)}`)
     },
     newUnitForm(id: string) {
-      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title' | 'status'>> & { type?: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
+      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title'>> & { type?: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
     },
-    createUnit(id: string, type: string, data: { code: string; title: string; status?: string }) {
+    createUnit(id: string, type: string, data: { code: string; title: string }) {
       return api<{ item: PackageUnit }>(`/packages/${encodeURIComponent(id)}/units/create`, {
         method: 'POST',
         body: { ...data, type, content: {} },

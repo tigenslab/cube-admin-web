@@ -7,6 +7,7 @@ const vjsfDialog = useVjsfFormDialog()
 const confirmDialog = useConfirmDialog()
 const { courses, loading, error } = storeToRefs(coursesStore)
 const search = ref('')
+const publishMessage = ref('')
 
 onMounted(() => {
   coursesStore.search().catch(() => {
@@ -24,6 +25,13 @@ const filteredCourses = computed(() => {
 })
 
 const nextStatus: Record<string, string> = { new: 'draft', draft: 'ready', ready: 'published', published: 'draft' }
+const nextActionLabel: Record<string, string> = { new: 'Move to draft', draft: 'Mark ready', ready: 'Publish', published: 'Move to draft' }
+
+async function reloadCourses() {
+  await coursesStore.search().catch(() => {
+    // The store exposes request failures through error.
+  })
+}
 
 async function openEdit(course: Course) {
   await vjsfDialog.showDialog({
@@ -41,10 +49,16 @@ async function saveCourse(course: Course, model: Partial<Course>) {
   return updated
 }
 
-async function changeStatus(course: { id: string; status: string }) {
-  const next = nextStatus[course.status || 'new']
+async function changeStatus(course: { id: string; status: string }, targetStatus?: string) {
+  const next = targetStatus || nextStatus[course.status || 'new']
   if (!next) return
-  try { await coursesStore.changeStatus(course.id, next) } catch (cause) { error.value = getApiErrorMessage(cause, 'Unable to change course status.') }
+  try {
+    const result = await coursesStore.changeStatus(course.id, next)
+    if ('job' in result) {
+      course.status = 'publishing'
+      publishMessage.value = 'Course publication has been queued. Check notifications for the result.'
+    } else publishMessage.value = ''
+  } catch (cause) { error.value = getApiErrorMessage(cause, 'Unable to change course status.') }
 }
 
 function contentCount(course: { content?: Record<string, unknown> }) {
@@ -103,10 +117,14 @@ async function deleteCourse(course: Course) {
   </VRow>
 
   <VCard rounded="xl" variant="flat">
+    <VAlert v-if="publishMessage" class="ma-4 mb-0" closable type="info" @click:close="publishMessage = ''">{{ publishMessage }}</VAlert>
     <VProgressLinear v-if="loading" color="primary" indeterminate />
     <VCardItem class="pa-6 pb-3">
       <template #title>All courses</template>
       <template #subtitle>{{ filteredCourses.length }} courses</template>
+      <template #append>
+        <VBtn :disabled="loading" :loading="loading" color="primary" prepend-icon="mdi-refresh" variant="outlined" @click="reloadCourses">Reload</VBtn>
+      </template>
     </VCardItem>
 
     <VCardText class="pa-6 pt-2">
@@ -146,8 +164,10 @@ async function deleteCourse(course: Course) {
               </div>
             </td>
             <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
-            <td><VChip :color="course.status === 'published' ? 'success' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip>
-              <VBtn v-if="course.permissions?.change_status" class="ml-2" size="x-small" variant="text" @click="changeStatus(course)">{{ nextStatus[course.status || 'new'] }}</VBtn></td>
+            <td><VChip :color="course.status === 'published' ? 'success' : course.status === 'publishing' ? 'info' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip><VChip v-if="course.published_version" class="ml-1" size="small" variant="outlined">V{{ course.published_version }}</VChip>
+              <VBtn v-if="course.status === 'publishing'" class="ml-2" color="info" prepend-icon="mdi-progress-clock" size="small" variant="tonal" disabled>Publishing…</VBtn>
+              <VBtn v-else-if="course.permissions?.change_status && nextStatus[course.status || 'new']" class="ml-2" color="primary" prepend-icon="mdi-arrow-right-circle" size="small" variant="flat" @click="changeStatus(course)">{{ nextActionLabel[course.status || 'new'] }}</VBtn>
+              <VBtn v-if="course.permissions?.change_status && course.status === 'ready'" class="ml-2" color="secondary" size="small" variant="outlined" @click="changeStatus(course, 'draft')">Move to draft</VBtn></td>
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
             <td class="text-no-wrap">
               <VBtn v-if="course.permissions?.update" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" @click="openEdit(course)" />

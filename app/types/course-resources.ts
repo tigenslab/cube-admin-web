@@ -1,3 +1,10 @@
+export interface VersionMetadata {
+  version: number
+  type: string
+  created_at: string
+  created_by: string
+}
+
 export interface CourseResourceItem {
   id: string
   type: string
@@ -6,7 +13,7 @@ export interface CourseResourceItem {
   unit_id?: string
   code?: string
   title?: string
-  status?: string
+  versions?: VersionMetadata[]
   ancestry?: string
   position?: number
   component_ids?: string[]
@@ -27,5 +34,5 @@ export interface UnitBlockComponent {
 }
 
 export type CourseResourceInput = Partial<Pick<CourseResourceItem,
-  'type' | 'unit_id' | 'code' | 'title' | 'status' | 'ancestry' | 'position' | 'content' | 'metadata'
+  'type' | 'unit_id' | 'code' | 'title' | 'ancestry' | 'position' | 'content' | 'metadata'
 >>

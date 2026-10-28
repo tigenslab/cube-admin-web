@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { ApiFormSchema } from '~/types/api-form'
+import type { VersionMetadata } from '~/types/course-resources'
 
 export interface Course {
   id: string
@@ -8,11 +9,15 @@ export interface Course {
   package_id?: string
   type: string
   status: string
+  published_version?: number
+  versions?: VersionMetadata[]
   permissions?: Record<string, boolean>
   content?: Record<string, unknown>
   created_at?: string
   updated_at?: string
 }
+
+export interface CoursePublishJob { job: { notification_id: string; status: string } }
 
 export const useCoursesStore = defineStore('courses', () => {
   const courses = ref<Course[]>([])
@@ -65,9 +70,10 @@ export const useCoursesStore = defineStore('courses', () => {
 
   async function changeStatus(id: string, status: string) {
     const api = useApi()
-    const updated = await api<Course>(`/courses/${id}/update_status`, { method: 'POST', body: { status } })
+    const updated = await api<Course | CoursePublishJob>(`/courses/${id}/update_status`, { method: 'POST', body: { status } })
+    if ('job' in updated) return updated
     const index = courses.value.findIndex(course => course.id === id)
-    if (index !== -1) courses.value[index] = updated
+    if (index !== -1) courses.value[index] = { ...courses.value[index], ...updated }
     return updated
   }
 
