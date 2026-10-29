@@ -20,11 +20,16 @@ const versionOptions = computed(() => {
   if (course.value?.permissions?.change_status) options.unshift({ value: 'current', label: 'Current' })
   return options
 })
+function defaultTabForVersion(version: number | 'current' | null) {
+  if (version === 'current' && course.value?.permissions?.update) return 'edit-course'
+  if (course.value?.permissions?.read) return 'view-course'
+  return 'users'
+}
 async function switchVersion(value: string | number) {
   const selection = value === 'current' ? 'current' : Number(value)
   if (!selection || selection === selectedVersion.value) return
   selectedVersion.value = selection
-  activeTab.value = 'view-course'
+  activeTab.value = defaultTabForVersion(selection)
   const segment = String(selection)
   await router.replace({ path: `/courses/${encodeURIComponent(String(route.params.id))}/${encodeURIComponent(segment)}/dashboard`, query: {} })
 }
@@ -67,12 +72,12 @@ async function changeStatus(status: string) {
 onMounted(async () => {
   try {
     course.value = await courses.show(String(route.params.id))
-    activeTab.value = course.value.permissions?.read ? 'view-course' : 'users'
     const requestedSegment = String(route.params.version || '')
     const validSelection = versionOptions.value.some(item => String(item.value) === requestedSegment)
     selectedVersion.value = validSelection
       ? (requestedSegment === 'current' ? 'current' : Number(requestedSegment))
       : (course.value.permissions?.change_status ? 'current' : versionOptions.value.find(item => item.value !== 'current')?.value ?? null)
+    activeTab.value = defaultTabForVersion(selectedVersion.value)
     const canonicalSegment = String(selectedVersion.value || 'current')
     if (requestedSegment !== canonicalSegment || !requestedSegment) {
       await router.replace({ path: `/courses/${encodeURIComponent(course.value.id)}/${encodeURIComponent(canonicalSegment)}/dashboard` })
@@ -88,7 +93,7 @@ onMounted(async () => {
     <div class="d-flex flex-wrap align-center justify-space-between ga-4 px-6 py-4">
       <div class="d-flex align-center ga-3">
         <VBtn aria-label="Back to courses" icon="mdi-arrow-left" to="/courses" variant="text" />
-        <h1 class="text-h5 font-weight-bold">{{ course?.title || 'Course dashboard' }}<span v-if="course"> ({{ course.status || 'new' }})</span></h1>
+        <h1 class="text-h5 font-weight-bold">{{ course?.title  }}<span v-if="course"> ({{ course.status || 'new' }})</span></h1>
       </div>
       <div class="d-flex flex-wrap align-center ga-2">
         <VSelect
@@ -115,31 +120,33 @@ onMounted(async () => {
 
     <VAlert v-if="error" class="mx-6 mb-4" color="error" variant="tonal">{{ error }}</VAlert>
 
-    <VTabs v-model="activeTab" color="primary">
-      <VTab v-if="course?.permissions?.read" prepend-icon="mdi-eye-outline" value="view-course">View course</VTab>
-      <VTab v-if="course?.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="edit-course">Edit</VTab>
-      <VTab v-if="selectedVersion !== 'current'" value="users">Users</VTab>
-      <VTab v-if="selectedVersion !== 'current'" value="groups">Groups</VTab>
-      <VTab v-if="selectedVersion !== 'current'" value="files">Files</VTab>
-    </VTabs>
+    <template v-if="course && selectedVersion !== null">
+      <VTabs v-model="activeTab" color="primary">
+        <VTab v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" prepend-icon="mdi-eye-outline" value="view-course">View course</VTab>
+        <VTab v-if="course.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="edit-course">Edit</VTab>
+        <VTab v-if="selectedVersion !== 'current'" value="users">Users</VTab>
+        <VTab v-if="selectedVersion !== 'current'" value="groups">Groups</VTab>
+        <VTab v-if="selectedVersion !== 'current'" value="files">Files</VTab>
+      </VTabs>
 
-    <VWindow v-model="activeTab">
-      <VWindowItem v-if="course?.permissions?.read" value="view-course">
-        <CourseViewer :key="viewerKey" :course-id="course.id" embedded :selected-version="selectedVersion" />
-      </VWindowItem>
-      <VWindowItem v-if="course?.permissions?.update && selectedVersion === 'current'" value="edit-course">
-        <CourseEditor :course-id="course.id" embedded @content-updated="viewerKey++" @course-updated="updateCourse" />
-      </VWindowItem>
-      <VWindowItem v-if="selectedVersion !== 'current'" value="users">
-        <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course users will appear here.</div></VCardText>
-      </VWindowItem>
-      <VWindowItem v-if="selectedVersion !== 'current'" value="groups">
-        <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course groups will appear here.</div></VCardText>
-      </VWindowItem>
-      <VWindowItem v-if="selectedVersion !== 'current'" value="files">
-        <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course files will appear here.</div></VCardText>
-      </VWindowItem>
-    </VWindow>
+      <VWindow v-model="activeTab">
+        <VWindowItem v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" value="view-course">
+          <CourseViewer :key="viewerKey" :course-id="course.id" embedded :selected-version="selectedVersion" />
+        </VWindowItem>
+        <VWindowItem v-if="course.permissions?.update && selectedVersion === 'current'" value="edit-course">
+          <CourseEditor :course-id="course.id" embedded @content-updated="viewerKey++" @course-updated="updateCourse" />
+        </VWindowItem>
+        <VWindowItem v-if="selectedVersion !== 'current'" value="users">
+          <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course users will appear here.</div></VCardText>
+        </VWindowItem>
+        <VWindowItem v-if="selectedVersion !== 'current'" value="groups">
+          <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course groups will appear here.</div></VCardText>
+        </VWindowItem>
+        <VWindowItem v-if="selectedVersion !== 'current'" value="files">
+          <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course files will appear here.</div></VCardText>
+        </VWindowItem>
+      </VWindow>
+    </template>
   </VCard>
 </template>
 
