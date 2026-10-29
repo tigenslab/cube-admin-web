@@ -160,10 +160,9 @@ async function switchVersion(version: number | null) {
 }
 
 function unitViewPath(unitId: string) {
-  if (canEditUnits.value) return `/courses/${encodeURIComponent(courseId.value)}/units/${encodeURIComponent(unitId)}/edit`
-  const path = `/courses/${encodeURIComponent(courseId.value)}/units/${encodeURIComponent(unitId)}/view`
-  if (isCurrentView.value) return `${path}?current=true`
-  return isVersionView.value && selectedVersion.value ? `${path}?version=${selectedVersion.value}` : path
+  const version = isCurrentView.value ? 'current' : selectedVersion.value || 'current'
+  const path = `/courses/${encodeURIComponent(courseId.value)}/${version}/units/${encodeURIComponent(unitId)}`
+  return `${path}/${canEditUnits.value ? 'edit' : 'view'}`
 }
 
 onMounted(load)

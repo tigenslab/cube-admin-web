@@ -371,14 +371,14 @@ async function addToCourse() {
       <h2 class="text-subtitle-1 font-weight-medium mb-4">Other units</h2>
       <VRow>
         <VCol v-for="(entry, index) in rootUnits" :key="entry.reference.id" cols="12" md="4" sm="6">
-          <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" rounded="lg" variant="flat">
+          <VCard class="unit-card h-100" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" rounded="lg" variant="flat">
             <div class="unit-banner d-flex align-end pa-3">
               <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ entry.unit.code || '' }}</span>
             </div>
             <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
             <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
             <VCardActions v-if="course?.permissions?.update || course?.permissions?.delete" class="justify-end">
-              <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
+              <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
               <VBtn v-if="course?.permissions?.delete" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
             </VCardActions>
           </VCard>
@@ -387,12 +387,12 @@ async function addToCourse() {
     </div>
     <VRow v-else-if="!hasGroups && rootUnits.length" class="pa-5">
       <VCol v-for="(entry, index) in rootUnits" :key="entry.reference.id" cols="12" md="4" sm="6">
-        <VCard class="unit-card h-100" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" rounded="lg" variant="flat">
+          <VCard class="unit-card h-100" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" rounded="lg" variant="flat">
           <div class="unit-banner d-flex align-end pa-3"><span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ entry.unit.code || '' }}</span></div>
           <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
           <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
           <VCardActions v-if="course?.permissions?.update || course?.permissions?.delete" class="justify-end">
-            <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
+              <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
             <VBtn v-if="course?.permissions?.delete" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
           </VCardActions>
         </VCard>

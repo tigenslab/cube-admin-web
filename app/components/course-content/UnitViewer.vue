@@ -20,13 +20,11 @@ const openGroups = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
 const selectedVersion = computed(() => {
-  const value = Number(route.query.version)
+  const value = Number(route.params.version)
   return Number.isInteger(value) && value > 0 ? value : null
 })
-const isCurrentView = computed(() => route.query.current === 'true')
-const courseViewPath = computed(() => selectedVersion.value
-  ? `/courses/${courseId}/view?version=${selectedVersion.value}`
-  : isCurrentView.value ? `/courses/${courseId}/view?current=true` : `/courses/${courseId}/view`)
+const versionSegment = computed(() => selectedVersion.value ? String(selectedVersion.value) : 'current')
+const courseDashboardPath = computed(() => `/courses/${courseId}/${versionSegment.value}/dashboard`)
 
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
 let componentsRequest = 0
@@ -78,9 +76,7 @@ function blockTitle(block: CourseResourceItem) {
 }
 
 function blockPath(blockId: string) {
-  const path = `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
-  if (selectedVersion.value) return `${path}?version=${selectedVersion.value}`
-  return isCurrentView.value ? `${path}?current=true` : path
+  return `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
 }
 
 function selectBlock(blockId: string) {
@@ -121,11 +117,7 @@ async function load() {
     if (activeBlockId.value && route.params.blockId !== activeBlockId.value) {
       await router.replace(blockPath(activeBlockId.value))
     } else if (!activeBlockId.value && route.params.blockId) {
-      await router.replace(selectedVersion.value
-        ? { path: `/courses/${courseId}/units/${unitId}/view`, query: { version: String(selectedVersion.value) } }
-        : isCurrentView.value
-          ? { path: `/courses/${courseId}/units/${unitId}/view`, query: { current: 'true' } }
-          : `/courses/${courseId}/units/${unitId}/view`)
+      await router.replace(`/courses/${courseId}/${versionSegment.value}/units/${unitId}/view`)
     }
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load unit content.')
@@ -151,7 +143,7 @@ onMounted(load)
     <template #sidebar>
     <aside class="viewer-sidebar">
       <div class="unit-heading">
-        <VBtn aria-label="Back to course view" icon="mdi-chevron-left" :to="courseViewPath" variant="text" />
+        <VBtn aria-label="Back to course dashboard" icon="mdi-chevron-left" :to="courseDashboardPath" variant="text" />
         <div class="unit-heading-text">
           <div>{{ unit?.code }}</div>
           <strong>{{ unit?.title }}</strong>
@@ -161,9 +153,9 @@ onMounted(load)
             <VBtn v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList>
-            <VListItem v-if="!selectedVersion" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/units/${unitId}/edit`" />
+            <VListItem v-if="!selectedVersion" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
             <VDivider class="my-1" />
-            <VListItem prepend-icon="mdi-arrow-left" title="Course view" :to="courseViewPath" />
+            <VListItem prepend-icon="mdi-arrow-left" title="Course dashboard" :to="courseDashboardPath" />
           </VList>
         </VMenu>
       </div>

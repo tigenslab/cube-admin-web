@@ -34,7 +34,8 @@ const form = reactive({ type: 'T:B', parent: '', position: '' as number | string
 const blockForm = reactive({ title: '' })
 const unitInfoForm = reactive({ code: '', title: '' })
 const editable = computed(() => props.mode === 'edit')
-const courseRoute = computed(() => `/courses/${courseId}/${props.mode === 'view' ? 'view' : 'edit'}`)
+const versionSegment = computed(() => String(route.params.version || 'current'))
+const courseRoute = computed(() => `/courses/${courseId}/${versionSegment.value}/dashboard`)
 
 const orderedBlocks = computed(() => {
   const byParent = new Map<string, CourseResourceItem[]>()
@@ -117,7 +118,7 @@ async function load() {
     if (activeBlockId.value && route.params.blockId !== activeBlockId.value) {
       await router.replace(blockPath(activeBlockId.value))
     } else if (!activeBlockId.value && route.params.blockId) {
-      await router.replace(`/courses/${courseId}/units/${unitId}/edit`)
+      await router.replace(`/courses/${courseId}/${versionSegment.value}/units/${unitId}/edit`)
     }
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load unit content.')
@@ -219,7 +220,7 @@ function blockChildCount(block: CourseResourceItem) {
 }
 
 function blockPath(blockId: string) {
-  return `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/${props.mode}/blocks/${encodeURIComponent(blockId)}`
+  return `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/${props.mode}/blocks/${encodeURIComponent(blockId)}`
 }
 
 function selectBlock(blockId: string) {
@@ -293,7 +294,7 @@ onMounted(load)
     <template #sidebar>
     <aside class="builder-sidebar">
       <div class="unit-heading">
-        <VBtn :aria-label="`Back to course ${props.mode}`" icon="mdi-chevron-left" :to="courseRoute" variant="text" />
+        <VBtn aria-label="Back to course dashboard" icon="mdi-chevron-left" :to="courseRoute" variant="text" />
         <div class="unit-heading-text">
           <div>{{ unit?.code }}</div>
           <strong>{{ unit?.title }}</strong>
@@ -303,7 +304,7 @@ onMounted(load)
             <VBtn v-bind="menuProps" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList v-if="editable" density="comfortable" min-width="250">
-            <VListItem prepend-icon="mdi-eye-outline" title="View unit" :to="`/courses/${courseId}/units/${unitId}/view`" />
+            <VListItem prepend-icon="mdi-eye-outline" title="View unit" :to="`/courses/${courseId}/${versionSegment}/units/${unitId}/view`" />
             <VDivider class="my-1" />
             <VListItem prepend-icon="mdi-pencil-outline" title="Edit unit Info" @click="openUnitInfo" />
             <VDivider class="my-1" />
@@ -327,7 +328,7 @@ onMounted(load)
             </VMenu>
           </VList>
           <VList v-else density="comfortable" min-width="220">
-            <VListItem prepend-icon="mdi-arrow-left" title="Course view" :to="courseRoute" />
+            <VListItem prepend-icon="mdi-arrow-left" title="Course dashboard" :to="courseRoute" />
           </VList>
         </VMenu>
       </div>

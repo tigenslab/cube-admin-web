@@ -17,21 +17,24 @@ const versionOptions = computed(() => {
     .slice()
     .sort((a, b) => b.version - a.version)
     .map(item => ({ value: item.version, label: `Version ${item.version}` })) || []
-  if (course.value?.permissions?.change_status) options.unshift({ value: 'current', label: 'Current' })
+  if (course.value?.permissions?.change_status || course.value?.permissions?.update) options.unshift({ value: 'current', label: 'Current' })
   return options
 })
 function defaultTabForVersion(version: number | 'current' | null) {
-  if (version === 'current' && course.value?.permissions?.update) return 'edit-course'
+  if (version === 'current' && course.value?.permissions?.update) return 'view-course'
   if (course.value?.permissions?.read) return 'view-course'
   return 'users'
+}
+function dashboardPath(courseId: string, version: number | 'current') {
+  const coursePath = `/courses/${encodeURIComponent(courseId)}`
+  return version === 'current' ? `${coursePath}/dashboard` : `${coursePath}/${version}/dashboard`
 }
 async function switchVersion(value: string | number) {
   const selection = value === 'current' ? 'current' : Number(value)
   if (!selection || selection === selectedVersion.value) return
   selectedVersion.value = selection
+  await nextTick()
   activeTab.value = defaultTabForVersion(selection)
-  const segment = String(selection)
-  await router.replace({ path: `/courses/${encodeURIComponent(String(route.params.id))}/${encodeURIComponent(segment)}/dashboard`, query: {} })
 }
 
 function updateCourse(courseUpdate: Course) {
@@ -79,8 +82,8 @@ onMounted(async () => {
       : (course.value.permissions?.change_status ? 'current' : versionOptions.value.find(item => item.value !== 'current')?.value ?? null)
     activeTab.value = defaultTabForVersion(selectedVersion.value)
     const canonicalSegment = String(selectedVersion.value || 'current')
-    if (requestedSegment !== canonicalSegment || !requestedSegment) {
-      await router.replace({ path: `/courses/${encodeURIComponent(course.value.id)}/${encodeURIComponent(canonicalSegment)}/dashboard` })
+    if (requestedSegment !== canonicalSegment || !requestedSegment || requestedSegment === 'current') {
+      await router.replace({ path: dashboardPath(course.value.id, selectedVersion.value || 'current') })
     }
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load course.')
@@ -123,7 +126,7 @@ onMounted(async () => {
     <template v-if="course && selectedVersion !== null">
       <VTabs v-model="activeTab" color="primary">
         <VTab v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" prepend-icon="mdi-eye-outline" value="view-course">View course</VTab>
-        <VTab v-if="course.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="edit-course">Edit</VTab>
+        <VTab v-if="course.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="view-course">View course</VTab>
         <VTab v-if="selectedVersion !== 'current'" value="users">Users</VTab>
         <VTab v-if="selectedVersion !== 'current'" value="groups">Groups</VTab>
         <VTab v-if="selectedVersion !== 'current'" value="files">Files</VTab>
@@ -133,7 +136,7 @@ onMounted(async () => {
         <VWindowItem v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" value="view-course">
           <CourseViewer :key="viewerKey" :course-id="course.id" embedded :selected-version="selectedVersion" />
         </VWindowItem>
-        <VWindowItem v-if="course.permissions?.update && selectedVersion === 'current'" value="edit-course">
+        <VWindowItem v-if="course.permissions?.update && selectedVersion === 'current'" value="view-course">
           <CourseEditor :course-id="course.id" embedded @content-updated="viewerKey++" @course-updated="updateCourse" />
         </VWindowItem>
         <VWindowItem v-if="selectedVersion !== 'current'" value="users">

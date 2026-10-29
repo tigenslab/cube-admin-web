@@ -66,14 +66,14 @@ function updateOpenGroups(value: string[] | string | null) {
         <div v-if="!group.units.length && !group.children.length" class="pa-4 text-body-2 text-medium-emphasis">No units or groups here yet.</div>
         <VRow v-if="group.units.length">
           <VCol v-for="(entry, index) in group.units" :key="entry.reference.id" cols="12" md="4" sm="6">
-            <VCard class="unit-card h-100" :to="editable ? `/courses/${courseId}/units/${entry.unit.id}/edit` : undefined" rounded="lg" variant="flat">
+            <VCard class="unit-card h-100" :to="editable ? `/courses/${courseId}/current/units/${entry.unit.id}/edit` : undefined" rounded="lg" variant="flat">
               <div class="unit-banner d-flex align-end pa-3">
                 <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ entry.unit.code || '' }}</span>
               </div>
               <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
               <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
               <VCardActions v-if="editable || deletable" class="justify-end">
-                <VBtn v-if="editable" :to="`/courses/${courseId}/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
+                <VBtn v-if="editable" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
                 <VBtn v-if="deletable" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="emit('remove-unit', entry.reference.id)">Remove from course</VBtn>
               </VCardActions>
             </VCard>
