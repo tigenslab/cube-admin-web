@@ -3,30 +3,7 @@ const drawer = ref(true)
 
 const session = useSessionStore()
 
-const primaryNavigation = [
-  { title: 'Overview', icon: 'mdi-view-dashboard-outline', to: '/' },
-  { title: 'Users', icon: 'mdi-account-group-outline', to: '/users', subject: 'User' },
-  { title: 'Active sessions', icon: 'mdi-shield-account-outline', to: '/sessions/active', subject: 'Session' },
-  { title: 'Courses', icon: 'mdi-book-open-page-variant-outline', to: '/courses', subject: 'Course' },
-  { title: 'Packages', icon: 'mdi-folder-multiple-outline', to: '/packages', subject: 'Package' },
-  { title: 'Notifications', icon: 'mdi-bell-outline', to: '/notifications', subject: 'Notification' },
-  { title: 'Analytics', icon: 'mdi-chart-box-outline', to: '/analytics', subject: 'Analytics' },
-]
-
-const workspaceNavigation = [
-  { title: 'Accounts', icon: 'mdi-domain', to: '/accounts', subject: 'Account' },
-  { title: 'Team', icon: 'mdi-account-cog-outline', to: '/team', subject: 'Team' },
-  { title: 'Settings', icon: 'mdi-cog-outline', to: '/settings', subject: 'Settings' },
-]
-
-function hasPermission(subject?: string) {
-  if (!subject) return true
-  const actions = session.permissions[subject] || session.permissions.all || []
-  return actions.length > 0
-}
-
-const visiblePrimaryNavigation = computed(() => primaryNavigation.filter(item => hasPermission(item.subject)))
-const visibleWorkspaceNavigation = computed(() => workspaceNavigation.filter(item => hasPermission(item.subject)))
+const primaryNavigation = computed(() => session.navigation)
 </script>
 
 <template>
@@ -45,11 +22,7 @@ const visibleWorkspaceNavigation = computed(() => workspaceNavigation.filter(ite
 
     <div class="pa-4">
       <VList density="comfortable" nav>
-        <VListSubheader class="navigation-label">MAIN MENU</VListSubheader>
-        <VListItem v-for="item in visiblePrimaryNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
-
-        <VListSubheader class="navigation-label mt-5">WORKSPACE</VListSubheader>
-        <VListItem v-for="item in visibleWorkspaceNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
+        <VListItem v-for="item in primaryNavigation" :key="item.title" :prepend-icon="item.icon" :title="item.title" :to="item.to" active-color="primary" rounded="lg" />
       </VList>
     </div>
 
@@ -92,11 +65,6 @@ const visibleWorkspaceNavigation = computed(() => workspaceNavigation.filter(ite
   display: flex;
   gap: 12px;
   min-height: 96px;
-}
-.navigation-label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 .upgrade-card {
   color: rgb(var(--v-theme-on-primary));

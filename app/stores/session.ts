@@ -17,6 +17,14 @@ export interface SessionUser {
   permissions?: Record<string, string[]>
 }
 
+export interface SessionNavigationItem {
+  title: string
+  icon: string
+  to: string
+}
+
+export type SessionNavigation = SessionNavigationItem[]
+
 interface LoginResponse {
   id?: string
   session_id?: string
@@ -34,6 +42,7 @@ interface LoginResponse {
   valid_roles?: string[]
   current_role?: string | null
   permissions?: Record<string, string[]>
+  navigation?: SessionNavigation
 }
 
 export const useSessionStore = defineStore('session', {
@@ -51,7 +60,8 @@ export const useSessionStore = defineStore('session', {
     roles: [] as string[],
     validRoles: [] as string[],
     currentRole: null as string | null,
-    permissions: {} as Record<string, string[]>
+    permissions: {} as Record<string, string[]>,
+    navigation: [] as SessionNavigation
   }),
 
   actions: {
@@ -81,6 +91,7 @@ export const useSessionStore = defineStore('session', {
         this.validRoles = payload.valid_roles ?? this.roles
         this.currentRole = payload.current_role ?? payload.user?.current_role ?? null
         this.permissions = payload.permissions ?? {}
+        this.navigation = payload.navigation ?? this.navigation
         this.userUsername = payload.user?.username ?? credentials.username
         this.isAuthenticated = true
         this.lastAction = 'login'
@@ -116,6 +127,7 @@ export const useSessionStore = defineStore('session', {
         this.validRoles = payload.valid_roles ?? this.roles
         this.currentRole = payload.current_role ?? this.user?.current_role ?? null
         this.permissions = payload.permissions ?? {}
+        this.navigation = payload.navigation ?? []
         this.userUsername = this.user?.username ?? payload.username ?? ''
         this.isAuthenticated = true
         return true
@@ -156,6 +168,7 @@ export const useSessionStore = defineStore('session', {
         this.validRoles = payload.valid_roles ?? this.roles
         this.currentRole = payload.current_role ?? payload.user?.current_role ?? null
         this.permissions = payload.permissions ?? {}
+        this.navigation = payload.navigation ?? this.navigation
         this.isAuthenticated = true
         return payload
       } catch (cause) {
@@ -176,6 +189,7 @@ export const useSessionStore = defineStore('session', {
       this.validRoles = response.valid_roles ?? this.validRoles
       this.currentRole = response.current_role ?? role
       this.permissions = response.permissions ?? this.permissions
+      this.navigation = response.navigation ?? this.navigation
       return response
     },
 
@@ -219,6 +233,7 @@ export const useSessionStore = defineStore('session', {
       this.validRoles = []
       this.currentRole = null
       this.permissions = {}
+      this.navigation = []
     },
 
     async logout() {
