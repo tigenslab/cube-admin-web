@@ -87,7 +87,7 @@ onMounted(load)
         <template #subtitle>{{ unitCount }} units</template>
       </VCardItem>
       <VCardText v-if="!unitCount" class="pa-6 pt-0 text-body-2 text-medium-emphasis">No units are included in this course yet.</VCardText>
-      <CatalogueOutline v-else class="px-4 pb-4" :rows="outline" />
+      <CatalogueOutline v-else class="px-4 pb-4" :rows="outline" :units="detail.units" />
     </VCard>
   </template>
 </template>

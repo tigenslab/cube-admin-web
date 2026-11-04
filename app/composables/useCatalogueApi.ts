@@ -18,6 +18,13 @@ export interface CatalogueUnitSnapshot {
   unit_id: string
   version: number
   unit: { id?: string; code?: string; title?: string }
+  blocks: CatalogueBlockTitle[]
+}
+
+export interface CatalogueBlockTitle {
+  id?: string
+  title: string
+  children?: CatalogueBlockTitle[]
 }
 
 export interface CatalogueCourseContent {
