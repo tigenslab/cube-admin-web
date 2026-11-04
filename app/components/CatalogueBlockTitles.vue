@@ -2,20 +2,26 @@
 import type { CatalogueBlockTitle } from '~/composables/useCatalogueApi'
 
 defineOptions({ name: 'CatalogueBlockTitles' })
-defineProps<{ blocks: CatalogueBlockTitle[] }>()
+const props = defineProps<{ blocks: CatalogueBlockTitle[] }>()
+
+const rows = computed(() => {
+  const result: { id: string; title: string; depth: number }[] = []
+  const visit = (blocks: CatalogueBlockTitle[], depth = 0) => {
+    blocks.forEach((block, index) => {
+      result.push({ id: block.id || `${depth}-${index}-${block.title}`, title: block.title, depth })
+      visit(block.children || [], depth + 1)
+    })
+  }
+  visit(props.blocks)
+  return result
+})
 </script>
 
 <template>
-  <ul class="block-tree">
-    <li v-for="(block, index) in blocks" :key="block.id || `${block.title}-${index}`">
-      <div class="block-title">{{ block.title }}</div>
-      <CatalogueBlockTitles v-if="block.children?.length" :blocks="block.children" />
-    </li>
-  </ul>
+  <VList class="pa-0" density="compact">
+    <VListItem v-for="block in rows" :key="block.id" :style="{ paddingInlineStart: `${16 + block.depth * 22}px` }">
+      <template #prepend><VIcon icon="mdi-circle-small" /></template>
+      <VListItemTitle>{{ block.title }}</VListItemTitle>
+    </VListItem>
+  </VList>
 </template>
-
-<style scoped>
-.block-tree { list-style: none; margin: 0; padding-left: 18px; }
-.block-tree > li { border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); padding-left: 14px; }
-.block-title { padding: 7px 0; }
-</style>

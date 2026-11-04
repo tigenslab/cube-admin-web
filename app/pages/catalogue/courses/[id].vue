@@ -11,13 +11,32 @@ const error = ref('')
 const unitSnapshots = computed(() => new Map((detail.value?.units || []).map(item => [item.unit_id, item])))
 
 function mapOutline(rows: CatalogueOutlineRow[]): CatalogueOutlineRow[] {
+  const normalizeType = (row: CatalogueOutlineRow) => row.unit_id || row.type === 'CourseUnit::Unit'
+    ? 'U'
+    : row.type === 'CourseUnit::Group' ? 'G' : row.type
+  const decorate = (items: CatalogueOutlineRow[]): CatalogueOutlineRow[] => items.map((row) => {
+    const type = normalizeType(row)
+    const unit = row.unit_id ? unitSnapshots.value.get(row.unit_id)?.unit : undefined
+    return {
+      ...row,
+      type,
+      title: unit?.title || row.title || (type === 'G' ? 'Untitled group' : 'Untitled unit'),
+      code: unit?.code || row.code,
+      children: decorate(row.children || []),
+    }
+  })
+
+  // Published snapshots already carry nested children. Preserve that exact hierarchy.
+  if (rows.some(row => row.children?.length)) return decorate(rows)
+
   const flattened: CatalogueOutlineRow[] = []
   const flatten = (items: CatalogueOutlineRow[], inheritedAncestry = '') => {
     for (const row of items) {
+      const type = normalizeType(row)
       const ancestry = row.ancestry ?? inheritedAncestry
-      flattened.push({ ...row, ancestry, children: [] })
+      flattened.push({ ...row, type, ancestry, children: [] })
       if (row.children?.length) {
-        const childAncestry = row.type === 'G' ? [ancestry, row.id].filter(Boolean).join('/') : ancestry
+        const childAncestry = type === 'G' ? [ancestry, row.id].filter(Boolean).join('/') : ancestry
         flatten(row.children, childAncestry)
       }
     }
@@ -47,7 +66,7 @@ function mapOutline(rows: CatalogueOutlineRow[]): CatalogueOutlineRow[] {
 
 const outline = computed(() => mapOutline(detail.value?.course_units || []))
 function countUnits(rows: CatalogueOutlineRow[]): number {
-  return rows.reduce((count, row) => count + (row.type === 'U' ? 1 : 0) + countUnits(row.children || []), 0)
+  return rows.reduce((count, row) => count + (row.type === 'U' || row.type === 'CourseUnit::Unit' || Boolean(row.unit_id) ? 1 : 0) + countUnits(row.children || []), 0)
 }
 const unitCount = computed(() => countUnits(outline.value))
 
