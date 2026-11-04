@@ -26,8 +26,8 @@ const packagesByCategory = computed(() => {
   })).filter(category => category.packages.length > 0 || !query)
 })
 
-function courseCount(packageId: string) {
-  return courses.value.filter(course => String(course.package_id) === String(packageId)).length
+function courseCount(packageId: string, packageType: PackageType) {
+  return courses.value.filter(course => String(course.package_id) === String(packageId) && course.type === packageType).length
 }
 
 async function load() {
@@ -98,7 +98,7 @@ onMounted(load)
             <template #append><VChip size="small" variant="tonal">{{ item.code }}</VChip></template>
           </VCardItem>
           <VCardText class="d-flex align-center justify-space-between pt-1">
-            <span class="text-body-2 text-medium-emphasis">{{ courseCount(item.id) }} courses</span>
+            <span class="text-body-2 text-medium-emphasis">{{ courseCount(item.id, item.type) }} courses</span>
             <VBtn aria-label="View package" icon="mdi-arrow-right" size="small" variant="text" />
           </VCardText>
         </VCard>

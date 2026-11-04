@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { CatalogueBlock, CatalogueCourseContent, CatalogueOutlineRow } from '~/composables/useCatalogueApi'
+import type { CatalogueCourseContent, CatalogueOutlineRow } from '~/composables/useCatalogueApi'
+import CatalogueOutline from '~/components/CatalogueOutline.vue'
 
 const route = useRoute()
 const catalogueApi = useCatalogueApi()
@@ -9,33 +10,46 @@ const error = ref('')
 
 const unitSnapshots = computed(() => new Map((detail.value?.units || []).map(item => [item.unit_id, item])))
 
-function unitRows(rows: CatalogueOutlineRow[], result: { id: string; title: string; unitId: string }[] = []) {
-  for (const row of rows) {
-    if (row.type === 'U' && row.unit_id) {
-      const unit = unitSnapshots.value.get(row.unit_id)?.unit
-      result.push({ id: row.id, title: unit?.title || row.title || 'Untitled unit', unitId: row.unit_id })
+function mapOutline(rows: CatalogueOutlineRow[]): CatalogueOutlineRow[] {
+  const flattened: CatalogueOutlineRow[] = []
+  const flatten = (items: CatalogueOutlineRow[], inheritedAncestry = '') => {
+    for (const row of items) {
+      const ancestry = row.ancestry ?? inheritedAncestry
+      flattened.push({ ...row, ancestry, children: [] })
+      if (row.children?.length) {
+        const childAncestry = row.type === 'G' ? [ancestry, row.id].filter(Boolean).join('/') : ancestry
+        flatten(row.children, childAncestry)
+      }
     }
-    unitRows(row.children || [], result)
   }
-  return result
-}
+  flatten(rows)
 
-const units = computed(() => unitRows(detail.value?.course_units || []))
-
-function flattenBlocks(blocks: CatalogueBlock[], result: CatalogueBlock[] = []) {
-  for (const block of blocks) {
-    result.push(block)
-    flattenBlocks(block.children || [], result)
+  const nodes = new Map<string, CatalogueOutlineRow>()
+  const roots: CatalogueOutlineRow[] = []
+  for (const row of flattened) {
+    const unit = row.unit_id ? unitSnapshots.value.get(row.unit_id)?.unit : undefined
+    nodes.set(row.id, {
+      ...row,
+      title: unit?.title || row.title || (row.type === 'G' ? 'Untitled group' : 'Untitled unit'),
+      code: unit?.code || row.code,
+      children: [],
+    })
   }
-  return result
+  for (const row of flattened) {
+    const node = nodes.get(row.id)!
+    const parentId = row.ancestry?.split('/').filter(Boolean).at(-1)
+    const parent = parentId ? nodes.get(parentId) : undefined
+    if (parent?.type === 'G') parent.children!.push(node)
+    else roots.push(node)
+  }
+  return roots
 }
 
-function contentText(value?: Record<string, unknown>) {
-  if (!value) return ''
-  const primary = value.description ?? value.text ?? value.body ?? value.title
-  if (typeof primary === 'string') return primary
-  return JSON.stringify(value, null, 2)
+const outline = computed(() => mapOutline(detail.value?.course_units || []))
+function countUnits(rows: CatalogueOutlineRow[]): number {
+  return rows.reduce((count, row) => count + (row.type === 'U' ? 1 : 0) + countUnits(row.children || []), 0)
 }
+const unitCount = computed(() => countUnits(outline.value))
 
 async function load() {
   loading.value = true
@@ -60,7 +74,7 @@ onMounted(load)
   <template v-if="detail">
     <section class="page-header mb-8">
       <div>
-        <div class="text-overline text-primary font-weight-bold">{{ detail.course.type }} · {{ detail.course.code }}</div>
+        <div class="text-overline text-primary font-weight-bold">{{ detail.course.type_label }} · {{ detail.course.code }}</div>
         <h1 class="text-h4 font-weight-bold mt-1">{{ detail.course.title }}</h1>
         <p v-if="detail.course.description" class="text-body-1 text-medium-emphasis mt-2">{{ detail.course.description }}</p>
       </div>
@@ -69,38 +83,15 @@ onMounted(load)
 
     <VCard rounded="xl" variant="flat">
       <VCardItem class="pa-6">
-        <template #title>Course content</template>
-        <template #subtitle>{{ units.length }} units</template>
+        <template #title>Course units</template>
+        <template #subtitle>{{ unitCount }} units</template>
       </VCardItem>
-      <VCardText v-if="!units.length" class="pa-6 pt-0 text-body-2 text-medium-emphasis">No units are included in this course yet.</VCardText>
-      <VExpansionPanels v-else class="px-4 pb-4" multiple variant="accordion">
-        <VExpansionPanel v-for="(row, index) in units" :key="row.id" :value="row.id">
-          <VExpansionPanelTitle>
-            <div>
-              <div class="text-overline text-medium-emphasis">Unit {{ index + 1 }} · {{ unitSnapshots.get(row.unitId)?.unit.code }}</div>
-              <div class="text-subtitle-1 font-weight-medium">{{ row.title }}</div>
-            </div>
-          </VExpansionPanelTitle>
-          <VExpansionPanelText>
-            <p v-if="unitSnapshots.get(row.unitId)?.unit.content?.description" class="text-body-1 mb-5">
-              {{ unitSnapshots.get(row.unitId)?.unit.content?.description }}
-            </p>
-            <div v-for="block in flattenBlocks(unitSnapshots.get(row.unitId)?.blocks || [])" :key="block.id" class="mb-5">
-              <h3 class="text-h6 mb-2">{{ block.title || block.content?.title || block.type }}</h3>
-              <p v-if="contentText(block.content)" class="text-body-1 content-text">{{ contentText(block.content) }}</p>
-              <VCard v-for="component in block.components || []" :key="component.id" class="mt-3" rounded="lg" variant="outlined">
-                <VCardTitle class="text-subtitle-2">{{ component.type }}</VCardTitle>
-                <VCardText class="content-text">{{ contentText(component.content) }}</VCardText>
-              </VCard>
-            </div>
-          </VExpansionPanelText>
-        </VExpansionPanel>
-      </VExpansionPanels>
+      <VCardText v-if="!unitCount" class="pa-6 pt-0 text-body-2 text-medium-emphasis">No units are included in this course yet.</VCardText>
+      <CatalogueOutline v-else class="px-4 pb-4" :rows="outline" />
     </VCard>
   </template>
 </template>
 
 <style scoped>
 .page-header { align-items: flex-end; display: flex; justify-content: space-between; gap: 24px; }
-.content-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>

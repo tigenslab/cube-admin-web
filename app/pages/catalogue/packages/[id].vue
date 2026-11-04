@@ -37,7 +37,7 @@ onMounted(load)
         <VIcon color="white" icon="mdi-folder-open-outline" size="72" />
       </div>
       <VCardText class="pa-6">
-        <div class="text-overline text-primary font-weight-bold">{{ item.type }} · {{ item.code }}</div>
+        <div class="text-overline text-primary font-weight-bold">{{ item.type_label }} · {{ item.code }}</div>
         <div class="d-flex flex-wrap align-center justify-space-between ga-3">
           <h1 class="text-h4 font-weight-bold">{{ item.title }}</h1>
           <VChip color="primary" prepend-icon="mdi-book-open-page-variant-outline" variant="tonal">{{ courses.length }} courses</VChip>

@@ -4,30 +4,20 @@ export interface CatalogueCourse {
   id: string
   package_id?: string
   type: PackageType
-  code: string
-  title: string
-  status?: string
-  published_version?: number
+  type_label?: string
+  code?: string
+  title?: string
 }
 
 export interface CataloguePackage extends CoursePackage {
+  type_label: string
   metadata?: { thumbnail_url?: string }
 }
 
 export interface CatalogueUnitSnapshot {
   unit_id: string
   version: number
-  unit: { id?: string; code?: string; title?: string; content?: Record<string, unknown> }
-  blocks: CatalogueBlock[]
-}
-
-export interface CatalogueBlock {
-  id: string
-  type: string
-  title?: string
-  content?: Record<string, unknown>
-  components?: { id: string; type: string; content?: Record<string, unknown> }[]
-  children?: CatalogueBlock[]
+  unit: { id?: string; code?: string; title?: string }
 }
 
 export interface CatalogueCourseContent {
@@ -41,7 +31,10 @@ export interface CatalogueOutlineRow {
   id: string
   type: string
   title?: string
+  code?: string
   unit_id?: string
+  ancestry?: string
+  position?: number
   children?: CatalogueOutlineRow[]
 }
 
