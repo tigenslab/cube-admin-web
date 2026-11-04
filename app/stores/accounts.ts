@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { ApiFormSchema } from '~/types/api-form'
+import type { PackageType } from '~/composables/usePackagesApi'
 
 export interface Account {
   id: string | number
@@ -7,6 +8,7 @@ export interface Account {
   subdomain: string
   address_json?: Record<string, unknown>
   disabled?: number
+  course_types?: PackageType[]
   created_at?: string
 }
 
@@ -59,7 +61,8 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   async function update(id: string | number, data: Partial<Account>) {
-    const updated = await request(() => useApi<Account>(`/accounts/edit/${id}`, { method: 'PATCH', body: data }))
+    const api = useApi()
+    const updated = await request(() => api<Account>(`/accounts/${id}`, { method: 'PUT', body: data }))
     const index = accounts.value.findIndex(account => account.id === id)
     if (index !== -1) accounts.value[index] = updated
     if (currentAccount.value?.id === id) currentAccount.value = updated

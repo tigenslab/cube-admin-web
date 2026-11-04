@@ -91,7 +91,7 @@ async function submit() {
           <FormsVjsfForm v-if="form" :key="loadKey ?? ''" v-model="form.model" :options="vjsfOptions" :schema="form.schema" />
           <div class="d-flex justify-end ga-3 mt-4">
             <VBtn :disabled="saving" variant="text" @click="emit('update:modelValue', false)">Cancel</VBtn>
-            <VBtn color="primary" :loading="saving" type="submit">Save changes</VBtn>
+            <VBtn color="primary" :loading="saving" type="button" @click="submit">Save changes</VBtn>
           </div>
         </VForm>
       </VCardText>
