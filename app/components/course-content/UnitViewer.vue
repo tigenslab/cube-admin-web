@@ -11,6 +11,7 @@ const courses = useCoursesStore()
 const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
 const unitBlockComponentsApi = useUnitBlockComponentsApi()
+const catalogueApi = useCatalogueApi()
 const unit = ref<CourseResourceItem | null>(null)
 const blocks = ref<CourseResourceItem[]>([])
 const blockComponents = ref<UnitBlockComponent[]>([])
@@ -23,6 +24,8 @@ const selectedVersion = computed(() => {
   const value = Number(route.params.version)
   return Number.isInteger(value) && value > 0 ? value : null
 })
+const isCatalogueUnit = computed(() => route.query.catalogueUnit === 'true')
+const selectedCatalogueVersion = ref<number | null>(null)
 const versionSegment = computed(() => selectedVersion.value ? String(selectedVersion.value) : 'current')
 const courseDashboardPath = computed(() => `/courses/${courseId}/${versionSegment.value}/dashboard`)
 
@@ -76,7 +79,8 @@ function blockTitle(block: CourseResourceItem) {
 }
 
 function blockPath(blockId: string) {
-  return `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
+  const path = `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
+  return isCatalogueUnit.value ? `${path}?catalogueUnit=true&version=${selectedCatalogueVersion.value || ''}` : path
 }
 
 function selectBlock(blockId: string) {
@@ -92,7 +96,13 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    if (selectedVersion.value) {
+    if (isCatalogueUnit.value) {
+      const requested = Number(route.query.version)
+      const snapshot = await catalogueApi.unitVersion(unitId, Number.isInteger(requested) && requested > 0 ? requested : undefined)
+      unit.value = { id: unitId, ...snapshot.unit } as CourseResourceItem
+      blocks.value = flattenSnapshotBlocks(snapshot.blocks)
+      selectedCatalogueVersion.value = snapshot.version
+    } else if (selectedVersion.value) {
       const snapshot = await courses.versionUnit(courseId, selectedVersion.value, unitId)
       unit.value = { id: unitId, ...snapshot.unit } as CourseResourceItem
       blocks.value = flattenSnapshotBlocks(snapshot.blocks)
@@ -136,6 +146,9 @@ function flattenSnapshotBlocks(rows: Record<string, any>[], ancestry = '', resul
 }
 
 onMounted(load)
+watch(() => route.query.version, () => {
+  if (isCatalogueUnit.value) load()
+})
 </script>
 
 <template>
@@ -153,11 +166,14 @@ onMounted(load)
             <VBtn v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList>
-            <VListItem v-if="!selectedVersion" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
+            <VListItem v-if="!selectedVersion && !isCatalogueUnit" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
             <VDivider class="my-1" />
             <VListItem prepend-icon="mdi-arrow-left" title="Course dashboard" :to="courseDashboardPath" />
           </VList>
         </VMenu>
+      </div>
+      <div v-if="isCatalogueUnit && selectedCatalogueVersion" class="px-4 pb-2 text-caption text-medium-emphasis">
+        Version {{ selectedCatalogueVersion }}
       </div>
 
       <VProgressLinear v-if="loading" color="primary" indeterminate />

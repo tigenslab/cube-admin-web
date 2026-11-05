@@ -3,7 +3,7 @@ import type { CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/u
 import CatalogueBlockTitles from '~/components/CatalogueBlockTitles.vue'
 
 defineOptions({ name: 'CatalogueOutline' })
-const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; unitPath?: (unitId: string) => string; blockPath?: (unitId: string, blockId: string) => string; showBlockTitles?: boolean }>(), {
+const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; unitPath?: (unitId: string) => string | undefined; blockPath?: (unitId: string, blockId: string) => string | undefined; showBlockTitles?: boolean }>(), {
   showBlockTitles: true,
 })
 const unitSnapshots = computed(() => new Map(props.units.map(unit => [unit.unit_id, unit])))
@@ -13,7 +13,12 @@ watch(() => props.rows, rows => { expandedRows.value = rows.map(row => row.id) }
 
 function blockPathFor(row: CatalogueOutlineRow) {
   if (!props.blockPath || !row.unit_id) return undefined
+  if (!props.blockPath(row.unit_id)) return undefined
   return (blockId: string) => props.blockPath!(row.unit_id!, blockId)
+}
+
+function unitPathFor(row: CatalogueOutlineRow) {
+  return row.unit_id && props.unitPath ? props.unitPath(row.unit_id) : undefined
 }
 </script>
 
@@ -32,13 +37,13 @@ function blockPathFor(row: CatalogueOutlineRow) {
         <template #actions="{ expanded }">
           <div class="d-flex align-center ga-2">
             <VBtn
-              v-if="isUnit(row) && row.unit_id && unitPath"
+              v-if="isUnit(row) && unitPathFor(row)"
               class="text-none"
               color="primary"
               density="compact"
               size="small"
               variant="text"
-              :to="unitPath(row.unit_id)"
+              :to="unitPathFor(row)"
               @click.stop
             >
               Open unit

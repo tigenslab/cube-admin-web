@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
-import type { CatalogueBlockTitle, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
+import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
 
 const props = defineProps<{
@@ -14,6 +14,7 @@ const router = useRouter()
 const courseId = computed(() => props.courseId || String(route.params.id))
 const courses = useCoursesStore()
 const courseUnitsApi = useCourseUnitsApi()
+const catalogueApi = useCatalogueApi()
 const unitBlocksApi = useUnitBlocksApi()
 const unitsApi = useUnitsApi()
 const course = ref<Course | null>(null)
@@ -24,6 +25,7 @@ const loading = ref(true)
 const error = ref('')
 const selectedVersion = ref<number | null>(typeof props.selectedVersion === 'number' ? props.selectedVersion : null)
 const isCurrentView = computed(() => props.embedded ? props.selectedVersion === 'current' : route.query.current === 'true')
+const isCatalogueLinked = computed(() => Boolean(course.value?.catalogue_course_id))
 const isVersionView = computed(() => props.embedded
   ? typeof props.selectedVersion === 'number'
   : Boolean(course.value && course.value.status !== 'draft' && !isCurrentView.value))
@@ -58,7 +60,7 @@ const outlineTree = computed(() => {
 })
 const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map((unit) => ({
   unit_id: unit.id,
-  version: 0,
+  version: Number((unit as CourseResourceItem & { version?: number }).version || 0),
   unit: { id: unit.id, code: unit.code, title: unit.title },
   blocks: ((unit as CourseResourceItem & { blocks?: CatalogueUnitSnapshot['blocks'] }).blocks || []),
 })))
@@ -98,10 +100,11 @@ function flattenSnapshotOutline(rows: Record<string, any>[], ancestry = '', resu
   return result
 }
 
-function setSnapshot(snapshot: Record<string, any>) {
+function setSnapshot(snapshot: CatalogueCourseContent | Record<string, any>) {
   course.value = { ...course.value, ...snapshot.course, id: courseId.value } as Course
   units.value = (snapshot.units || []).map((reference: Record<string, any>) => ({
     ...reference.unit,
+    version: reference.version,
     blocks: reference.blocks || reference.unit?.blocks || [],
   })).filter(Boolean)
   outline.value = flattenSnapshotOutline(snapshot.course_units || [])
@@ -117,6 +120,15 @@ async function load() {
   try {
     const courseData = await courses.show(courseId.value)
     course.value = courseData
+    if (courseData.catalogue_course_id) {
+      const catalogueSnapshot = await catalogueApi.course(
+        courseData.catalogue_course_id,
+        typeof props.selectedVersion === 'number' ? props.selectedVersion : undefined,
+      )
+      setSnapshot(catalogueSnapshot)
+      selectedVersion.value = catalogueSnapshot.version
+      return
+    }
     if (props.embedded && typeof props.selectedVersion === 'number') {
       selectedVersion.value = props.selectedVersion
       await loadVersion(props.selectedVersion)
@@ -187,12 +199,20 @@ async function switchVersion(version: number | null) {
 }
 
 function unitViewPath(unitId: string) {
+  if (isCatalogueLinked.value) {
+    const version = Number((units.value.find(unit => unit.id === unitId) as (CourseResourceItem & { version?: number }) | undefined)?.version || 0)
+    return `/courses/${encodeURIComponent(courseId.value)}/current/units/${encodeURIComponent(unitId)}/view?catalogueUnit=true&version=${version}`
+  }
   const version = isCurrentView.value ? 'current' : selectedVersion.value || 'current'
   const path = `/courses/${encodeURIComponent(courseId.value)}/${version}/units/${encodeURIComponent(unitId)}`
   return `${path}/${canEditUnits.value ? 'edit' : 'view'}`
 }
 
 function blockViewPath(unitId: string, blockId: string) {
+  if (isCatalogueLinked.value) {
+    const version = Number((units.value.find(unit => unit.id === unitId) as (CourseResourceItem & { version?: number }) | undefined)?.version || 0)
+    return `/courses/${encodeURIComponent(courseId.value)}/current/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}?catalogueUnit=true&version=${version}`
+  }
   return `${unitViewPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
 }
 

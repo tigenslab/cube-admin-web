@@ -2,7 +2,7 @@
 import type { CatalogueBlockTitle } from '~/composables/useCatalogueApi'
 
 defineOptions({ name: 'CatalogueBlockTitles' })
-const props = defineProps<{ blocks: CatalogueBlockTitle[]; blockPath?: (blockId: string) => string }>()
+const props = defineProps<{ blocks: CatalogueBlockTitle[]; blockPath?: (blockId: string) => string | undefined }>()
 
 const rows = computed(() => {
   const result: { id: string; title: string; type?: string; icon?: string; depth: number; isLast: boolean; guides: boolean[] }[] = []

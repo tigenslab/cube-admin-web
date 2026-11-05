@@ -2,7 +2,7 @@
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
 import type { ApiFormSchema } from '~/types/api-form'
-import type { CatalogueBlockTitle, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
+import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
 const props = defineProps<{ embedded?: boolean; courseId?: string }>()
 const emit = defineEmits<{
@@ -16,6 +16,7 @@ const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const courseUnitsApi = useCourseUnitsApi()
 const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
+const catalogueApi = useCatalogueApi()
 const course = ref<Course | null>(null)
 const units = ref<CourseResourceItem[]>([])
 const outline = ref<CourseResourceItem[]>([])
@@ -103,6 +104,18 @@ const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map(uni
   unit: { id: unit.id, code: unit.code, title: unit.title },
   blocks: (unit as CourseResourceItem & { blocks?: CatalogueBlockTitle[] }).blocks || [],
 })))
+const catalogueUnitIds = computed(() => new Set(units.value.filter(unit => unit.catalogue_source).map(unit => unit.id)))
+
+function flattenCatalogueOutline(rows: CatalogueOutlineRow[], ancestry = '', result: CourseResourceItem[] = []) {
+  for (const row of rows) {
+    const type = row.unit_id || row.type === 'CourseUnit::Unit' ? 'U' : row.type === 'CourseUnit::Group' ? 'G' : row.type
+    const rowAncestry = String(row.ancestry ?? ancestry)
+    result.push({ ...row, type, ancestry: rowAncestry, catalogue_source: true })
+    const childAncestry = type === 'G' ? [rowAncestry, row.id].filter(Boolean).join('/') : rowAncestry
+    flattenCatalogueOutline(row.children || [], childAncestry, result)
+  }
+  return result
+}
 const availableUnits = computed(() => {
   const linked = new Set(outline.value.filter(item => item.type === 'U').map(item => item.unit_id))
   return units.value.filter(unit => !linked.has(unit.id)).map(unit => ({
@@ -175,19 +188,31 @@ function removeUnitReference(referenceId: string) {
 async function loadUnits() {
   loadingUnits.value = true
   try {
-    const [unitData, outlineData] = await Promise.all([
+    const [unitData, outlineData, catalogueData] = await Promise.all([
       unitsApi.list(courseId),
       courseUnitsApi.list(courseId),
+      course.value?.catalogue_course_id ? catalogueApi.course(course.value.catalogue_course_id) : Promise.resolve(null),
     ])
     const allUnits = [...unitData.items]
     for (const referencedUnit of outlineData.units || []) {
       if (!allUnits.some(unit => unit.id === referencedUnit.id)) allUnits.push(referencedUnit)
     }
-    units.value = await Promise.all(allUnits.map(async (unit) => {
+    const localUnits = await Promise.all(allUnits.map(async (unit) => {
       const { items } = await unitBlocksApi.list(courseId, unit.id).catch(() => ({ items: [] }))
       return { ...unit, blocks: blockTitleTree(items) }
     }))
-    outline.value = outlineData.items
+    const catalogueUnits: CourseResourceItem[] = (catalogueData?.units || []).map(reference => ({
+      ...reference.unit,
+      id: reference.unit.id || reference.unit_id,
+      type: 'U',
+      blocks: reference.blocks,
+      catalogue_source: true,
+    }))
+    units.value = [...catalogueUnits, ...localUnits]
+    outline.value = [
+      ...(catalogueData ? flattenCatalogueOutline(catalogueData.course_units) : []),
+      ...outlineData.items,
+    ]
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load course units.')
   } finally {
@@ -348,10 +373,16 @@ async function addToCourse() {
 }
 
 function unitEditPath(unitId: string) {
+  if (catalogueUnitIds.value.has(unitId)) {
+    return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/view?catalogueUnit=true`
+  }
   return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/edit`
 }
 
 function blockEditPath(unitId: string, blockId: string) {
+  if (catalogueUnitIds.value.has(unitId)) {
+    return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}?catalogueUnit=true`
+  }
   return `${unitEditPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
 }
 </script>
@@ -388,7 +419,8 @@ function blockEditPath(unitId: string, blockId: string) {
       :show-block-titles="true"
     >
       <template #actions="{ row }">
-        <template v-if="row.type === 'G'">
+        <VChip v-if="row.catalogue_source" size="x-small" variant="tonal">Catalogue</VChip>
+        <template v-else-if="row.type === 'G'">
           <VBtn v-if="course?.permissions?.update" density="compact" prepend-icon="mdi-plus" size="small" variant="text" @click.stop="openAddUnitDialog(row.id)">Add to group</VBtn>
           <VBtn v-if="course?.permissions?.update" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="editGroup(row.id)" />
           <VBtn v-if="course?.permissions?.delete" aria-label="Delete group" color="error" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteGroup(row.id)" />

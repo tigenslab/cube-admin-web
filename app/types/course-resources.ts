@@ -21,6 +21,8 @@ export interface CourseResourceItem {
   metadata?: Record<string, unknown>
   merged_content?: Record<string, unknown>
   permissions?: Record<string, boolean>
+  catalogue_source?: boolean
+  blocks?: unknown[]
 }
 
 export interface UnitBlockComponent {

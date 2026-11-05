@@ -6,15 +6,17 @@ import type { Course } from '~/stores/courses'
 const route = useRoute()
 const router = useRouter()
 const courses = useCoursesStore()
+const catalogueApi = useCatalogueApi()
 const course = ref<Awaited<ReturnType<typeof courses.show>> | null>(null)
 const selectedVersion = ref<number | 'current' | null>(null)
+const catalogueVersions = ref<number[]>([])
 const activeTab = ref('view-course')
 const viewerKey = ref(0)
 const error = ref('')
 const statusLoading = ref(false)
 const isCatalogueLinked = computed(() => Boolean(course.value?.catalogue_course_id))
 const versionOptions = computed(() => {
-  if (isCatalogueLinked.value) return [{ value: 'current' as const, label: 'Current' }]
+  if (isCatalogueLinked.value) return catalogueVersions.value.map(version => ({ value: version, label: `Version ${version}` }))
   const options: { value: number | 'current'; label: string }[] = (course.value?.versions || [])
     .slice()
     .sort((a, b) => b.version - a.version)
@@ -79,6 +81,19 @@ onMounted(async () => {
   try {
     course.value = await courses.show(String(route.params.id))
     const requestedSegment = String(route.params.version || '')
+    if (course.value.catalogue_course_id) {
+      const catalogueCourse = await catalogueApi.course(course.value.catalogue_course_id)
+      catalogueVersions.value = catalogueCourse.versions
+      const catalogueVersion = catalogueVersions.value.includes(Number(requestedSegment))
+        ? Number(requestedSegment)
+        : catalogueCourse.version
+      selectedVersion.value = catalogueVersion
+      activeTab.value = 'view-course'
+      if (requestedSegment !== String(catalogueVersion)) {
+        await router.replace({ path: dashboardPath(course.value.id, catalogueVersion) })
+      }
+      return
+    }
     const validSelection = versionOptions.value.some(item => String(item.value) === requestedSegment)
     selectedVersion.value = validSelection
       ? (requestedSegment === 'current' ? 'current' : Number(requestedSegment))
@@ -103,7 +118,7 @@ onMounted(async () => {
       </div>
       <div class="d-flex flex-wrap align-center ga-2">
         <VSelect
-          v-if="!isCatalogueLinked && course?.permissions?.read && versionOptions.length"
+          v-if="course?.permissions?.read && versionOptions.length"
           :model-value="selectedVersion"
           class="version-select"
           density="compact"
@@ -132,9 +147,9 @@ onMounted(async () => {
       <VTabs v-model="activeTab" color="primary">
         <VTab v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" prepend-icon="mdi-eye-outline" value="view-course">View course</VTab>
         <VTab v-if="course.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="view-course">View course</VTab>
-        <VTab v-if="selectedVersion !== 'current'" value="users">Users</VTab>
-        <VTab v-if="selectedVersion !== 'current'" value="groups">Groups</VTab>
-        <VTab v-if="selectedVersion !== 'current'" value="files">Files</VTab>
+        <VTab v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="users">Users</VTab>
+        <VTab v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="groups">Groups</VTab>
+        <VTab v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="files">Files</VTab>
       </VTabs>
 
       <VWindow v-model="activeTab">
@@ -144,13 +159,13 @@ onMounted(async () => {
         <VWindowItem v-if="course.permissions?.update && selectedVersion === 'current'" value="view-course">
           <CourseEditor :course-id="course.id" embedded @content-updated="viewerKey++" @course-updated="updateCourse" />
         </VWindowItem>
-        <VWindowItem v-if="selectedVersion !== 'current'" value="users">
+        <VWindowItem v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="users">
           <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course users will appear here.</div></VCardText>
         </VWindowItem>
-        <VWindowItem v-if="selectedVersion !== 'current'" value="groups">
+        <VWindowItem v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="groups">
           <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course groups will appear here.</div></VCardText>
         </VWindowItem>
-        <VWindowItem v-if="selectedVersion !== 'current'" value="files">
+        <VWindowItem v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="files">
           <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course files will appear here.</div></VCardText>
         </VWindowItem>
       </VWindow>
