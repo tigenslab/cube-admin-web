@@ -69,6 +69,8 @@ function blockTitleTree(items: CourseResourceItem[]): CatalogueBlockTitle[] {
   for (const item of items) nodes.set(item.id, {
     id: item.id,
     title: item.title || String(item.content?.title || item.type || 'Untitled block'),
+    type: item.type,
+    icon: String(item.merged_content?.icon || item.content?.icon || ''),
     ancestry: item.ancestry,
     children: [],
   })
@@ -79,8 +81,8 @@ function blockTitleTree(items: CourseResourceItem[]): CatalogueBlockTitle[] {
     if (parent) parent.children!.push(node)
     else roots.push(node)
   }
-  const clean = (rows: CatalogueBlockTitle[]): CatalogueBlockTitle[] => rows.map(({ id, title, children }) => ({
-    id, title, ...(children?.length ? { children: clean(children) } : {}),
+  const clean = (rows: CatalogueBlockTitle[]): CatalogueBlockTitle[] => rows.map(({ id, title, type, icon, children }) => ({
+    id, title, ...(type ? { type } : {}), ...(icon ? { icon } : {}), ...(children?.length ? { children: clean(children) } : {}),
   }))
   return clean(roots)
 }
@@ -190,6 +192,10 @@ function unitViewPath(unitId: string) {
   return `${path}/${canEditUnits.value ? 'edit' : 'view'}`
 }
 
+function blockViewPath(unitId: string, blockId: string) {
+  return `${unitViewPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
+}
+
 onMounted(load)
 watch(() => props.selectedVersion, (version, previousVersion) => {
   if (props.embedded && version !== previousVersion) load()
@@ -234,6 +240,7 @@ watch(() => props.selectedVersion, (version, previousVersion) => {
       :rows="outlineTree"
       :units="outlineUnits"
       :unit-path="unitViewPath"
+      :block-path="blockViewPath"
       :show-block-titles="true"
     />
   </VCard>

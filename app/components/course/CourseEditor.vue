@@ -2,8 +2,8 @@
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
 import type { ApiFormSchema } from '~/types/api-form'
-import CourseUnitGroupPanels from '~/components/course-content/CourseUnitGroupPanels.vue'
-import type { CourseUnitGroupNode } from '~/components/course-content/CourseUnitGroupPanels.vue'
+import type { CatalogueBlockTitle, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
+import CatalogueOutline from '~/components/CatalogueOutline.vue'
 const props = defineProps<{ embedded?: boolean; courseId?: string }>()
 const emit = defineEmits<{
   courseUpdated: [course: Course]
@@ -15,11 +15,11 @@ const courseEdit = useCourseEditModel()
 const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const courseUnitsApi = useCourseUnitsApi()
 const unitsApi = useUnitsApi()
+const unitBlocksApi = useUnitBlocksApi()
 const course = ref<Course | null>(null)
 const units = ref<CourseResourceItem[]>([])
 const outline = ref<CourseResourceItem[]>([])
 const search = ref('')
-const openGroups = ref<string[]>([])
 const loadingUnits = ref(false)
 const submitting = ref(false)
 const error = ref<string | null>(null)
@@ -39,56 +39,70 @@ const editingGroup = ref<CourseResourceItem | null>(null)
 const addParentGroupId = ref<string | null>(null)
 const courseId = props.courseId || String(route.params.id)
 
-const groups = computed(() => {
+const outlineTree = computed(() => {
   const unitById = new Map(units.value.map(unit => [unit.id, unit]))
-  const nodes = new Map<string, CourseUnitGroupNode & { ancestry: string }>()
-  for (const item of outline.value.filter(entry => entry.type === 'G')) {
+  const nodes = new Map<string, CatalogueOutlineRow>()
+  const roots: CatalogueOutlineRow[] = []
+  for (const item of outline.value) {
+    const isUnit = item.type === 'U' || item.type === 'CourseUnit::Unit' || Boolean(item.unit_id)
+    const unit = item.unit_id ? unitById.get(item.unit_id) : undefined
     nodes.set(item.id, {
-      id: item.id,
-      title: item.title || item.code || 'Units',
-      ancestry: item.ancestry || '',
+      ...item,
+      type: isUnit ? 'U' : 'G',
+      title: isUnit ? unit?.title || item.title || 'Untitled unit' : item.title || item.code || 'Untitled group',
+      code: isUnit ? unit?.code || item.code : item.code,
       children: [],
-      units: [],
-      hasDescendants: false,
     })
   }
-  const roots: Array<CourseUnitGroupNode & { ancestry: string }> = []
-  for (const node of nodes.values()) {
-    const parentId = node.ancestry.split('/').filter(Boolean).at(-1)
+  for (const item of outline.value) {
+    const node = nodes.get(item.id)!
+    const parentId = item.ancestry?.split('/').filter(Boolean).at(-1)
     const parent = parentId ? nodes.get(parentId) : undefined
-    if (parent) parent.children.push(node)
+    if (parent?.type === 'G') parent.children!.push(node)
     else roots.push(node)
   }
-  for (const reference of outline.value.filter(item => item.type === 'U' && item.unit_id)) {
-    const unit = unitById.get(reference.unit_id!)
-    if (!unit) continue
-    const parentId = reference.ancestry?.split('/').filter(Boolean).at(-1)
+  const query = search.value.trim().toLowerCase()
+  const filterRows = (rows: CatalogueOutlineRow[]): CatalogueOutlineRow[] => rows.flatMap((row) => {
+    if (row.type === 'U') {
+      const unit = row.unit_id ? unitById.get(row.unit_id) : undefined
+      return !query || `${row.code || unit?.code || ''} ${row.title || unit?.title || ''}`.toLowerCase().includes(query) ? [row] : []
+    }
+    const children = filterRows(row.children || [])
+    return !query || children.length || row.title?.toLowerCase().includes(query) ? [{ ...row, children }] : []
+  })
+  return filterRows(roots)
+})
+
+function blockTitleTree(items: CourseResourceItem[]): CatalogueBlockTitle[] {
+  const nodes = new Map<string, CatalogueBlockTitle & { ancestry?: string }>()
+  const roots: CatalogueBlockTitle[] = []
+  for (const item of items) nodes.set(item.id, {
+    id: item.id,
+    title: item.title || String(item.content?.title || item.type || 'Untitled block'),
+    type: item.type,
+    icon: String(item.merged_content?.icon || item.content?.icon || ''),
+    ancestry: item.ancestry,
+    children: [],
+  })
+  for (const item of items) {
+    const node = nodes.get(item.id)!
+    const parentId = item.ancestry?.split('/').filter(Boolean).at(-1)
     const parent = parentId ? nodes.get(parentId) : undefined
-    if (parent) parent.units.push({ unit, reference })
+    if (parent) parent.children!.push(node)
+    else roots.push(node)
   }
-  const setDescendants = (node: CourseUnitGroupNode & { ancestry: string }) => {
-    node.children.forEach(setDescendants)
-    node.hasDescendants = node.children.length > 0 || node.units.length > 0
-  }
-  roots.forEach(setDescendants)
-  const query = search.value.trim().toLowerCase()
-  const filterNode = (node: CourseUnitGroupNode & { ancestry: string }): CourseUnitGroupNode | null => {
-    const children = node.children.map(filterNode).filter((child): child is CourseUnitGroupNode => Boolean(child))
-    const nodeUnits = node.units.filter(({ unit }) => !query || `${unit.code || ''} ${unit.title || ''}`.toLowerCase().includes(query))
-    if (query && !nodeUnits.length && !children.length && !node.title.toLowerCase().includes(query)) return null
-    return { ...node, children, units: nodeUnits, hasDescendants: node.children.length > 0 || node.units.length > 0 }
-  }
-  return roots.map(filterNode).filter((node): node is CourseUnitGroupNode => Boolean(node))
-})
-const hasGroups = computed(() => outline.value.some(item => item.type === 'G'))
-const rootUnits = computed(() => {
-  const unitById = new Map(units.value.map(unit => [unit.id, unit]))
-  const query = search.value.trim().toLowerCase()
-  return outline.value
-    .filter(item => item.type === 'U' && item.unit_id && !item.ancestry)
-    .map(reference => ({ unit: unitById.get(reference.unit_id!)!, reference }))
-    .filter(({ unit }) => unit && (!query || `${unit.code || ''} ${unit.title || ''}`.toLowerCase().includes(query)))
-})
+  const clean = (rows: CatalogueBlockTitle[]): CatalogueBlockTitle[] => rows.map(({ id, title, type, icon, children }) => ({
+    id, title, ...(type ? { type } : {}), ...(icon ? { icon } : {}), ...(children?.length ? { children: clean(children) } : {}),
+  }))
+  return clean(roots)
+}
+
+const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map(unit => ({
+  unit_id: unit.id,
+  version: 0,
+  unit: { id: unit.id, code: unit.code, title: unit.title },
+  blocks: (unit as CourseResourceItem & { blocks?: CatalogueBlockTitle[] }).blocks || [],
+})))
 const availableUnits = computed(() => {
   const linked = new Set(outline.value.filter(item => item.type === 'U').map(item => item.unit_id))
   return units.value.filter(unit => !linked.has(unit.id)).map(unit => ({
@@ -165,12 +179,15 @@ async function loadUnits() {
       unitsApi.list(courseId),
       courseUnitsApi.list(courseId),
     ])
-    units.value = unitData.items
-    outline.value = outlineData.items
+    const allUnits = [...unitData.items]
     for (const referencedUnit of outlineData.units || []) {
-      if (!units.value.some(unit => unit.id === referencedUnit.id)) units.value.push(referencedUnit)
+      if (!allUnits.some(unit => unit.id === referencedUnit.id)) allUnits.push(referencedUnit)
     }
-    openGroups.value = outlineData.items.filter(item => item.type === 'G').map(item => item.id)
+    units.value = await Promise.all(allUnits.map(async (unit) => {
+      const { items } = await unitBlocksApi.list(courseId, unit.id).catch(() => ({ items: [] }))
+      return { ...unit, blocks: blockTitleTree(items) }
+    }))
+    outline.value = outlineData.items
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load course units.')
   } finally {
@@ -329,6 +346,14 @@ async function addToCourse() {
     adding.value = false
   }
 }
+
+function unitEditPath(unitId: string) {
+  return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/edit`
+}
+
+function blockEditPath(unitId: string, blockId: string) {
+  return `${unitEditPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
+}
 </script>
 
 <template>
@@ -353,51 +378,24 @@ async function addToCourse() {
       <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" variant="text" @click="openAddDialog">Add to course</VBtn>
     </div>
     <VProgressLinear v-if="loadingUnits" color="primary" indeterminate />
-    <div v-if="!loadingUnits && !groups.length && !rootUnits.length" class="pa-8 text-center text-medium-emphasis">No units found.</div>
-    <CourseUnitGroupPanels
-      v-if="hasGroups && groups.length"
-      :groups="groups"
-      :open-groups="openGroups"
-      :course-id="courseId"
-      :editable="Boolean(course?.permissions?.update)"
-      :deletable="Boolean(course?.permissions?.delete)"
-      @update:open-groups="openGroups = $event"
-      @add-unit="openAddUnitDialog($event)"
-      @edit-group="editGroup($event)"
-      @delete-group="deleteGroup($event)"
-      @remove-unit="removeUnitReference($event)"
-    />
-    <div v-if="hasGroups && rootUnits.length" class="pa-5">
-      <h2 class="text-subtitle-1 font-weight-medium mb-4">Other units</h2>
-      <VRow>
-        <VCol v-for="(entry, index) in rootUnits" :key="entry.reference.id" cols="12" md="4" sm="6">
-          <VCard class="unit-card h-100" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" rounded="lg" variant="flat">
-            <div class="unit-banner d-flex align-end pa-3">
-              <span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ entry.unit.code || '' }}</span>
-            </div>
-            <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
-            <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
-            <VCardActions v-if="course?.permissions?.update || course?.permissions?.delete" class="justify-end">
-              <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
-              <VBtn v-if="course?.permissions?.delete" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
-            </VCardActions>
-          </VCard>
-        </VCol>
-      </VRow>
-    </div>
-    <VRow v-else-if="!hasGroups && rootUnits.length" class="pa-5">
-      <VCol v-for="(entry, index) in rootUnits" :key="entry.reference.id" cols="12" md="4" sm="6">
-          <VCard class="unit-card h-100" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" rounded="lg" variant="flat">
-          <div class="unit-banner d-flex align-end pa-3"><span class="text-white text-subtitle-1 font-weight-medium">{{ index + 1 }} {{ entry.unit.code || '' }}</span></div>
-          <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
-          <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
-          <VCardActions v-if="course?.permissions?.update || course?.permissions?.delete" class="justify-end">
-              <VBtn v-if="course?.permissions?.update" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
-            <VBtn v-if="course?.permissions?.delete" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(entry.reference.id)">Remove from course</VBtn>
-          </VCardActions>
-        </VCard>
-      </VCol>
-    </VRow>
+    <div v-if="!loadingUnits && !outlineTree.length" class="pa-8 text-center text-medium-emphasis">No units found.</div>
+    <CatalogueOutline
+      v-if="outlineTree.length"
+      :rows="outlineTree"
+      :units="outlineUnits"
+      :unit-path="unitEditPath"
+      :block-path="blockEditPath"
+      :show-block-titles="true"
+    >
+      <template #actions="{ row }">
+        <template v-if="row.type === 'G'">
+          <VBtn v-if="course?.permissions?.update" density="compact" prepend-icon="mdi-plus" size="small" variant="text" @click.stop="openAddUnitDialog(row.id)">Add to group</VBtn>
+          <VBtn v-if="course?.permissions?.update" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="editGroup(row.id)" />
+          <VBtn v-if="course?.permissions?.delete" aria-label="Delete group" color="error" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteGroup(row.id)" />
+        </template>
+        <VBtn v-else-if="row.type === 'U' && course?.permissions?.delete" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(row.id)">Remove from course</VBtn>
+      </template>
+    </CatalogueOutline>
   </VCard>
 
   <VDialog v-model="detailsDialog" max-width="640">

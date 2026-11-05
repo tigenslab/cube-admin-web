@@ -2,7 +2,7 @@
 import type { CatalogueBlockTitle } from '~/composables/useCatalogueApi'
 
 defineOptions({ name: 'CatalogueBlockTitles' })
-const props = defineProps<{ blocks: CatalogueBlockTitle[] }>()
+const props = defineProps<{ blocks: CatalogueBlockTitle[]; blockPath?: (blockId: string) => string }>()
 
 const rows = computed(() => {
   const result: { id: string; title: string; type?: string; icon?: string; depth: number; isLast: boolean; guides: boolean[] }[] = []
@@ -43,13 +43,14 @@ function blockIcon(block: typeof rows.value[number]) {
       class="block-tree__row"
       role="treeitem"
       :aria-level="block.depth + 1"
+      :title="block.title"
+      :to="block.id ? blockPath?.(block.id) : undefined"
     >
       <template #prepend>
         <span v-for="(continues, index) in block.guides" :key="index" class="block-tree__guide" :class="{ 'block-tree__guide--continues': continues }" />
         <span class="block-tree__branch" :class="{ 'block-tree__branch--last': block.isLast }" />
         <VIcon class="block-tree__icon" :icon="blockIcon(block)" size="small" />
       </template>
-      <VListItemTitle>{{ block.title }}</VListItemTitle>
     </VListItem>
   </VList>
 </template>
