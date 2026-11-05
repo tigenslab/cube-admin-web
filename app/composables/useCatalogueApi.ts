@@ -24,6 +24,8 @@ export interface CatalogueUnitSnapshot {
 export interface CatalogueBlockTitle {
   id?: string
   title: string
+  type?: string
+  icon?: string
   children?: CatalogueBlockTitle[]
 }
 

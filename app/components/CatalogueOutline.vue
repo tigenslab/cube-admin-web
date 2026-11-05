@@ -3,7 +3,9 @@ import type { CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/u
 import CatalogueBlockTitles from '~/components/CatalogueBlockTitles.vue'
 
 defineOptions({ name: 'CatalogueOutline' })
-const props = defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; unitPath?: (unitId: string) => string; showBlockTitles?: boolean }>()
+const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; unitPath?: (unitId: string) => string; showBlockTitles?: boolean }>(), {
+  showBlockTitles: true,
+})
 const unitSnapshots = computed(() => new Map(props.units.map(unit => [unit.unit_id, unit])))
 const isUnit = (row: CatalogueOutlineRow) => row.type === 'U' || row.type === 'CourseUnit::Unit' || Boolean(row.unit_id)
 const expandedRows = ref<string[]>([])
