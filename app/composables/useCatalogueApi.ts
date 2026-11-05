@@ -36,6 +36,11 @@ export interface CatalogueCourseContent {
   course_units: CatalogueOutlineRow[]
 }
 
+export interface AddedCatalogueCourse {
+  course: { id: string }
+  created: boolean
+}
+
 export interface CatalogueOutlineRow {
   id: string
   type: string
@@ -59,6 +64,11 @@ export function useCatalogueApi() {
     },
     course(id: string) {
       return api<CatalogueCourseContent>(`/catalogue/courses/${encodeURIComponent(id)}`)
+    },
+    addCourse(id: string) {
+      return api<AddedCatalogueCourse>(`/catalogue/courses/${encodeURIComponent(id)}/add`, {
+        method: 'POST',
+      })
     },
   }
 }

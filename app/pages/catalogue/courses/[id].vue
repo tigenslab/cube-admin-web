@@ -3,10 +3,13 @@ import type { CatalogueCourseContent, CatalogueOutlineRow } from '~/composables/
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
 
 const route = useRoute()
+const router = useRouter()
 const catalogueApi = useCatalogueApi()
 const detail = ref<CatalogueCourseContent | null>(null)
 const loading = ref(true)
 const error = ref('')
+const adding = ref(false)
+const addError = ref('')
 
 const unitSnapshots = computed(() => new Map((detail.value?.units || []).map(item => [item.unit_id, item])))
 
@@ -82,6 +85,20 @@ async function load() {
   }
 }
 
+async function addToOrganisation() {
+  if (!detail.value || adding.value) return
+  adding.value = true
+  addError.value = ''
+  try {
+    const result = await catalogueApi.addCourse(detail.value.course.id)
+    await router.push(`/courses/${encodeURIComponent(result.course.id)}/dashboard`)
+  } catch (cause) {
+    addError.value = getApiErrorMessage(cause, 'Unable to add this course to your organisation.')
+  } finally {
+    adding.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -91,13 +108,17 @@ onMounted(load)
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn></VAlert>
 
   <template v-if="detail">
+    <VAlert v-if="addError" class="mb-5" color="error" variant="tonal">{{ addError }}</VAlert>
     <section class="page-header mb-8">
       <div>
         <div class="text-overline text-primary font-weight-bold">{{ detail.course.type_label }} · {{ detail.course.code }}</div>
         <h1 class="text-h4 font-weight-bold mt-1">{{ detail.course.title }}</h1>
         <p v-if="detail.course.description" class="text-body-1 text-medium-emphasis mt-2">{{ detail.course.description }}</p>
       </div>
-      <VChip prepend-icon="mdi-book-open-page-variant-outline" variant="tonal">Version {{ detail.version }}</VChip>
+      <div class="d-flex align-center ga-3">
+        <VChip prepend-icon="mdi-book-open-page-variant-outline" variant="tonal">Version {{ detail.version }}</VChip>
+        <VBtn color="primary" prepend-icon="mdi-plus" :loading="adding" @click="addToOrganisation">Add to organisation</VBtn>
+      </div>
     </section>
 
     <VCard rounded="xl" variant="flat">

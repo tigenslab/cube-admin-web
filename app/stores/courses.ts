@@ -7,6 +7,7 @@ export interface Course {
   title: string
   code: string
   package_id?: string
+  catalogue_course_id?: string
   type: string
   status: string
   published_version?: number

@@ -12,7 +12,9 @@ const activeTab = ref('view-course')
 const viewerKey = ref(0)
 const error = ref('')
 const statusLoading = ref(false)
+const isCatalogueLinked = computed(() => Boolean(course.value?.catalogue_course_id))
 const versionOptions = computed(() => {
+  if (isCatalogueLinked.value) return [{ value: 'current' as const, label: 'Current' }]
   const options: { value: number | 'current'; label: string }[] = (course.value?.versions || [])
     .slice()
     .sort((a, b) => b.version - a.version)
@@ -97,11 +99,11 @@ onMounted(async () => {
     <div class="d-flex flex-wrap align-center justify-space-between ga-4 px-6 py-4">
       <div class="d-flex align-center ga-3">
         <VBtn aria-label="Back to courses" icon="mdi-arrow-left" to="/courses" variant="text" />
-        <h1 class="text-h5 font-weight-bold">{{ course?.title  }}<span v-if="course"> ({{ course.status || 'new' }})</span></h1>
+        <h1 class="text-h5 font-weight-bold">{{ course?.title }}<span v-if="course && !isCatalogueLinked"> ({{ course.status || 'new' }})</span></h1>
       </div>
       <div class="d-flex flex-wrap align-center ga-2">
         <VSelect
-          v-if="course?.permissions?.read && versionOptions.length"
+          v-if="!isCatalogueLinked && course?.permissions?.read && versionOptions.length"
           :model-value="selectedVersion"
           class="version-select"
           density="compact"
@@ -113,12 +115,14 @@ onMounted(async () => {
           variant="outlined"
           @update:model-value="switchVersion($event)"
         />
-        <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && course.status === 'new'" color="primary" prepend-icon="mdi-file-edit-outline" variant="flat" :loading="statusLoading" @click="changeStatus('draft')">Move to draft</VBtn>
-        <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && course.status === 'draft'" color="primary" prepend-icon="mdi-check" variant="flat" :loading="statusLoading" @click="changeStatus('ready')">Mark as ready</VBtn>
-        <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && course.status === 'ready'" color="primary" prepend-icon="mdi-publish" variant="flat" :loading="statusLoading" @click="changeStatus('published')">Publish</VBtn>
-        <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && ['ready', 'published'].includes(course.status)" prepend-icon="mdi-file-edit-outline" variant="outlined" :loading="statusLoading" @click="changeStatus('draft')">Move to draft</VBtn>
-        <VBtn v-if="selectedVersion === 'current' && course?.status === 'publishing'" color="info" prepend-icon="mdi-progress-clock" variant="tonal" disabled>Publishing…</VBtn>
-        <VBtn v-if="selectedVersion === 'current' && course?.status === 'publishing' && course.permissions?.read" aria-label="Refresh course status" icon="mdi-refresh" variant="text" :loading="statusLoading" @click="refreshCourse" />
+        <template v-if="!isCatalogueLinked">
+          <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && course.status === 'new'" color="primary" prepend-icon="mdi-file-edit-outline" variant="flat" :loading="statusLoading" @click="changeStatus('draft')">Move to draft</VBtn>
+          <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && course.status === 'draft'" color="primary" prepend-icon="mdi-check" variant="flat" :loading="statusLoading" @click="changeStatus('ready')">Mark as ready</VBtn>
+          <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && course.status === 'ready'" color="primary" prepend-icon="mdi-publish" variant="flat" :loading="statusLoading" @click="changeStatus('published')">Publish</VBtn>
+          <VBtn v-if="course?.permissions?.change_status && selectedVersion === 'current' && ['ready', 'published'].includes(course.status)" prepend-icon="mdi-file-edit-outline" variant="outlined" :loading="statusLoading" @click="changeStatus('draft')">Move to draft</VBtn>
+          <VBtn v-if="selectedVersion === 'current' && course?.status === 'publishing'" color="info" prepend-icon="mdi-progress-clock" variant="tonal" disabled>Publishing…</VBtn>
+          <VBtn v-if="selectedVersion === 'current' && course?.status === 'publishing' && course.permissions?.read" aria-label="Refresh course status" icon="mdi-refresh" variant="text" :loading="statusLoading" @click="refreshCourse" />
+        </template>
       </div>
     </div>
 
