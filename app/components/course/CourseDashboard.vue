@@ -33,6 +33,7 @@ async function switchVersion(value: string | number) {
   const selection = value === 'current' ? 'current' : Number(value)
   if (!selection || selection === selectedVersion.value) return
   selectedVersion.value = selection
+  if (course.value) await router.push({ path: dashboardPath(course.value.id, selection) })
   await nextTick()
   activeTab.value = defaultTabForVersion(selection)
 }
