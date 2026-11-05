@@ -10,11 +10,11 @@ const router = useRouter()
 const packages = ref<CoursePackage[]>([])
 const packagesLoading = ref(true)
 const formSchema = ref<ApiFormSchema | null>(null)
-const form = reactive({ package_id: '', title: '', code: '', type: '' })
+const form = ref({ package_id: '', title: '', code: '', type: '' })
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
-const selectedPackage = computed(() => packages.value.find(item => item.id === form.package_id) || null)
+const selectedPackage = computed(() => packages.value.find(item => item.id === form.value.package_id) || null)
 const courseTypes = computed(() => formSchema.value?.properties?.type?.enum ?? [])
 const vjsfSchema = computed<ApiFormSchema | null>(() => {
   if (!formSchema.value) return null
@@ -30,18 +30,18 @@ const vjsfSchema = computed<ApiFormSchema | null>(() => {
   }
 })
 
-watch(selectedPackage, (item) => { form.type = item?.type || '' })
+watch(selectedPackage, (item) => { form.value.type = item?.type || '' })
 
 onMounted(async () => {
   packagesLoading.value = true
   try {
     const [packageData, { vjsf }] = await Promise.all([packagesApi.list(), coursesStore.newForm()])
     formSchema.value = vjsf.schema
-    Object.assign(form, vjsf.model)
+    Object.assign(form.value, vjsf.model)
     packages.value = packageData.items.filter(item => courseTypes.value.includes(item.type))
     const requestedPackageId = String(route.query.package_id || '')
-    if (packages.value.some(item => item.id === requestedPackageId)) form.package_id = requestedPackageId
-    form.type = selectedPackage.value?.type || ''
+    if (packages.value.some(item => item.id === requestedPackageId)) form.value.package_id = requestedPackageId
+    form.value.type = selectedPackage.value?.type || ''
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load packages.')
   } finally {
@@ -50,13 +50,19 @@ onMounted(async () => {
 })
 
 async function submit() {
-  if (!form.package_id || !form.title.trim() || !form.code.trim()) return
+  const packageId = String(form.value?.package_id ?? '').trim()
+  const title = String(form.value?.title ?? '').trim()
+  const code = String(form.value?.code ?? '').trim()
+  if (!packageId || !title || !code) {
+    error.value = 'Select a package and enter a course title and code.'
+    return
+  }
 
   submitting.value = true
   error.value = null
   try {
-    await coursesStore.create({ package_id: form.package_id, title: form.title.trim(), code: form.code.trim(), type: form.type })
-    await router.push(`/packages/${encodeURIComponent(form.package_id)}`)
+    await coursesStore.create({ package_id: packageId, title, code, type: String(form.value?.type ?? '') })
+    await router.push(`/packages/${encodeURIComponent(packageId)}`)
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to create course.')
   } finally {
@@ -84,7 +90,7 @@ async function submit() {
         <Vjsf v-if="vjsfSchema" v-model="form" :schema="vjsfSchema" />
         <div class="d-flex justify-end ga-3">
           <VBtn to="/courses" variant="text">Cancel</VBtn>
-          <VBtn color="primary" :disabled="!form.package_id || !vjsfSchema" :loading="submitting || packagesLoading" type="submit">Create course</VBtn>
+          <VBtn color="primary" :disabled="packagesLoading || !vjsfSchema" :loading="submitting" type="button" @click="submit">Create course</VBtn>
         </div>
       </VForm>
     </VCardText>

@@ -1,4 +1,5 @@
 import type { CoursePackage, PackageType } from '~/composables/usePackagesApi'
+import { useApi } from '~/composables/useApi'
 
 export interface CatalogueCourse {
   id: string

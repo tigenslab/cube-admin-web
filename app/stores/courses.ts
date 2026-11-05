@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { ApiFormSchema } from '~/types/api-form'
 import type { VersionMetadata } from '~/types/course-resources'
+import { useApi } from '~/composables/useApi'
 
 export interface Course {
   id: string
