@@ -26,6 +26,7 @@ const blockComponents = ref<UnitBlockComponent[]>([])
 const activeBlockId = ref<string | null>(null)
 const componentsLoading = ref(false)
 const openGroups = ref<string[]>([])
+const openCourseUnitGroups = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
 const selectedVersion = computed(() => {
@@ -203,6 +204,15 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
     else roots.push(node)
   }
   courseUnits.value = roots
+  const groupIds: string[] = []
+  const collectGroups = (items: CourseUnitNavigationRow[]) => {
+    for (const item of items) {
+      if (item.type !== 'U') groupIds.push(item.id)
+      collectGroups(item.children)
+    }
+  }
+  collectGroups(roots)
+  openCourseUnitGroups.value = groupIds
 }
 
 async function navigateToUnit(nextUnitId: string) {
@@ -329,7 +339,7 @@ watch(() => route.params.version, () => {
     <template #course-unit-count>{{ courseUnitCount }}</template>
 
     <template #course-units="{ collapse }">
-      <VList v-if="courseUnitCount" class="course-unit-tree" density="compact" nav>
+      <VList v-if="courseUnitCount" v-model:opened="openCourseUnitGroups" class="course-unit-tree" density="compact" nav>
         <CourseUnitNavigation :rows="courseUnits" :selected-unit-id="unitId" @select="selectCourseUnit($event, collapse)" />
       </VList>
       <VList v-else class="course-unit-tree" density="compact" nav>
