@@ -11,8 +11,7 @@ const loading = ref(true)
 const error = ref('')
 
 const categories: { type: PackageType; title: string; description: string; icon: string }[] = [
-  { type: 'SCH:PRY', title: 'School Primary', description: 'Courses for primary year levels.', icon: 'mdi-school-outline' },
-  { type: 'SCH:SEC', title: 'School Secondary', description: 'Courses for secondary year levels.', icon: 'mdi-school' },
+  { type: 'SCH:V9', title: 'School V9', description: 'Courses for school year levels.', icon: 'mdi-school' },
   { type: 'RTO:NRT', title: 'Nationally Recognised Training', description: 'Accredited training and qualifications.', icon: 'mdi-certificate-outline' },
   { type: 'RTO:NAT', title: 'Non-accredited Training', description: 'Other training courses.', icon: 'mdi-lightbulb-outline' },
 ]

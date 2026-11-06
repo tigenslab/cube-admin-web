@@ -1,7 +1,7 @@
 import type { ApiNewForm } from '~/types/api-form'
 import type { VersionMetadata } from '~/types/course-resources'
 
-export type PackageType = 'SCH:PRY' | 'SCH:SEC' | 'RTO:NRT' | 'RTO:NAT'
+export type PackageType = 'SCH:V9' | 'RTO:NRT' | 'RTO:NAT'
 
 export interface CoursePackage {
   id: string
