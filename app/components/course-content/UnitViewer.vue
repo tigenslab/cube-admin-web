@@ -12,6 +12,7 @@ const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
 const unitBlockComponentsApi = useUnitBlockComponentsApi()
 const catalogueApi = useCatalogueApi()
+const catalogueCourseId = ref<string | null>(null)
 const unit = ref<CourseResourceItem | null>(null)
 const blocks = ref<CourseResourceItem[]>([])
 const blockComponents = ref<UnitBlockComponent[]>([])
@@ -24,7 +25,7 @@ const selectedVersion = computed(() => {
   const value = Number(route.params.version)
   return Number.isInteger(value) && value > 0 ? value : null
 })
-const isCatalogueUnit = computed(() => route.query.catalogueUnit === 'true')
+const isCatalogueUnit = computed(() => Boolean(catalogueCourseId.value))
 const selectedCatalogueVersion = ref<number | null>(null)
 const versionSegment = computed(() => selectedVersion.value ? String(selectedVersion.value) : 'current')
 const courseDashboardPath = computed(() => `/courses/${courseId}/${versionSegment.value}/dashboard`)
@@ -79,8 +80,7 @@ function blockTitle(block: CourseResourceItem) {
 }
 
 function blockPath(blockId: string) {
-  const path = `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
-  return isCatalogueUnit.value ? `${path}?catalogueUnit=true&version=${selectedCatalogueVersion.value || ''}` : path
+  return `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
 }
 
 function selectBlock(blockId: string) {
@@ -96,12 +96,13 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
+    const course = await courses.show(courseId)
+    catalogueCourseId.value = course.catalogue_course_id || null
     if (isCatalogueUnit.value) {
-      const requested = Number(route.query.version)
-      const snapshot = await catalogueApi.unitVersion(unitId, Number.isInteger(requested) && requested > 0 ? requested : undefined)
+      const snapshot = await catalogueApi.courseUnit(catalogueCourseId.value!, selectedVersion.value || undefined, unitId)
       unit.value = { id: unitId, ...snapshot.unit } as CourseResourceItem
       blocks.value = flattenSnapshotBlocks(snapshot.blocks)
-      selectedCatalogueVersion.value = snapshot.version
+      selectedCatalogueVersion.value = snapshot.unit_version
     } else if (selectedVersion.value) {
       const snapshot = await courses.versionUnit(courseId, selectedVersion.value, unitId)
       unit.value = { id: unitId, ...snapshot.unit } as CourseResourceItem
@@ -146,7 +147,7 @@ function flattenSnapshotBlocks(rows: Record<string, any>[], ancestry = '', resul
 }
 
 onMounted(load)
-watch(() => route.query.version, () => {
+watch(() => route.params.version, () => {
   if (isCatalogueUnit.value) load()
 })
 </script>
@@ -166,7 +167,7 @@ watch(() => route.query.version, () => {
             <VBtn v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList>
-            <VListItem v-if="!selectedVersion && !isCatalogueUnit" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
+            <VListItem v-if="!loading && !selectedVersion && !isCatalogueUnit" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
             <VDivider class="my-1" />
             <VListItem prepend-icon="mdi-arrow-left" title="Course dashboard" :to="courseDashboardPath" />
           </VList>
@@ -177,7 +178,6 @@ watch(() => route.query.version, () => {
       </div>
 
       <VProgressLinear v-if="loading" color="primary" indeterminate />
-      <VAlert v-if="error" class="ma-3" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
       <div class="viewer-tree">
         <div v-if="!loading && !tree.length && !error" class="pa-5 text-body-2 text-medium-emphasis">No unit blocks.</div>
         <VList v-else v-model:opened="openGroups" density="comfortable" nav>
@@ -226,6 +226,9 @@ watch(() => route.query.version, () => {
       </div>
     </main>
     </div>
+    <template #footer>
+      <VAlert v-if="error" class="footer-error" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
+    </template>
   </NuxtLayout>
 </template>
 

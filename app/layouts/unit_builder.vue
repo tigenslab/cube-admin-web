@@ -7,7 +7,10 @@
       <slot />
     </div>
   </VMain>
-  <VFooter app :height="42" class="unit-builder-footer">© 2025 Cube</VFooter>
+  <VFooter app class="unit-builder-footer">
+    <span class="footer-copyright">© 2025 Cube</span>
+    <slot name="footer" />
+  </VFooter>
 </template>
 
 <style scoped>
@@ -28,8 +31,22 @@
 }
 
 .unit-builder-footer {
+  display: flex;
+  min-height: 42px;
+  gap: 16px;
   padding-inline: 24px;
   background: #222;
   color: #fff;
+}
+
+.footer-copyright {
+  flex: none;
+}
+
+.unit-builder-footer :deep(.footer-error) {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(70vw, 800px);
+  margin-left: auto;
 }
 </style>

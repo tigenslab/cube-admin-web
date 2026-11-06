@@ -60,7 +60,7 @@ const outlineTree = computed(() => {
 })
 const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map((unit) => ({
   unit_id: unit.id,
-  version: Number((unit as CourseResourceItem & { version?: number }).version || 0),
+  version: Number(unit.version || 0),
   unit: { id: unit.id, code: unit.code, title: unit.title },
   blocks: ((unit as CourseResourceItem & { blocks?: CatalogueUnitSnapshot['blocks'] }).blocks || []),
 })))
@@ -199,20 +199,12 @@ async function switchVersion(version: number | null) {
 }
 
 function unitViewPath(unitId: string) {
-  if (isCatalogueLinked.value) {
-    const version = Number((units.value.find(unit => unit.id === unitId) as (CourseResourceItem & { version?: number }) | undefined)?.version || 0)
-    return `/courses/${encodeURIComponent(courseId.value)}/current/units/${encodeURIComponent(unitId)}/view?catalogueUnit=true&version=${version}`
-  }
   const version = isCurrentView.value ? 'current' : selectedVersion.value || 'current'
   const path = `/courses/${encodeURIComponent(courseId.value)}/${version}/units/${encodeURIComponent(unitId)}`
   return `${path}/${canEditUnits.value ? 'edit' : 'view'}`
 }
 
 function blockViewPath(unitId: string, blockId: string) {
-  if (isCatalogueLinked.value) {
-    const version = Number((units.value.find(unit => unit.id === unitId) as (CourseResourceItem & { version?: number }) | undefined)?.version || 0)
-    return `/courses/${encodeURIComponent(courseId.value)}/current/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}?catalogueUnit=true&version=${version}`
-  }
   return `${unitViewPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
 }
 

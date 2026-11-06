@@ -204,6 +204,7 @@ async function loadUnits() {
     const catalogueUnits: CourseResourceItem[] = (catalogueData?.units || []).map(reference => ({
       ...reference.unit,
       id: reference.unit.id || reference.unit_id,
+      version: reference.version,
       type: 'U',
       blocks: reference.blocks,
       catalogue_source: true,
@@ -374,14 +375,14 @@ async function addToCourse() {
 
 function unitEditPath(unitId: string) {
   if (catalogueUnitIds.value.has(unitId)) {
-    return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/view?catalogueUnit=true`
+    return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/view`
   }
   return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/edit`
 }
 
 function blockEditPath(unitId: string, blockId: string) {
   if (catalogueUnitIds.value.has(unitId)) {
-    return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}?catalogueUnit=true`
+    return `/courses/${encodeURIComponent(courseId)}/current/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
   }
   return `${unitEditPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
 }

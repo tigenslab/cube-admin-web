@@ -22,10 +22,11 @@ export interface CatalogueUnitSnapshot {
   blocks: CatalogueBlockTitle[]
 }
 
-export interface CatalogueUnitVersion {
+export interface CatalogueCourseUnitContent {
+  course_id: string
+  course_version: number
+  unit_version: number
   unit: Record<string, any> & { id: string; code?: string; title?: string }
-  version: number
-  versions: number[]
   blocks: Record<string, any>[]
 }
 
@@ -73,12 +74,13 @@ export function useCatalogueApi() {
       return api<{ item: CataloguePackage; courses: CatalogueCourse[] }>(`/catalogue/packages/${encodeURIComponent(id)}`)
     },
     course(id: string, version?: number) {
-      const query = version ? `?version=${version}` : ''
-      return api<CatalogueCourseContent>(`/catalogue/courses/${encodeURIComponent(id)}${query}`)
+      const path = `/catalogue/courses/${encodeURIComponent(id)}`
+      return api<CatalogueCourseContent>(version ? `${path}/versions/${version}` : path)
     },
-    unitVersion(id: string, version?: number) {
-      const query = version ? `?version=${version}` : ''
-      return api<CatalogueUnitVersion>(`/catalogue/units/${encodeURIComponent(id)}${query}`)
+    courseUnit(courseId: string, courseVersion: number | undefined, unitId: string) {
+      const coursePath = `/catalogue/courses/${encodeURIComponent(courseId)}`
+      const versionPath = courseVersion ? `/versions/${courseVersion}` : ''
+      return api<CatalogueCourseUnitContent>(`${coursePath}${versionPath}/units/${encodeURIComponent(unitId)}`)
     },
     addCourse(id: string) {
       return api<AddedCatalogueCourse>(`/catalogue/courses/${encodeURIComponent(id)}/add`, {

@@ -11,6 +11,7 @@ export interface CourseResourceItem {
   course_id?: string
   package_id?: string
   unit_id?: string
+  version?: number
   code?: string
   title?: string
   versions?: VersionMetadata[]

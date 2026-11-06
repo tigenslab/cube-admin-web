@@ -334,7 +334,6 @@ onMounted(load)
       </div>
 
       <VProgressLinear v-if="loading" color="primary" indeterminate />
-      <VAlert v-if="error" class="ma-3" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
 
       <div class="block-navigation">
         <div class="px-4 pt-3 pb-1 text-overline text-medium-emphasis">UNIT BLOCKS</div>
@@ -455,6 +454,9 @@ onMounted(load)
       </div>
     </main>
     </div>
+    <template #footer>
+      <VAlert v-if="error" class="footer-error" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
+    </template>
   </NuxtLayout>
 
   <VDialog v-if="editable" v-model="dialog" max-width="560">
