@@ -385,6 +385,17 @@ onMounted(load)
     </aside>
     </template>
 
+    <template #course-header>
+      <div v-if="course" class="d-flex align-center ga-3 border-b px-6 py-3 bg-grey-lighten-4">
+        <div>
+          <div class="text-caption text-medium-emphasis">Course</div>
+          <div class="text-subtitle-1 font-weight-medium">{{ course.code }} · {{ course.title }}</div>
+        </div>
+        <VSpacer />
+        <VChip size="small" variant="tonal">{{ versionSegment === 'current' ? 'Current' : `Version ${versionSegment}` }}</VChip>
+      </div>
+    </template>
+
     <div class="builder-shell">
     <main class="builder-workspace">
       <header class="workspace-header">

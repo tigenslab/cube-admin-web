@@ -5,5 +5,5 @@ definePageMeta({ layout: false })
 </script>
 
 <template>
-  <UnitViewer />
+  <UnitViewer :key="String($route.params.unitId)" />
 </template>
