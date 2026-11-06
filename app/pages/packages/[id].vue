@@ -6,6 +6,8 @@ const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const route = useRoute()
 const router = useRouter()
 const packagesApi = usePackagesApi()
+const coursesStore = useCoursesStore()
+const vjsfDialog = useVjsfFormDialog()
 const detail = ref<PackageDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -73,6 +75,41 @@ async function createUnit() {
   }
 }
 
+async function openCourseDialog() {
+  const currentPackageId = packageId.value
+  const type = detail.value?.item.type || ''
+  const course = await vjsfDialog.showDialog({
+    title: 'Create course',
+    loadKey: currentPackageId,
+    loadForm: async () => {
+      const response = await coursesStore.newForm()
+      return {
+        vjsf: {
+          schema: {
+            ...response.vjsf.schema,
+            properties: {
+              ...response.vjsf.schema.properties,
+              package_id: { ...response.vjsf.schema.properties?.package_id, const: currentPackageId, readOnly: true },
+              type: { ...response.vjsf.schema.properties?.type, const: type, readOnly: true },
+            },
+          },
+          model: { ...response.vjsf.model, package_id: currentPackageId, type },
+        },
+      }
+    },
+    saveForm: async (model: Record<string, unknown>) => {
+      const created = await coursesStore.create({
+        package_id: currentPackageId,
+        type,
+        code: String(model.code || '').trim(),
+        title: String(model.title || '').trim(),
+      })
+      if (detail.value) detail.value.courses.push(created)
+      return created
+    },
+  })
+}
+
 onMounted(load)
 </script>
 
@@ -93,7 +130,7 @@ onMounted(load)
       </div>
       <div class="d-flex ga-3">
         <VBtn v-if="detail.permissions.create_unit" prepend-icon="mdi-plus" variant="outlined" @click="openUnitDialog">Create unit</VBtn>
-        <VBtn v-if="detail.permissions.create_course" color="primary" prepend-icon="mdi-plus" :to="`/courses/create?package_id=${encodeURIComponent(packageId)}`">Create course</VBtn>
+        <VBtn v-if="detail.permissions.create_course" color="primary" prepend-icon="mdi-plus" @click="openCourseDialog">Create course</VBtn>
       </div>
     </section>
 
@@ -145,6 +182,7 @@ onMounted(load)
       </VCardActions>
     </VCard>
   </VDialog>
+
 </template>
 
 <style scoped>
