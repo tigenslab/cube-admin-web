@@ -11,6 +11,7 @@ export interface Course {
   catalogue_course_id?: string
   type: string
   status: string
+  level?: number
   published_version?: number
   versions?: VersionMetadata[]
   permissions?: Record<string, boolean>
@@ -69,16 +70,18 @@ export const useCoursesStore = defineStore('courses', () => {
     return api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`)
   }
 
-  async function newForm() {
+  async function newForm(packageId?: string) {
     const api = useApi()
-    return api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id: string } } }>('/courses/new')
+    return api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id?: string; level?: number } } }>('/courses/new', {
+      query: packageId ? { package_id: packageId } : undefined,
+    })
   }
 
-  async function create(course: Pick<Course, 'title' | 'code' | 'type'> & { package_id: string }) {
+  async function create(course: { title?: string; code?: string; package_id: string; level?: number }) {
     const api = useApi()
     return api<Course>('/courses/create', {
       method: 'POST',
-      body: { package_id: course.package_id, title: course.title, code: course.code, type: course.type, content: {} }
+      body: { package_id: course.package_id, title: course.title, code: course.code, level: course.level, content: {} }
     })
   }
 

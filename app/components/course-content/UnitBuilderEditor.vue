@@ -3,7 +3,6 @@ import type { Course } from '~/stores/courses'
 import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-resources'
 import type { ApiFormSchema } from '~/types/api-form'
 
-const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const props = withDefaults(defineProps<{ mode?: 'edit' | 'view' }>(), { mode: 'edit' })
 const route = useRoute()
 const router = useRouter()
@@ -62,7 +61,7 @@ const orderedBlocks = computed(() => {
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
 const blockVjsfSchema = computed<ApiFormSchema | null>(() => {
   const title = blockFormSchema.value?.properties?.content?.properties?.title
-  return title ? { type: 'object', title: 'Block details', properties: { title }, required: ['title'] } : null
+  return title ? { type: 'object', title: 'Block details', properties: { title } } : null
 })
 let componentsRequest = 0
 
@@ -474,7 +473,7 @@ onMounted(load)
     <VCard rounded="xl">
       <VCardTitle class="pa-6 pb-2">{{ editingBlock ? 'Edit block' : 'Add content block' }}</VCardTitle>
       <VCardText class="pa-6 pt-2">
-        <Vjsf v-if="blockVjsfSchema" v-model="blockForm" :schema="blockVjsfSchema" />
+        <FormsVjsfForm v-if="blockVjsfSchema" v-model="blockForm" :schema="blockVjsfSchema" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />

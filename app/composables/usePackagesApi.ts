@@ -25,8 +25,9 @@ export interface PackageUnit {
   id: string
   code: string
   title: string
-  versions?: VersionMetadata[]
+  metadata?: Record<string, unknown>
   content?: Record<string, unknown>
+  versions?: VersionMetadata[]
 }
 
 export interface PackageDetail {
@@ -49,12 +50,12 @@ export function usePackagesApi() {
       return api<PackageDetail>(`/packages/${encodeURIComponent(id)}`)
     },
     newUnitForm(id: string) {
-      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title'>> & { type?: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
+      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title' | 'metadata' | 'content'>> & { package_id: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
     },
-    createUnit(id: string, type: string, data: { code: string; title: string }) {
+    createUnit(id: string, data: { code: string; title: string; metadata?: Record<string, unknown>; content?: Record<string, unknown> }) {
       return api<{ item: PackageUnit }>(`/packages/${encodeURIComponent(id)}/units/create`, {
         method: 'POST',
-        body: { ...data, type, content: {} },
+        body: { ...data, package_id: id },
       })
     },
   }

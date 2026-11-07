@@ -12,7 +12,6 @@ const emit = defineEmits<{
 const route = useRoute()
 const coursesStore = useCoursesStore()
 const courseEdit = useCourseEditModel()
-const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const courseUnitsApi = useCourseUnitsApi()
 const unitsApi = useUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
@@ -131,7 +130,7 @@ const addParentLabel = computed(() => {
 const addVjsfSchema = computed<ApiFormSchema | null>(() => {
   if (addKind.value === 'group') {
     const title = courseUnitFormSchema.value?.properties?.title
-    return title ? { type: 'object', title: 'Group details', properties: { title }, required: ['title'] } : null
+    return title ? { type: 'object', title: 'Group details', properties: { title } } : null
   }
   if (addUnitMode.value === 'existing') {
     const unitId = courseUnitFormSchema.value?.properties?.unit_id
@@ -144,7 +143,6 @@ const addVjsfSchema = computed<ApiFormSchema | null>(() => {
           oneOf: availableUnits.value.map(({ title, value }) => ({ const: value, title })),
         },
       },
-      required: ['unit_id'],
     } : null
   }
   const code = unitCreateFormSchema.value?.properties?.code
@@ -153,7 +151,6 @@ const addVjsfSchema = computed<ApiFormSchema | null>(() => {
     type: 'object',
     title: 'New unit details',
     properties: { code, title },
-    required: ['code', 'title'],
   } : null
 })
 async function deleteOutlineItem(item: CourseResourceItem) {
@@ -228,7 +225,12 @@ onMounted(async () => {
     error.value = getApiErrorMessage(cause, 'Unable to load course.')
   }
   if (course.value) {
-    if (!await courseEdit.load(course.value)) error.value = courseEdit.error.value
+    if (!await courseEdit.load(course.value)) {
+      error.value = courseEdit.error.value
+    } else if (!course.value.package_id) {
+      const packageId = courseEdit.form.value?.model.package_id
+      if (packageId) course.value.package_id = String(packageId)
+    }
     await loadUnits()
   }
 })
@@ -342,6 +344,7 @@ async function addToCourse() {
   adding.value = true
   addError.value = ''
   try {
+    if (!course.value?.package_id) throw new Error('This course is not linked to a package.')
     const parentGroup = addParentGroupId.value
       ? outline.value.find(item => item.id === addParentGroupId.value)
       : undefined
@@ -352,7 +355,7 @@ async function addToCourse() {
     const unitId = addKind.value === 'unit'
       ? addUnitMode.value === 'create'
         ? (await unitsApi.save(courseId, {
-            type: course.value?.type || '',
+            package_id: course.value.package_id,
             code: newUnitForm.code.trim(),
             title: newUnitForm.title.trim(),
             content: {},
@@ -360,8 +363,8 @@ async function addToCourse() {
         : existingUnitForm.unit_id
       : ''
     await courseUnitsApi.save(courseId, addKind.value === 'group'
-      ? { type: 'G', title: groupForm.title.trim(), ancestry, position: editingGroup.value?.position || position }
-      : { type: 'U', unit_id: unitId, ancestry, position }, editingGroup.value?.id)
+      ? { type: 'G', ...(!editingGroup.value ? { package_id: course.value.package_id } : {}), title: groupForm.title.trim(), ancestry, position: editingGroup.value?.position || position }
+      : { type: 'U', ...(!editingGroup.value ? { package_id: course.value.package_id } : {}), unit_id: unitId, ancestry, position }, editingGroup.value?.id)
     addDialog.value = false
     editingGroup.value = null
     await loadUnits()
@@ -437,7 +440,7 @@ function blockEditPath(unitId: string, blockId: string) {
       <VCardText class="pa-6 pt-2">
         <VAlert v-if="error" class="mb-5" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
         <VForm @submit.prevent="submit">
-          <Vjsf v-if="courseEdit.form.value" v-model="courseEdit.form.value.model" :schema="courseEdit.form.value.schema" />
+          <FormsVjsfForm v-if="courseEdit.form.value" v-model="courseEdit.form.value.model" :schema="courseEdit.form.value.schema" />
           <div class="d-flex justify-end ga-3 mt-4">
             <VBtn :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</VBtn>
             <VBtn color="primary" :loading="submitting" type="submit">Save changes</VBtn>
@@ -465,9 +468,9 @@ function blockEditPath(unitId: string, blockId: string) {
           <VProgressLinear v-if="addFormLoading" class="mb-3" color="primary" indeterminate />
           <div v-if="addUnitMode === 'existing' && !availableUnits.length" class="text-body-2 text-medium-emphasis">All available units are already in this course.</div>
         </template>
-        <Vjsf v-if="addKind === 'group' && addVjsfSchema" :model-value="groupForm" :schema="addVjsfSchema" @update:model-value="Object.assign(groupForm, $event)" />
-        <Vjsf v-else-if="addUnitMode === 'existing' && addVjsfSchema" :model-value="existingUnitForm" :schema="addVjsfSchema" @update:model-value="Object.assign(existingUnitForm, $event)" />
-        <Vjsf v-else-if="addVjsfSchema" :model-value="newUnitForm" :schema="addVjsfSchema" @update:model-value="Object.assign(newUnitForm, $event)" />
+        <FormsVjsfForm v-if="addKind === 'group' && addVjsfSchema" :model-value="groupForm" :schema="addVjsfSchema" @update:model-value="Object.assign(groupForm, $event)" />
+        <FormsVjsfForm v-else-if="addUnitMode === 'existing' && addVjsfSchema" :model-value="existingUnitForm" :schema="addVjsfSchema" @update:model-value="Object.assign(existingUnitForm, $event)" />
+        <FormsVjsfForm v-else-if="addVjsfSchema" :model-value="newUnitForm" :schema="addVjsfSchema" @update:model-value="Object.assign(newUnitForm, $event)" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />

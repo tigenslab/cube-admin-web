@@ -37,5 +37,5 @@ export interface UnitBlockComponent {
 }
 
 export type CourseResourceInput = Partial<Pick<CourseResourceItem,
-  'type' | 'unit_id' | 'code' | 'title' | 'ancestry' | 'position' | 'content' | 'metadata'
+  'type' | 'unit_id' | 'package_id' | 'code' | 'title' | 'ancestry' | 'position' | 'content' | 'metadata'
 >>

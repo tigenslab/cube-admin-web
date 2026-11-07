@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiFormSchema } from '~/types/api-form'
+import { apiFormDisplaySchema, type ApiFormSchema } from '~/types/api-form'
 import { defineComponent, h } from 'vue'
 
 const props = defineProps<{
@@ -8,6 +8,7 @@ const props = defineProps<{
 }>()
 
 const model = defineModel<Record<string, any>>({ required: true })
+const displaySchema = computed(() => apiFormDisplaySchema(props.schema))
 const loadError = ref('')
 const EmptyVjsf = defineComponent({ setup: () => () => h('span') })
 const Vjsf = defineAsyncComponent({
@@ -36,7 +37,7 @@ function objectFieldValue(value: unknown) {
 </script>
 
 <template>
-  <Vjsf v-if="!loadError" v-model="model" :options="options" :schema="schema" />
+  <Vjsf v-if="!loadError" v-model="model" :options="options" :schema="displaySchema" />
   <div v-else>
     <VAlert class="mb-4" color="warning" density="compact" variant="tonal">
       {{ loadError }} Showing the schema fields with standard inputs.

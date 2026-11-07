@@ -2,7 +2,6 @@
 import type { ApiFormSchema } from '~/types/api-form'
 
 const store = useUsersStore(); const form = reactive({ username: '', email: '', first_name: '', last_name: '', phone: '', roles: [] as string[], password: '' })
-const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const error = ref(''); const loadingForm = ref(true)
 const formSchema = ref<ApiFormSchema | null>(null)
 onMounted(async () => {
@@ -24,7 +23,7 @@ async function submit() { try { await store.create(form); await navigateTo('/use
     <h1 class="text-h4 font-weight-bold">Create user</h1>
     <VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert>
     <VForm class="mt-6" @submit.prevent="submit">
-      <Vjsf v-if="formSchema" v-model="form" :schema="formSchema" />
+      <FormsVjsfForm v-if="formSchema" v-model="form" :schema="formSchema" />
       <VBtn class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.loading" type="submit">Create user</VBtn>
     </VForm>
   </VContainer>

@@ -3,7 +3,6 @@ import type { ApiFormSchema } from '~/types/api-form'
 
 const store = useNotificationsStore()
 const router = useRouter()
-const Vjsf = defineAsyncComponent(() => import('@koumoul/vjsf'))
 const form = reactive({ user_id: '', type: '' as NotificationType, message: '' })
 const formSchema = ref<ApiFormSchema | null>(null)
 const loadingForm = ref(true)
@@ -38,7 +37,7 @@ async function submit() {
     <h1 class="text-h4 font-weight-bold">Create notification</h1>
     <VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert>
     <VForm class="mt-6" @submit.prevent="submit">
-      <Vjsf v-if="formSchema" v-model="form" :schema="formSchema" />
+      <FormsVjsfForm v-if="formSchema" v-model="form" :schema="formSchema" />
       <VBtn class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.loading" type="submit">Create notification</VBtn>
     </VForm>
   </VContainer>
