@@ -17,6 +17,7 @@ const unitBlocksApi = useUnitBlocksApi()
 const unitBlockComponentsApi = useUnitBlockComponentsApi()
 const course = useState<Course | null>(`unit-builder-course-${courseId}`, () => null)
 const courseUnits = useState<CourseUnitNavigationRow[]>(`unit-builder-course-units-${courseId}`, () => [])
+const courseUnitItems = useState<CourseResourceItem[]>(`unit-builder-course-unit-items-${courseId}`, () => [])
 const openCourseUnitGroups = useState<string[]>(`unit-builder-open-course-unit-groups-${courseId}`, () => [])
 const structureVersion = useState<string | null>(`unit-builder-structure-version-${courseId}`, () => null)
 const unit = ref<CourseResourceItem | null>(null)
@@ -34,10 +35,22 @@ const blockFormSchema = ref<ApiFormSchema | null>(null)
 const componentFormSchema = ref<ApiFormSchema | null>(null)
 const componentFormModel = ref<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>>({})
 const unitInfoDialog = ref(false)
+const courseStructureDialog = ref(false)
+const courseStructureSaving = ref(false)
+const courseStructureLoading = ref(false)
+const courseStructureError = ref('')
+const courseStructureKind = ref<'group' | 'unit'>('group')
+const courseUnitMode = ref<'existing' | 'new'>('existing')
+const courseStructureParentId = ref<string | null>(null)
+const editingCourseGroup = ref<CourseResourceItem | null>(null)
+const availableCourseUnits = ref<CourseResourceItem[]>([])
 const editingBlock = ref<CourseResourceItem | null>(null)
 const form = reactive({ type: 'T:B', parent: '', position: '' as number | string })
 const blockForm = reactive({ title: '' })
 const unitInfoForm = reactive({ code: '', title: '' })
+const courseGroupForm = reactive({ title: '' })
+const courseUnitForm = reactive({ unit_id: '' })
+const newCourseUnitForm = reactive({ code: '', title: '' })
 const selectedVersion = computed(() => {
   const value = Number(route.params.version)
   return Number.isInteger(value) && value > 0 ? value : null
@@ -67,6 +80,16 @@ const flatCourseUnits = computed(() => {
   }
   visit(courseUnits.value)
   return units
+})
+const unlinkedCourseUnits = computed(() => {
+  const linked = new Set(flatCourseUnits.value.map(row => row.unit_id).filter((id): id is string => Boolean(id)))
+  return availableCourseUnits.value
+    .filter(item => !linked.has(item.id))
+    .map(item => ({ title: `${item.code || ''}${item.code ? ' — ' : ''}${item.title || 'Untitled unit'}`, value: item.id }))
+})
+const courseStructureParentLabel = computed(() => {
+  if (!courseStructureParentId.value) return 'Course root'
+  return courseUnitItems.value.find(item => item.id === courseStructureParentId.value)?.title || 'Selected group'
 })
 
 const orderedBlocks = computed(() => {
@@ -201,6 +224,8 @@ function flattenSnapshotBlocks(rows: Record<string, any>[], ancestry = '', resul
 }
 
 function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
+  const previousOpenGroups = new Set(openCourseUnitGroups.value)
+  const structureWasLoaded = structureVersion.value !== null
   const flattened: Record<string, any>[] = []
   const flatten = (items: unknown[], ancestry = '') => {
     for (const item of items) {
@@ -212,6 +237,11 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
     }
   }
   flatten(rows)
+  courseUnitItems.value = flattened.map(row => ({
+    ...row,
+    id: String(row.id || ''),
+    type: row.type === 'CourseUnit::Group' ? 'G' : row.type === 'CourseUnit::Unit' ? 'U' : String(row.type || ''),
+  })).filter(row => row.id)
   const unitsById = new Map(unitItems.map(item => {
     const unit = item as Record<string, any>
     return [String(unit.unit_id || unit.id || unit.unit?.id || ''), unit] as const
@@ -230,6 +260,8 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
       ...(isUnit ? { unit_id: unitId || id } : {}),
       title: isUnit ? info?.title || row.title : row.title,
       code: isUnit ? info?.code || row.code : row.code,
+      ancestry: String(row.ancestry || ''),
+      position: Number(row.position || 0),
       children: [],
     })
   }
@@ -251,7 +283,139 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
     }
   }
   collectGroups(roots)
-  openCourseUnitGroups.value = groupIds
+  openCourseUnitGroups.value = structureWasLoaded
+    ? groupIds.filter(id => previousOpenGroups.has(id))
+    : groupIds
+}
+
+async function refreshCourseStructure() {
+  const result = await courseUnitsApi.list(courseId)
+  setCourseUnits(result.items, result.units)
+  structureVersion.value = 'current'
+}
+
+async function openAddCourseStructure(kind: 'group' | 'unit', parentId: string | null = null) {
+  editingCourseGroup.value = null
+  courseStructureKind.value = kind
+  courseStructureParentId.value = parentId
+  courseStructureError.value = ''
+  courseGroupForm.title = ''
+  courseUnitForm.unit_id = ''
+  newCourseUnitForm.code = ''
+  newCourseUnitForm.title = ''
+  courseUnitMode.value = 'existing'
+  availableCourseUnits.value = []
+  courseStructureDialog.value = true
+
+  if (kind === 'unit') {
+    courseStructureLoading.value = true
+    try {
+      const result = await unitsApi.list(courseId)
+      availableCourseUnits.value = result.items
+      courseUnitForm.unit_id = unlinkedCourseUnits.value[0]?.value || ''
+      courseUnitMode.value = unlinkedCourseUnits.value.length ? 'existing' : 'new'
+    } catch (cause) {
+      courseUnitMode.value = 'new'
+      courseStructureError.value = getApiErrorMessage(cause, 'Unable to load available units.')
+    } finally {
+      courseStructureLoading.value = false
+    }
+  }
+}
+
+function editCourseGroup(row: CourseUnitNavigationRow) {
+  const group = courseUnitItems.value.find(item => item.id === row.id)
+  if (!group) return
+  editingCourseGroup.value = group
+  courseStructureKind.value = 'group'
+  courseStructureParentId.value = group.ancestry?.split('/').filter(Boolean).at(-1) || null
+  courseGroupForm.title = group.title || ''
+  courseStructureError.value = ''
+  courseStructureDialog.value = true
+}
+
+function courseStructureAncestry(parentId: string | null) {
+  if (!parentId) return ''
+  const parent = courseUnitItems.value.find(item => item.id === parentId)
+  if (!parent) throw new Error('The parent group could not be found. Reload the course and try again.')
+  return [parent.ancestry, parent.id].filter(Boolean).join('/')
+}
+
+async function saveCourseStructure() {
+  if (courseStructureSaving.value) return
+  courseStructureSaving.value = true
+  courseStructureError.value = ''
+  try {
+    if (!course.value?.package_id) throw new Error('This course is not linked to a package.')
+    const ancestry = editingCourseGroup.value?.ancestry ?? courseStructureAncestry(courseStructureParentId.value)
+    const siblings = courseUnitItems.value.filter(item => (item.ancestry || '') === ancestry)
+    const position = editingCourseGroup.value?.position ?? Math.max(0, ...siblings.map(item => item.position || 0)) + 1
+
+    if (courseStructureKind.value === 'group') {
+      const savedGroup = await courseUnitsApi.save(courseId, {
+        type: 'G',
+        ...(!editingCourseGroup.value ? { package_id: course.value.package_id } : {}),
+        title: courseGroupForm.title,
+        ancestry,
+        position,
+      }, editingCourseGroup.value?.id)
+      courseStructureDialog.value = false
+      await refreshCourseStructure()
+      if (!editingCourseGroup.value) {
+        openCourseUnitGroups.value = [...new Set([...openCourseUnitGroups.value, savedGroup.id])]
+      }
+    } else {
+      const unitId = courseUnitMode.value === 'new'
+        ? (await unitsApi.save(courseId, {
+            package_id: course.value.package_id,
+            code: newCourseUnitForm.code,
+            title: newCourseUnitForm.title,
+            content: {},
+          })).id
+        : courseUnitForm.unit_id
+
+      await courseUnitsApi.save(courseId, {
+        type: 'U',
+        package_id: course.value.package_id,
+        unit_id: unitId,
+        ancestry,
+        position,
+      })
+      courseStructureDialog.value = false
+      await refreshCourseStructure()
+    }
+  } catch (cause) {
+    courseStructureError.value = getApiErrorMessage(cause, 'Unable to save the course structure.')
+  } finally {
+    courseStructureSaving.value = false
+  }
+}
+
+async function removeCourseStructureItem(row: CourseUnitNavigationRow) {
+  const item = courseUnitItems.value.find(candidate => candidate.id === row.id)
+  if (!item) return
+  const isGroup = row.type === 'G'
+  const label = isGroup ? item.title || 'this group and its contents' : 'this unit from the course'
+  if (!confirm(`Remove ${label}?${isGroup ? ' Its nested groups and unit links will also be removed from this course.' : ''}`)) return
+
+  try {
+    if (isGroup) {
+      const descendants = courseUnitItems.value
+        .filter(candidate => candidate.ancestry?.split('/').filter(Boolean).includes(item.id))
+        .sort((a, b) => (b.ancestry?.split('/').filter(Boolean).length || 0) - (a.ancestry?.split('/').filter(Boolean).length || 0))
+      for (const descendant of descendants) await courseUnitsApi.remove(courseId, descendant.id)
+    }
+    await courseUnitsApi.remove(courseId, item.id)
+    await refreshCourseStructure()
+    if (!flatCourseUnits.value.some(unitRow => unitRow.unit_id === unitId.value)) {
+      const nextUnitId = flatCourseUnits.value[0]?.unit_id
+      await router.replace(nextUnitId
+        ? `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(nextUnitId)}/edit`
+        : courseRoute.value)
+    }
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to remove this course item.')
+  }
 }
 
 function selectCourseUnit(nextUnitId: string) {
@@ -512,9 +676,30 @@ watch(
 
     <template #course-unit-count>{{ courseUnitCount }}</template>
 
+    <template #course-structure-actions>
+      <VMenu v-if="editable" location="bottom end">
+        <template #activator="{ props: menuProps }">
+          <VBtn v-bind="menuProps" aria-label="Add to course" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop />
+        </template>
+        <VList density="comfortable" min-width="190">
+          <VListItem prepend-icon="mdi-folder-plus-outline" title="Add group" @click="openAddCourseStructure('group')" />
+          <VListItem prepend-icon="mdi-book-plus-outline" title="Add unit" @click="openAddCourseStructure('unit')" />
+        </VList>
+      </VMenu>
+    </template>
+
     <template #course-units>
       <VList v-if="courseUnitCount" v-model:opened="openCourseUnitGroups" class="course-unit-tree" density="compact" nav>
-        <CourseUnitNavigation :rows="courseUnits" :selected-unit-id="unitId" @select="selectCourseUnit" />
+        <CourseUnitNavigation
+          :rows="courseUnits"
+          :selected-unit-id="unitId"
+          :editable="editable"
+          @select="selectCourseUnit"
+          @add-group="openAddCourseStructure('group', $event)"
+          @add-unit="openAddCourseStructure('unit', $event)"
+          @edit-group="editCourseGroup"
+          @remove="removeCourseStructureItem"
+        />
       </VList>
       <VList v-else class="course-unit-tree" density="compact" nav>
         <VListItem disabled prepend-icon="mdi-information-outline" title="No units in this course" />
@@ -758,6 +943,45 @@ watch(
         <VSpacer />
         <VBtn :disabled="unitInfoSaving" variant="text" @click="unitInfoDialog = false">Cancel</VBtn>
         <VBtn color="primary" :loading="unitInfoSaving" @click="saveUnitInfo">Save changes</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
+  <VDialog v-if="editable" v-model="courseStructureDialog" max-width="560">
+    <VCard rounded="xl">
+      <VCardTitle class="pa-6 pb-2">
+        {{ editingCourseGroup ? 'Edit group' : courseStructureKind === 'group' ? 'Add group' : 'Add unit' }}
+      </VCardTitle>
+      <VCardText class="pa-6 pt-2">
+        <VAlert v-if="courseStructureError" class="mb-4" color="error" density="compact" variant="tonal">{{ courseStructureError }}</VAlert>
+        <div class="mb-4 text-body-2 text-medium-emphasis">{{ editingCourseGroup ? 'Group location:' : 'Adding under:' }} <strong>{{ courseStructureParentLabel }}</strong></div>
+        <VProgressLinear v-if="courseStructureLoading" class="mb-4" color="primary" indeterminate />
+        <VTextField v-if="courseStructureKind === 'group'" v-model="courseGroupForm.title" label="Group name" />
+        <template v-else>
+          <VRadioGroup v-model="courseUnitMode" class="mb-2" inline>
+            <VRadio label="Select existing unit" value="existing" :disabled="!unlinkedCourseUnits.length" />
+            <VRadio label="Create new unit" value="new" />
+          </VRadioGroup>
+          <VSelect
+            v-if="courseUnitMode === 'existing'"
+            v-model="courseUnitForm.unit_id"
+            :items="unlinkedCourseUnits"
+            item-title="title"
+            item-value="value"
+            label="Unit"
+          />
+          <template v-else>
+            <VTextField v-model="newCourseUnitForm.code" class="mb-3" label="Unit code" />
+            <VTextField v-model="newCourseUnitForm.title" label="Unit title" />
+          </template>
+        </template>
+      </VCardText>
+      <VCardActions class="pa-6 pt-0">
+        <VSpacer />
+        <VBtn :disabled="courseStructureSaving" variant="text" @click="courseStructureDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :disabled="courseStructureLoading" :loading="courseStructureSaving" @click="saveCourseStructure">
+          {{ editingCourseGroup ? 'Save group' : 'Add' }}
+        </VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
