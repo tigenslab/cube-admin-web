@@ -15,9 +15,10 @@ const unitsApi = useUnitsApi()
 const courseUnitsApi = useCourseUnitsApi()
 const unitBlocksApi = useUnitBlocksApi()
 const unitBlockComponentsApi = useUnitBlockComponentsApi()
-const course = ref<Course | null>(null)
-const courseUnits = ref<CourseUnitNavigationRow[]>([])
-const openCourseUnitGroups = ref<string[]>([])
+const course = useState<Course | null>(`unit-builder-course-${courseId}`, () => null)
+const courseUnits = useState<CourseUnitNavigationRow[]>(`unit-builder-course-units-${courseId}`, () => [])
+const openCourseUnitGroups = useState<string[]>(`unit-builder-open-course-unit-groups-${courseId}`, () => [])
+const structureVersion = useState<string | null>(`unit-builder-structure-version-${courseId}`, () => null)
 const unit = ref<CourseResourceItem | null>(null)
 const blocks = ref<CourseResourceItem[]>([])
 const blockComponents = ref<UnitBlockComponent[]>([])
@@ -133,33 +134,40 @@ function blockTitle(block: CourseResourceItem) {
   return block.title || String(block.content?.title || block.metadata?.title || 'Untitled block')
 }
 
-async function load() {
+async function load(reloadStructure = false) {
   const request = ++loadRequest
   loading.value = true
   error.value = ''
   activeBlockId.value = null
   blockComponents.value = []
   try {
-    const courseData = await courses.show(courseId)
+    const shouldLoadStructure = reloadStructure || !course.value || structureVersion.value !== versionSegment.value
+    const courseData = shouldLoadStructure ? await courses.show(courseId) : course.value!
     if (request !== loadRequest) return
     course.value = courseData
     if (selectedVersion.value) {
       const [courseSnapshot, snapshot] = await Promise.all([
-        courses.version(courseId, selectedVersion.value),
+        shouldLoadStructure ? courses.version(courseId, selectedVersion.value) : Promise.resolve(null),
         courses.versionUnit(courseId, selectedVersion.value, unitId.value),
       ])
       if (request !== loadRequest) return
-      setCourseUnits(courseSnapshot.course_units || [], courseSnapshot.units || [])
+      if (courseSnapshot) {
+        setCourseUnits(courseSnapshot.course_units || [], courseSnapshot.units || [])
+        structureVersion.value = versionSegment.value
+      }
       unit.value = { id: unitId.value, ...snapshot.unit } as CourseResourceItem
       blocks.value = flattenSnapshotBlocks(snapshot.blocks)
     } else {
       const [unitForm, blockData, courseUnitData] = await Promise.all([
         unitsApi.editForm(courseId, unitId.value),
         unitBlocksApi.list(courseId, unitId.value),
-        courseUnitsApi.list(courseId),
+        shouldLoadStructure ? courseUnitsApi.list(courseId) : Promise.resolve(null),
       ])
       if (request !== loadRequest) return
-      setCourseUnits(courseUnitData.items, courseUnitData.units)
+      if (courseUnitData) {
+        setCourseUnits(courseUnitData.items, courseUnitData.units)
+        structureVersion.value = versionSegment.value
+      }
       unit.value = { id: unitId.value, ...unitForm.vjsf.model } as CourseResourceItem
       blocks.value = blockData.items
     }
@@ -246,9 +254,8 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
   openCourseUnitGroups.value = groupIds
 }
 
-function selectCourseUnit(nextUnitId: string, collapse: () => void) {
+function selectCourseUnit(nextUnitId: string) {
   if (nextUnitId !== unitId.value) router.push(`/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(nextUnitId)}/edit`)
-  collapse()
 }
 
 function navigateToCourseUnit(nextUnitId: string) {
@@ -468,8 +475,15 @@ async function addComponent(type: string, variant: string) {
   }
 }
 
-onMounted(load)
-watch(() => [route.params.unitId, route.params.version], () => load())
+onMounted(() => load())
+watch(
+  () => [route.params.unitId, route.params.version] as const,
+  ([unitParam, versionParam], [previousUnitParam, previousVersionParam]) => {
+    if (unitParam !== previousUnitParam || versionParam !== previousVersionParam) {
+      load(versionParam !== previousVersionParam)
+    }
+  },
+)
 </script>
 
 <template>
@@ -498,9 +512,9 @@ watch(() => [route.params.unitId, route.params.version], () => load())
 
     <template #course-unit-count>{{ courseUnitCount }}</template>
 
-    <template #course-units="{ collapse }">
+    <template #course-units>
       <VList v-if="courseUnitCount" v-model:opened="openCourseUnitGroups" class="course-unit-tree" density="compact" nav>
-        <CourseUnitNavigation :rows="courseUnits" :selected-unit-id="unitId" @select="selectCourseUnit($event, collapse)" />
+        <CourseUnitNavigation :rows="courseUnits" :selected-unit-id="unitId" @select="selectCourseUnit" />
       </VList>
       <VList v-else class="course-unit-tree" density="compact" nav>
         <VListItem disabled prepend-icon="mdi-information-outline" title="No units in this course" />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const courseUnitsOpen = ref(true)
-const unitStructureOpen = ref(true)
+const courseUnitsOpen = useState('unit-builder-course-units-open', () => true)
+const unitStructureOpen = useState('unit-builder-unit-structure-open', () => true)
 </script>
 
 <template>
