@@ -3,6 +3,7 @@ import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
 import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
+import { unitMatchesCourseLevel } from '~/utils/course-unit-display'
 
 const props = defineProps<{
   embedded?: boolean
@@ -33,15 +34,24 @@ const canEditUnits = computed(() => props.embedded && props.selectedVersion === 
 const dashboardPath = computed(() => `/courses/${encodeURIComponent(courseId.value)}/${isCurrentView.value ? 'current' : selectedVersion.value || 'current'}/dashboard`)
 
 const outlineTree = computed(() => {
+  const unitById = new Map(units.value.map(unit => [unit.id, unit]))
   const nodes = new Map<string, CatalogueOutlineRow>()
   const roots: CatalogueOutlineRow[] = []
-  for (const row of outline.value) nodes.set(row.id, {
-    ...row,
-    type: row.unit_id || row.type === 'CourseUnit::Unit' ? 'U' : row.type === 'CourseUnit::Group' ? 'G' : row.type,
-    children: [],
-  })
   for (const row of outline.value) {
-    const node = nodes.get(row.id)!
+    const isUnit = Boolean(row.unit_id) || row.type === 'CourseUnit::Unit'
+    const unit = row.unit_id ? unitById.get(row.unit_id) : undefined
+    const level = unit?.level ?? row.level
+    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, level)) continue
+    nodes.set(row.id, {
+      ...row,
+      type: isUnit ? 'U' : row.type === 'CourseUnit::Group' ? 'G' : row.type,
+      level,
+      children: [],
+    })
+  }
+  for (const row of outline.value) {
+    const node = nodes.get(row.id)
+    if (!node) continue
     const parentId = row.ancestry?.split('/').filter(Boolean).at(-1)
     const parent = parentId ? nodes.get(parentId) : undefined
     if (parent?.type === 'G') parent.children!.push(node)
@@ -61,7 +71,7 @@ const outlineTree = computed(() => {
 const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map((unit) => ({
   unit_id: unit.id,
   version: Number(unit.version || 0),
-  unit: { id: unit.id, code: unit.code, title: unit.title },
+  unit: { id: unit.id, code: unit.code, title: unit.title, level: unit.level },
   blocks: ((unit as CourseResourceItem & { blocks?: CatalogueUnitSnapshot['blocks'] }).blocks || []),
 })))
 
@@ -251,6 +261,7 @@ watch(() => props.selectedVersion, (version, previousVersion) => {
       v-else-if="!loading && outlineTree.length"
       :rows="outlineTree"
       :units="outlineUnits"
+      :course-type="course?.type"
       :unit-path="unitViewPath"
       :block-path="blockViewPath"
       :show-block-titles="true"

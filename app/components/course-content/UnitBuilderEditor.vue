@@ -4,6 +4,8 @@ import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-reso
 import type { ApiFormSchema } from '~/types/api-form'
 import CourseUnitNavigation from '~/components/course-content/CourseUnitNavigation.vue'
 import type { CourseUnitNavigationRow } from '~/components/course-content/CourseUnitNavigation.vue'
+import { displayCourseUnitCode, displayCourseUnitTitle, unitMatchesCourseLevel } from '~/utils/course-unit-display'
+import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const props = withDefaults(defineProps<{ mode?: 'edit' | 'view' }>(), { mode: 'edit' })
 const route = useRoute()
@@ -47,7 +49,7 @@ const availableCourseUnits = ref<CourseResourceItem[]>([])
 const editingBlock = ref<CourseResourceItem | null>(null)
 const form = reactive({ type: 'T:B', parent: '', position: '' as number | string })
 const blockForm = reactive({ title: '' })
-const unitInfoForm = reactive({ code: '', title: '' })
+const unitInfoForm = reactive({ code: '', title: '', level: '' as number | string })
 const courseGroupForm = reactive({ title: '' })
 const courseUnitForm = reactive({ unit_id: '' })
 const newCourseUnitForm = reactive({ code: '', title: '' })
@@ -84,8 +86,9 @@ const flatCourseUnits = computed(() => {
 const unlinkedCourseUnits = computed(() => {
   const linked = new Set(flatCourseUnits.value.map(row => row.unit_id).filter((id): id is string => Boolean(id)))
   return availableCourseUnits.value
-    .filter(item => !linked.has(item.id))
-    .map(item => ({ title: `${item.code || ''}${item.code ? ' — ' : ''}${item.title || 'Untitled unit'}`, value: item.id }))
+    .filter(item => !linked.has(item.id)
+      && unitMatchesCourseLevel(course.value?.type, course.value?.level, item.level))
+    .map(item => ({ title: `${displayCourseUnitCode(course.value?.type, item)} — ${displayCourseUnitTitle(course.value?.type, item)}`, value: item.id }))
 })
 const courseStructureParentLabel = computed(() => {
   if (!courseStructureParentId.value) return 'Course root'
@@ -254,12 +257,14 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
     if (!id) continue
     const unit = unitId ? unitsById.get(unitId) : undefined
     const info = unit?.unit || unit
+    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, info?.level)) continue
     nodes.set(id, {
       id,
       type: isUnit ? 'U' : 'G',
       ...(isUnit ? { unit_id: unitId || id } : {}),
       title: isUnit ? info?.title || row.title : row.title,
       code: isUnit ? info?.code || row.code : row.code,
+      ...(isUnit && info?.level !== undefined ? { level: Number(info.level) } : {}),
       ancestry: String(row.ancestry || ''),
       position: Number(row.position || 0),
       children: [],
@@ -370,6 +375,7 @@ async function saveCourseStructure() {
             package_id: course.value.package_id,
             code: newCourseUnitForm.code,
             title: newCourseUnitForm.title,
+            ...(course.value.type === 'SCH:V9' ? { level: course.value.level } : {}),
             content: {},
           })).id
         : courseUnitForm.unit_id
@@ -468,6 +474,7 @@ function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Sect
 function openUnitInfo() {
   unitInfoForm.code = unit.value?.code || ''
   unitInfoForm.title = unit.value?.title || ''
+  unitInfoForm.level = course.value?.type === 'SCH:V9' ? course.value.level ?? '' : unit.value?.level ?? ''
   unitInfoDialog.value = true
 }
 
@@ -480,6 +487,7 @@ async function saveUnitInfo() {
       type: unit.value.type,
       code: unitInfoForm.code.trim(),
       title: unitInfoForm.title.trim(),
+      ...(unit.value.type === 'SCH:V9' && unitInfoForm.level !== '' ? { level: Number(unitInfoForm.level) } : {}),
       content: unit.value.content,
     }, unitId.value)
     unitInfoDialog.value = false
@@ -656,8 +664,8 @@ watch(
       <div class="course-title-bar">
         <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseRoute" variant="text" />
         <div class="course-title-text">
-          <div class="course-title-name">{{ course?.title || 'Course' }}</div>
-          <div v-if="course?.code" class="text-caption text-medium-emphasis">{{ course.code }}</div>
+          <div class="course-title-name">{{ course ? displayCourseTitle(course, 'Course') : 'Course' }}</div>
+          <div v-if="course?.code" class="text-caption text-medium-emphasis">{{ displayCourseCode(course) }}</div>
         </div>
         <VSpacer />
         <VSelect
@@ -693,6 +701,7 @@ watch(
         <CourseUnitNavigation
           :rows="courseUnits"
           :selected-unit-id="unitId"
+          :course-type="course?.type"
           :editable="editable"
           @select="selectCourseUnit"
           @add-group="openAddCourseStructure('group', $event)"
@@ -711,9 +720,9 @@ watch(
         v-for="row in flatCourseUnits"
         :key="row.id"
         :active="row.unit_id === unitId"
-        :aria-label="`${row.code ? `${row.code}: ` : ''}${row.title || 'Unit'}`"
-        :title="row.title || row.code || 'Unit'"
-        :subtitle="row.code"
+        :aria-label="`${displayCourseUnitCode(course?.type, row)}: ${displayCourseUnitTitle(course?.type, row)}`"
+        :title="displayCourseUnitTitle(course?.type, row)"
+        :subtitle="displayCourseUnitCode(course?.type, row)"
         prepend-icon="mdi-book-open-page-variant-outline"
         @click="navigateToCourseUnit(row.unit_id!)"
       />
@@ -724,8 +733,8 @@ watch(
       <div class="unit-heading">
         <VIcon color="primary" icon="mdi-book-open-page-variant-outline" size="22" />
         <div class="unit-heading-text">
-          <div class="text-caption text-medium-emphasis">{{ unit?.code || 'Unit' }}</div>
-          <strong>{{ unit?.title }}</strong>
+          <div class="text-caption text-medium-emphasis">{{ displayCourseUnitCode(course?.type, unit || {}) || 'Unit' }}</div>
+          <strong>{{ displayCourseUnitTitle(course?.type, unit || {}) }}</strong>
         </div>
         <VMenu location="end">
           <template #activator="{ props: menuProps }">
@@ -819,7 +828,7 @@ watch(
         <template v-if="activeBlock">
           <div class="workspace-heading">
             <div>
-              <div class="text-overline text-medium-emphasis">{{ unit?.code || 'Course unit' }}</div>
+              <div class="text-overline text-medium-emphasis">{{ displayCourseUnitCode(course?.type, unit || {}) || 'Course unit' }}</div>
               <h1 class="text-h4 font-weight-bold">{{ blockTitle(activeBlock) }}</h1>
             </div>
             <div class="d-flex align-center ga-3">
@@ -833,7 +842,7 @@ watch(
                 <VAvatar color="primary" rounded="lg" variant="tonal"><VIcon icon="mdi-file-document-outline" /></VAvatar>
                 <div>
                   <div class="text-subtitle-1 font-weight-medium">Block overview</div>
-                  <div class="text-caption text-medium-emphasis">{{ unit?.title }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ displayCourseUnitTitle(course?.type, unit || {}) }}</div>
                 </div>
               </div>
               <p v-if="activeBlock.content?.description" class="block-description text-body-1">{{ activeBlock.content.description }}</p>
@@ -938,6 +947,7 @@ watch(
       <VCardText class="pa-6 pt-2">
         <VTextField v-model="unitInfoForm.code" class="mb-3" label="Unit code" required />
         <VTextField v-model="unitInfoForm.title" label="Unit title" required />
+        <VTextField v-if="unit?.type === 'SCH:V9'" v-model.number="unitInfoForm.level" class="mt-3" label="Year level" min="1" readonly type="number" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />

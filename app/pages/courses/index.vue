@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import type { Course } from '~/stores/courses'
+import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const coursesStore = useCoursesStore()
 const vjsfDialog = useVjsfFormDialog()
@@ -161,10 +162,10 @@ async function deleteCourse(course: Course) {
                 <VAvatar color="primary" rounded="lg" size="40" variant="tonal">
                   <VIcon icon="mdi-book-outline" />
                 </VAvatar>
-                <NuxtLink class="text-body-2 font-weight-medium" :to="`/courses/${course.id}/dashboard`">{{ course.title }}</NuxtLink>
+                <NuxtLink class="text-body-2 font-weight-medium" :to="`/courses/${course.id}/dashboard`">{{ displayCourseTitle(course) }}</NuxtLink>
               </div>
             </td>
-            <td><VChip size="small" variant="tonal">{{ course.code }}</VChip></td>
+            <td><VChip size="small" variant="tonal">{{ displayCourseCode(course) }}</VChip></td>
             <td v-if="!course.catalogue_course_id">
               <VChip :color="course.status === 'published' ? 'success' : course.status === 'publishing' ? 'info' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip><VChip v-if="course.status === 'draft'" class="ml-1" size="small" variant="outlined">Current</VChip><VChip v-else-if="course.published_version" class="ml-1" size="small" variant="outlined">V{{ course.published_version }}</VChip>
               <VBtn v-if="course.status === 'publishing'" class="ml-2" color="info" prepend-icon="mdi-progress-clock" size="small" variant="tonal" disabled>Publishing…</VBtn>

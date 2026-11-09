@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CatalogueCourseContent, CatalogueOutlineRow } from '~/composables/useCatalogueApi'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
+import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,8 +112,8 @@ onMounted(load)
     <VAlert v-if="addError" class="mb-5" color="error" variant="tonal">{{ addError }}</VAlert>
     <section class="page-header mb-8">
       <div>
-        <div class="text-overline text-primary font-weight-bold">{{ detail.course.type_label }} · {{ detail.course.code }}</div>
-        <h1 class="text-h4 font-weight-bold mt-1">{{ detail.course.title }}</h1>
+        <div class="text-overline text-primary font-weight-bold">{{ detail.course.type_label }} · {{ displayCourseCode(detail.course) }}</div>
+        <h1 class="text-h4 font-weight-bold mt-1">{{ displayCourseTitle(detail.course) }}</h1>
         <p v-if="detail.course.description" class="text-body-1 text-medium-emphasis mt-2">{{ detail.course.description }}</p>
       </div>
       <div class="d-flex align-center ga-3">

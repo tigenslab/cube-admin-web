@@ -17,6 +17,8 @@ export interface PackageCourse {
   id: string
   title: string
   code: string
+  type: PackageType
+  level?: number
   status?: string
   permissions?: Record<string, boolean>
 }
@@ -25,6 +27,7 @@ export interface PackageUnit {
   id: string
   code: string
   title: string
+  level?: number
   metadata?: Record<string, unknown>
   content?: Record<string, unknown>
   versions?: VersionMetadata[]
@@ -50,9 +53,9 @@ export function usePackagesApi() {
       return api<PackageDetail>(`/packages/${encodeURIComponent(id)}`)
     },
     newUnitForm(id: string) {
-      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title' | 'metadata' | 'content'>> & { package_id: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
+      return api<{ vjsf: ApiNewForm<Partial<Pick<PackageUnit, 'code' | 'title' | 'level' | 'metadata' | 'content'>> & { package_id: string }> }>(`/packages/${encodeURIComponent(id)}/units/new`)
     },
-    createUnit(id: string, data: { code: string; title: string; metadata?: Record<string, unknown>; content?: Record<string, unknown> }) {
+    createUnit(id: string, data: { code: string; title: string; level?: number; metadata?: Record<string, unknown>; content?: Record<string, unknown> }) {
       return api<{ item: PackageUnit }>(`/packages/${encodeURIComponent(id)}/units/create`, {
         method: 'POST',
         body: { ...data, package_id: id },

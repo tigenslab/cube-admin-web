@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
+
 export interface CourseUnitNavigationRow {
   id: string
   type: string
   title?: string
   code?: string
+  level?: number
   unit_id?: string
   ancestry?: string
   position?: number
@@ -15,8 +18,9 @@ defineOptions({ name: 'CourseUnitNavigation' })
 withDefaults(defineProps<{
   rows: CourseUnitNavigationRow[]
   selectedUnitId: string
+  courseType?: string
   editable?: boolean
-}>(), { editable: false })
+}>(), { editable: false, courseType: undefined })
 
 const emit = defineEmits<{
   select: [unitId: string]
@@ -59,6 +63,7 @@ function unitId(row: CourseUnitNavigationRow) {
       <CourseUnitNavigation
         :rows="row.children"
         :selected-unit-id="selectedUnitId"
+        :course-type="courseType"
         :editable="editable"
         @select="emit('select', $event)"
         @add-group="emit('addGroup', $event)"
@@ -70,8 +75,8 @@ function unitId(row: CourseUnitNavigationRow) {
     <VListItem
       v-else-if="unitId(row)"
       :active="unitId(row) === selectedUnitId"
-      :title="row.title || 'Untitled unit'"
-      :subtitle="row.code"
+      :title="displayCourseUnitTitle(courseType, row)"
+      :subtitle="displayCourseUnitCode(courseType, row)"
       prepend-icon="mdi-book-open-page-variant-outline"
       @click="emit('select', unitId(row))"
     >

@@ -4,6 +4,7 @@ import type { CourseResourceItem } from '~/types/course-resources'
 import type { ApiFormSchema } from '~/types/api-form'
 import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
+import { displayCourseUnitCode, displayCourseUnitTitle, unitMatchesCourseLevel } from '~/utils/course-unit-display'
 const props = defineProps<{ embedded?: boolean; courseId?: string }>()
 const emit = defineEmits<{
   courseUpdated: [course: Course]
@@ -34,7 +35,7 @@ const addKind = ref<'group' | 'unit'>('unit')
 const addUnitMode = ref<'existing' | 'create'>('existing')
 const groupForm = reactive({ title: '' })
 const existingUnitForm = reactive({ unit_id: '' })
-const newUnitForm = reactive({ code: '', title: '' })
+const newUnitForm = reactive({ code: '', title: '', level: undefined as number | undefined })
 const editingGroup = ref<CourseResourceItem | null>(null)
 const addParentGroupId = ref<string | null>(null)
 const courseId = props.courseId || String(route.params.id)
@@ -46,16 +47,20 @@ const outlineTree = computed(() => {
   for (const item of outline.value) {
     const isUnit = item.type === 'U' || item.type === 'CourseUnit::Unit' || Boolean(item.unit_id)
     const unit = item.unit_id ? unitById.get(item.unit_id) : undefined
+    const level = unit?.level ?? item.level
+    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, level)) continue
     nodes.set(item.id, {
       ...item,
       type: isUnit ? 'U' : 'G',
       title: isUnit ? unit?.title || item.title || 'Untitled unit' : item.title || item.code || 'Untitled group',
       code: isUnit ? unit?.code || item.code : item.code,
+      ...(isUnit ? { level: unit?.level ?? item.level } : {}),
       children: [],
     })
   }
   for (const item of outline.value) {
-    const node = nodes.get(item.id)!
+    const node = nodes.get(item.id)
+    if (!node) continue
     const parentId = item.ancestry?.split('/').filter(Boolean).at(-1)
     const parent = parentId ? nodes.get(parentId) : undefined
     if (parent?.type === 'G') parent.children!.push(node)
@@ -100,7 +105,7 @@ function blockTitleTree(items: CourseResourceItem[]): CatalogueBlockTitle[] {
 const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map(unit => ({
   unit_id: unit.id,
   version: 0,
-  unit: { id: unit.id, code: unit.code, title: unit.title },
+  unit: { id: unit.id, code: unit.code, title: unit.title, level: unit.level },
   blocks: (unit as CourseResourceItem & { blocks?: CatalogueBlockTitle[] }).blocks || [],
 })))
 const catalogueUnitIds = computed(() => new Set(units.value.filter(unit => unit.catalogue_source).map(unit => unit.id)))
@@ -117,8 +122,9 @@ function flattenCatalogueOutline(rows: CatalogueOutlineRow[], ancestry = '', res
 }
 const availableUnits = computed(() => {
   const linked = new Set(outline.value.filter(item => item.type === 'U').map(item => item.unit_id))
-  return units.value.filter(unit => !linked.has(unit.id)).map(unit => ({
-    title: `${unit.code || ''} — ${unit.title || 'Untitled unit'}`,
+  return units.value.filter(unit => !linked.has(unit.id)
+    && unitMatchesCourseLevel(course.value?.type, course.value?.level, unit.level)).map(unit => ({
+    title: `${displayCourseUnitCode(course.value?.type, unit)} — ${displayCourseUnitTitle(course.value?.type, unit)}`,
     value: unit.id,
   }))
 })
@@ -147,10 +153,11 @@ const addVjsfSchema = computed<ApiFormSchema | null>(() => {
   }
   const code = unitCreateFormSchema.value?.properties?.code
   const title = unitCreateFormSchema.value?.properties?.title
+  const level = course.value?.type === 'SCH:V9' ? unitCreateFormSchema.value?.properties?.level : undefined
   return code && title ? {
     type: 'object',
     title: 'New unit details',
-    properties: { code, title },
+    properties: { code, title, ...(level ? { level } : {}) },
   } : null
 })
 async function deleteOutlineItem(item: CourseResourceItem) {
@@ -276,6 +283,7 @@ async function loadAddFormSchemas() {
     existingUnitForm.unit_id = addUnitIdForNewForm()
     newUnitForm.code = String(unitForm.vjsf.model.code || '')
     newUnitForm.title = String(unitForm.vjsf.model.title || '')
+    newUnitForm.level = unitForm.vjsf.model.level as number | undefined
   } catch (cause) {
     addError.value = getApiErrorMessage(cause, 'Unable to load the create form.')
   } finally {
@@ -293,7 +301,7 @@ async function openAddDialog() {
   addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
   Object.assign(groupForm, { title: '' })
   Object.assign(existingUnitForm, { unit_id: '' })
-  Object.assign(newUnitForm, { code: '', title: '' })
+  Object.assign(newUnitForm, { code: '', title: '', level: undefined })
   addParentGroupId.value = null
   addError.value = ''
   addDialog.value = true
@@ -307,7 +315,7 @@ async function openAddUnitDialog(groupId?: string, kind: 'group' | 'unit' = 'uni
   addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
   Object.assign(groupForm, { title: '' })
   Object.assign(existingUnitForm, { unit_id: '' })
-  Object.assign(newUnitForm, { code: '', title: '' })
+  Object.assign(newUnitForm, { code: '', title: '', level: undefined })
   addParentGroupId.value = group?.id || null
   addError.value = ''
   addDialog.value = true
@@ -358,6 +366,7 @@ async function addToCourse() {
             package_id: course.value.package_id,
             code: newUnitForm.code.trim(),
             title: newUnitForm.title.trim(),
+            ...(course.value.type === 'SCH:V9' && newUnitForm.level !== undefined ? { level: Number(newUnitForm.level) } : {}),
             content: {},
           })).id
         : existingUnitForm.unit_id
@@ -418,6 +427,7 @@ function blockEditPath(unitId: string, blockId: string) {
       v-if="outlineTree.length"
       :rows="outlineTree"
       :units="outlineUnits"
+      :course-type="course?.type"
       :unit-path="unitEditPath"
       :block-path="blockEditPath"
       :show-block-titles="true"

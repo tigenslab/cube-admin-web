@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
 import CatalogueBlockTitles from '~/components/CatalogueBlockTitles.vue'
+import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
 
 defineOptions({ name: 'CatalogueOutline' })
-const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; unitPath?: (unitId: string) => string | undefined; blockPath?: (unitId: string, blockId: string) => string | undefined; showBlockTitles?: boolean }>(), {
+const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; courseType?: string; unitPath?: (unitId: string) => string | undefined; blockPath?: (unitId: string, blockId: string) => string | undefined; showBlockTitles?: boolean }>(), {
   showBlockTitles: true,
 })
 const unitSnapshots = computed(() => new Map(props.units.map(unit => [unit.unit_id, unit])))
@@ -20,6 +21,16 @@ function blockPathFor(row: CatalogueOutlineRow) {
 function unitPathFor(row: CatalogueOutlineRow) {
   return row.unit_id && props.unitPath ? props.unitPath(row.unit_id) : undefined
 }
+
+function unitCode(row: CatalogueOutlineRow) {
+  const unit = unitSnapshots.value.get(row.unit_id || '')?.unit
+  return displayCourseUnitCode(props.courseType, { code: row.code || unit?.code, level: row.level ?? unit?.level })
+}
+
+function unitTitle(row: CatalogueOutlineRow) {
+  const unit = unitSnapshots.value.get(row.unit_id || '')?.unit
+  return displayCourseUnitTitle(props.courseType, { title: row.title || unit?.title, level: row.level ?? unit?.level })
+}
 </script>
 
 <template>
@@ -28,8 +39,8 @@ function unitPathFor(row: CatalogueOutlineRow) {
       <VExpansionPanelTitle>
         <div class="d-flex align-center ga-3">
           <VIcon :icon="isUnit(row) ? 'mdi-book-open-page-variant-outline' : 'mdi-folder-outline'" />
-          <span v-if="isUnit(row) && row.code" class="text-medium-emphasis">{{ row.code }}</span>
-          <span>{{ row.title }}</span>
+          <span v-if="isUnit(row) && unitCode(row)" class="text-medium-emphasis">{{ unitCode(row) }}</span>
+          <span>{{ isUnit(row) ? unitTitle(row) : row.title }}</span>
           <VChip v-if="isUnit(row)" class="ml-2" size="x-small" variant="tonal">
             {{ unitSnapshots.get(row.unit_id || '')?.blocks.length || 0 }} blocks
           </VChip>
@@ -62,7 +73,7 @@ function unitPathFor(row: CatalogueOutlineRow) {
             <div v-else class="text-body-2 text-medium-emphasis">No blocks in this unit.</div>
           </template>
         </template>
-        <CatalogueOutline v-else-if="row.children?.length" :rows="row.children" :units="units" :unit-path="unitPath" :block-path="blockPath" :show-block-titles="showBlockTitles">
+        <CatalogueOutline v-else-if="row.children?.length" :rows="row.children" :units="units" :course-type="courseType" :unit-path="unitPath" :block-path="blockPath" :show-block-titles="showBlockTitles">
           <template #actions="slotProps"><slot name="actions" v-bind="slotProps" /></template>
         </CatalogueOutline>
       </VExpansionPanelText>

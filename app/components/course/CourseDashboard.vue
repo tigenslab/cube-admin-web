@@ -2,6 +2,7 @@
 import CourseViewer from '~/components/course/CourseViewer.vue'
 import CourseEditor from '~/components/course/CourseEditor.vue'
 import type { Course } from '~/stores/courses'
+import { displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
 const router = useRouter()
@@ -114,7 +115,7 @@ onMounted(async () => {
     <div class="d-flex flex-wrap align-center justify-space-between ga-4 px-6 py-4">
       <div class="d-flex align-center ga-3">
         <VBtn aria-label="Back to courses" icon="mdi-arrow-left" to="/courses" variant="text" />
-        <h1 class="text-h5 font-weight-bold">{{ course?.title }}<span v-if="course && !isCatalogueLinked"> ({{ course.status || 'new' }})</span></h1>
+        <h1 class="text-h5 font-weight-bold">{{ course ? displayCourseTitle(course) : '' }}<span v-if="course && !isCatalogueLinked"> ({{ course.status || 'new' }})</span></h1>
       </div>
       <div class="d-flex flex-wrap align-center ga-2">
         <VSelect

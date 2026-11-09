@@ -8,6 +8,7 @@ export interface CatalogueCourse {
   type_label?: string
   code?: string
   title?: string
+  level?: number
 }
 
 export interface CataloguePackage extends CoursePackage {
@@ -18,7 +19,7 @@ export interface CataloguePackage extends CoursePackage {
 export interface CatalogueUnitSnapshot {
   unit_id: string
   version: number
-  unit: { id?: string; code?: string; title?: string }
+  unit: { id?: string; code?: string; title?: string; level?: number }
   blocks: CatalogueBlockTitle[]
 }
 
@@ -56,6 +57,7 @@ export interface CatalogueOutlineRow {
   type: string
   title?: string
   code?: string
+  level?: number
   unit_id?: string
   ancestry?: string
   position?: number

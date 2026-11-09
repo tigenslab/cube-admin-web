@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PackageDetail, PackageUnit } from '~/composables/usePackagesApi'
+import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
 const packagesApi = usePackagesApi()
@@ -34,6 +35,7 @@ async function openUnitDialog() {
       const { item } = await packagesApi.createUnit(currentPackageId, {
         code: String(model.code || '').trim(),
         title: String(model.title || '').trim(),
+        ...(model.level !== undefined ? { level: Number(model.level) } : {}),
         metadata: model.metadata as Record<string, unknown> | undefined,
         content: model.content as Record<string, unknown> | undefined,
       })
@@ -109,7 +111,7 @@ onMounted(load)
             <template #subtitle>{{ detail.courses.length }} courses in this package</template>
           </VCardItem>
           <VList v-if="detail.courses.length" lines="two">
-            <VListItem v-for="course in detail.courses" :key="course.id" :to="`/courses/${course.id}/dashboard`" :title="course.title" :subtitle="course.code">
+            <VListItem v-for="course in detail.courses" :key="course.id" :to="`/courses/${course.id}/dashboard`" :title="displayCourseTitle(course)" :subtitle="displayCourseCode(course)">
               <template #prepend><VAvatar color="primary" rounded="lg" variant="tonal"><VIcon icon="mdi-book-open-page-variant-outline" /></VAvatar></template>
               <template #append><VChip size="small" variant="tonal">{{ course.status || 'new' }}</VChip></template>
             </VListItem>

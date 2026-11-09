@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CatalogueCourse, CataloguePackage } from '~/composables/useCatalogueApi'
+import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
 const catalogueApi = useCatalogueApi()
@@ -57,8 +58,8 @@ onMounted(load)
         <VCard class="h-100" :to="`/catalogue/courses/${encodeURIComponent(course.id)}`" rounded="xl" variant="flat">
           <VCardItem class="pa-5">
             <template #prepend><VAvatar class="mr-3" color="secondary" rounded="lg" variant="tonal"><VIcon icon="mdi-book-open-page-variant-outline" /></VAvatar></template>
-            <template #title>{{ course.title }}</template>
-            <template #subtitle>{{ course.code }}</template>
+            <template #title>{{ displayCourseTitle(course) }}</template>
+            <template #subtitle>{{ displayCourseCode(course) }}</template>
             <template #append><VIcon icon="mdi-chevron-right" /></template>
           </VCardItem>
         </VCard>
