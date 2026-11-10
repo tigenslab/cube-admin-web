@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiFormSchema } from '~/types/api-form'
 
-const store = useUsersStore(); const form = reactive({ username: '', email: '', first_name: '', last_name: '', phone: '', roles: [] as string[], password: '' })
+const store = useUsersApi(); const form = reactive({ username: '', email: '', first_name: '', last_name: '', phone: '', roles: [] as string[], password: '' })
 const error = ref(''); const loadingForm = ref(true)
 const formSchema = ref<ApiFormSchema | null>(null)
 onMounted(async () => {

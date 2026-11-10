@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
-const store = useUsersStore()
+const store = useUsersApi()
 const session = useSessionStore()
 const form = reactive({ email: '', first_name: '', last_name: '', phone: '', roles: [] as string[] })
 const error = ref('')

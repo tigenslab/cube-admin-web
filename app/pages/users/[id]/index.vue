@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
-const users = useUsersStore()
+const users = useUsersApi()
 const user = ref<Awaited<ReturnType<typeof users.show>> | null>(null)
 const error = ref('')
 const deleting = ref(false)

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import type { User, UpdateUserInput } from '~/stores/users'
+import type { User, UpdateUserInput } from '~/composables/useUsersApi'
 
 type UserStatus = 'Active' | 'Invited' | 'Suspended'
 
-const usersStore = useUsersStore()
+const usersStore = useUsersApi()
 const { users, loading, error } = storeToRefs(usersStore)
 const search = ref('')
 const status = ref<'All' | UserStatus>('All')
