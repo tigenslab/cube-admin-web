@@ -401,19 +401,19 @@ function blockEditPath(unitId: string, blockId: string) {
       <h1 class="text-h4 font-weight-bold mt-1">{{ course?.title || 'Edit course' }}</h1>
     </div>
     <div class="d-flex ga-3">
-      <ButtonsBase :to="`/courses/${courseId}/dashboard`" variant="text">Back</ButtonsBase>
-      <ButtonsBase color="primary" prepend-icon="mdi-pencil-outline" :disabled="!course?.permissions?.update" @click="detailsDialog = true">Course details</ButtonsBase>
+      <VBtn :to="`/courses/${courseId}/dashboard`" variant="text">Back</VBtn>
+      <VBtn color="primary" prepend-icon="mdi-pencil-outline" :disabled="!course?.permissions?.update" @click="detailsDialog = true">Course details</VBtn>
     </div>
   </section>
   <div v-else class="d-flex justify-end pa-5 pb-0">
-    <ButtonsBase color="primary" prepend-icon="mdi-pencil-outline" @click="detailsDialog = true">Edit course details</ButtonsBase>
+    <VBtn color="primary" prepend-icon="mdi-pencil-outline" @click="detailsDialog = true">Edit course details</VBtn>
   </div>
   <VAlert v-if="error && !detailsDialog" class="mb-5" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
 
   <VCard class="mt-6" rounded="xl" variant="flat">
     <div class="d-flex align-center justify-space-between ga-4 bg-grey-lighten-4 px-5 py-2">
       <VTextField v-model="search" class="unit-search" density="compact" hide-details placeholder="Search" prepend-inner-icon="mdi-magnify" rounded="lg" variant="solo" />
-      <ButtonsBase v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" variant="text" @click="openAddDialog">Add to course</ButtonsBase>
+      <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" variant="text" @click="openAddDialog">Add to course</VBtn>
     </div>
     <VProgressLinear v-if="loadingUnits" color="primary" indeterminate />
     <div v-if="!loadingUnits && !outlineTree.length" class="pa-8 text-center text-medium-emphasis">No units found.</div>
@@ -428,11 +428,11 @@ function blockEditPath(unitId: string, blockId: string) {
       <template #actions="{ row }">
         <VChip v-if="row.catalogue_source" size="x-small" variant="tonal">Catalogue</VChip>
         <template v-else-if="row.type === 'G'">
-          <ButtonsBase v-if="course?.permissions?.update" density="compact" prepend-icon="mdi-plus" size="small" variant="text" @click.stop="openAddUnitDialog(row.id)">Add to group</ButtonsBase>
-          <ButtonsBase v-if="course?.permissions?.update" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="editGroup(row.id)" />
-          <ButtonsBase v-if="course?.permissions?.delete" aria-label="Delete group" color="error" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteGroup(row.id)" />
+          <VBtn v-if="course?.permissions?.update" density="compact" prepend-icon="mdi-plus" size="small" variant="text" @click.stop="openAddUnitDialog(row.id)">Add to group</VBtn>
+          <VBtn v-if="course?.permissions?.update" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="editGroup(row.id)" />
+          <VBtn v-if="course?.permissions?.delete" aria-label="Delete group" color="error" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteGroup(row.id)" />
         </template>
-        <ButtonsBase v-else-if="row.type === 'U' && course?.permissions?.delete" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(row.id)">Remove from course</ButtonsBase>
+        <VBtn v-else-if="row.type === 'U' && course?.permissions?.delete" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(row.id)">Remove from course</VBtn>
       </template>
     </CatalogueOutline>
   </VCard>
@@ -445,8 +445,8 @@ function blockEditPath(unitId: string, blockId: string) {
         <VForm @submit.prevent="submit">
           <FormsVjsfForm v-if="courseEdit.form.value" v-model="courseEdit.form.value.model" :schema="courseEdit.form.value.schema" />
           <div class="d-flex justify-end ga-3 mt-4">
-            <ButtonsBase :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</ButtonsBase>
-            <ButtonsBase color="primary" :loading="submitting" type="submit">Save changes</ButtonsBase>
+            <VBtn :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</VBtn>
+            <VBtn color="primary" :loading="submitting" type="submit">Save changes</VBtn>
           </div>
         </VForm>
       </VCardText>
@@ -477,8 +477,8 @@ function blockEditPath(unitId: string, blockId: string) {
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <ButtonsBase :disabled="adding || addFormLoading" variant="text" @click="addDialog = false">Cancel</ButtonsBase>
-        <ButtonsBase color="primary" :disabled="addFormLoading || !addVjsfSchema" :loading="adding" @click="addToCourse">{{ editingGroup ? 'Save group' : 'Add' }}</ButtonsBase>
+        <VBtn :disabled="adding || addFormLoading" variant="text" @click="addDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :disabled="addFormLoading || !addVjsfSchema" :loading="adding" @click="addToCourse">{{ editingGroup ? 'Save group' : 'Add' }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

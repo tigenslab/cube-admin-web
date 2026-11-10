@@ -27,7 +27,7 @@ async function changePassword() {
 
 <template>
   <div>
-    <ButtonsBase class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/" variant="text">Back to dashboard</ButtonsBase>
+    <VBtn class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/" variant="text">Back to dashboard</VBtn>
     <SessionsPageHeading description="Use a unique password that you do not use elsewhere." eyebrow="SECURITY" title="Change password" />
 
     <VAlert v-if="error" class="mt-6" color="error" density="compact" icon="mdi-alert-circle-outline" variant="tonal">{{ error }}</VAlert>
@@ -39,7 +39,7 @@ async function changePassword() {
       <SessionsFormField id="current-password" v-model="currentPassword" density="comfortable" label="Current password" placeholder="Enter your current password" prepend-icon="mdi-lock-outline" type="password" />
       <SessionsFormField id="changed-password" v-model="password" container-class="mt-5" density="comfortable" hint="Use at least 8 characters." label="New password" persistent-hint prepend-icon="mdi-lock-outline" type="password" />
       <SessionsFormField id="changed-confirmation" v-model="confirmation" container-class="mt-5" density="comfortable" label="Confirm new password" placeholder="Repeat your new password" prepend-icon="mdi-lock-check-outline" type="password" />
-      <ButtonsBase :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Update password</ButtonsBase>
+      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Update password</VBtn>
     </VForm>
   </div>
 </template>

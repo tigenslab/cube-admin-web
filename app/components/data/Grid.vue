@@ -74,7 +74,7 @@ watch(search, () => pageModel.value = 1)
 
     <template #footer="{ page: currentPage, pageCount, prevPage, nextPage }">
       <div class="d-flex align-center justify-center pa-4">
-        <ButtonsBase
+        <VBtn
           aria-label="Previous page"
           :disabled="currentPage <= 1"
           density="comfortable"
@@ -84,7 +84,7 @@ watch(search, () => pageModel.value = 1)
           @click="prevPage"
         />
         <div class="mx-2 text-caption">Page {{ currentPage }} of {{ pageCount }}</div>
-        <ButtonsBase
+        <VBtn
           aria-label="Next page"
           :disabled="currentPage >= pageCount"
           density="comfortable"

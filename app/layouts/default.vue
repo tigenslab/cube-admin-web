@@ -32,7 +32,7 @@ const primaryNavigation = computed(() => session.navigation)
           <VIcon icon="mdi-rocket-launch-outline" />
           <div class="text-subtitle-2 font-weight-bold mt-3">Need more space?</div>
           <div class="text-caption mt-1">Unlock advanced controls for your team.</div>
-          <ButtonsBase class="mt-4" color="white" size="small" variant="flat">View plans</ButtonsBase>
+          <VBtn class="mt-4" color="white" size="small" variant="flat">View plans</VBtn>
         </VSheet>
       </div>
     </template>
@@ -42,11 +42,11 @@ const primaryNavigation = computed(() => session.navigation)
     <VAppBarNavIcon aria-label="Toggle navigation" @click="drawer = !drawer" />
     <VSpacer />
     <VTextField class="global-search d-none d-sm-flex" density="compact" hide-details placeholder="Search anything…" prepend-inner-icon="mdi-magnify" rounded="lg" variant="solo-filled" />
-    <ButtonsBase aria-label="Notifications" class="ml-2" icon variant="text">
+    <VBtn aria-label="Notifications" class="ml-2" icon variant="text">
       <VBadge color="error" dot>
         <VIcon icon="mdi-bell-outline" />
       </VBadge>
-    </ButtonsBase>
+    </VBtn>
     <VDivider class="mx-3" vertical />
 
     <SessionAccountMenu />

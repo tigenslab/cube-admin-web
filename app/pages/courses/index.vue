@@ -86,7 +86,7 @@ async function deleteCourse(course: Course) {
       <h1 class="text-h4 font-weight-bold mt-1">Courses</h1>
       <p class="text-body-1 text-medium-emphasis mt-2">Manage your course catalogue and learning content.</p>
     </div>
-    <ButtonsBase color="primary" prepend-icon="mdi-plus" to="/courses/create">Create course</ButtonsBase>
+    <VBtn color="primary" prepend-icon="mdi-plus" to="/courses/create">Create course</VBtn>
   </section>
 
   <VRow class="mb-4">
@@ -125,7 +125,7 @@ async function deleteCourse(course: Course) {
       <template #title>All courses</template>
       <template #subtitle>{{ filteredCourses.length }} courses</template>
       <template #append>
-        <ButtonsBase :disabled="loading" :loading="loading" color="primary" prepend-icon="mdi-refresh" variant="outlined" @click="reloadCourses">Reload</ButtonsBase>
+        <VBtn :disabled="loading" :loading="loading" color="primary" prepend-icon="mdi-refresh" variant="outlined" @click="reloadCourses">Reload</VBtn>
       </template>
     </VCardItem>
 
@@ -168,15 +168,15 @@ async function deleteCourse(course: Course) {
             <td><VChip size="small" variant="tonal">{{ displayCourseCode(course) }}</VChip></td>
             <td v-if="!course.catalogue_course_id">
               <VChip :color="course.status === 'published' ? 'success' : course.status === 'publishing' ? 'info' : 'warning'" size="small" variant="tonal">{{ course.status || 'new' }}</VChip><VChip v-if="course.status === 'draft'" class="ml-1" size="small" variant="outlined">Current</VChip><VChip v-else-if="course.published_version" class="ml-1" size="small" variant="outlined">V{{ course.published_version }}</VChip>
-              <ButtonsBase v-if="course.status === 'publishing'" class="ml-2" color="info" prepend-icon="mdi-progress-clock" size="small" variant="tonal" disabled>Publishing…</ButtonsBase>
-              <ButtonsBase v-else-if="course.permissions?.change_status && nextStatus[course.status || 'new']" class="ml-2" color="primary" prepend-icon="mdi-arrow-right-circle" size="small" variant="flat" @click="changeStatus(course)">{{ nextActionLabel[course.status || 'new'] }}</ButtonsBase>
-              <ButtonsBase v-if="course.permissions?.change_status && course.status === 'ready'" class="ml-2" color="secondary" size="small" variant="outlined" @click="changeStatus(course, 'draft')">Move to draft</ButtonsBase>
+              <VBtn v-if="course.status === 'publishing'" class="ml-2" color="info" prepend-icon="mdi-progress-clock" size="small" variant="tonal" disabled>Publishing…</VBtn>
+              <VBtn v-else-if="course.permissions?.change_status && nextStatus[course.status || 'new']" class="ml-2" color="primary" prepend-icon="mdi-arrow-right-circle" size="small" variant="flat" @click="changeStatus(course)">{{ nextActionLabel[course.status || 'new'] }}</VBtn>
+              <VBtn v-if="course.permissions?.change_status && course.status === 'ready'" class="ml-2" color="secondary" size="small" variant="outlined" @click="changeStatus(course, 'draft')">Move to draft</VBtn>
             </td>
             <td v-else-if="hasUnlinkedCourses" />
             <td class="d-none d-sm-table-cell text-medium-emphasis">{{ contentCount(course) }}</td>
             <td class="text-no-wrap">
-              <ButtonsBase v-if="course.permissions?.update" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" @click="openEdit(course)" />
-              <ButtonsBase v-if="course.permissions?.delete" aria-label="Delete course" icon="mdi-delete-outline" size="small" variant="text" @click="deleteCourse(course)" />
+              <VBtn v-if="course.permissions?.update" aria-label="Edit course" icon="mdi-pencil-outline" size="small" variant="text" @click="openEdit(course)" />
+              <VBtn v-if="course.permissions?.delete" aria-label="Delete course" icon="mdi-delete-outline" size="small" variant="text" @click="deleteCourse(course)" />
             </td>
           </tr>
         </tbody>

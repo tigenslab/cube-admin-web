@@ -42,7 +42,7 @@ watch(() => props.modelValue, (value) => {
 
 <template>
   <VBtnToggle v-model="internalValue" mandatory>
-    <ButtonsBase
+    <VBtn
       v-for="option in optionItems"
       :key="option.value"
       :aria-label="option.label ?? option.value"

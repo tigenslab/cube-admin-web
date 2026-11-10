@@ -90,8 +90,8 @@ async function submit() {
         <VForm v-if="form" @submit.prevent="submit">
           <FormsVjsfForm v-if="form" :key="loadKey ?? ''" v-model="form.model" :options="vjsfOptions" :schema="form.schema" />
           <div class="d-flex justify-end ga-3 mt-4">
-            <ButtonsBase :disabled="saving" variant="text" @click="emit('update:modelValue', false)">Cancel</ButtonsBase>
-            <ButtonsBase color="primary" :loading="saving" type="button" @click="submit">Save changes</ButtonsBase>
+            <VBtn :disabled="saving" variant="text" @click="emit('update:modelValue', false)">Cancel</VBtn>
+            <VBtn color="primary" :loading="saving" type="button" @click="submit">Save changes</VBtn>
           </div>
         </VForm>
       </VCardText>

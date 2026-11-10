@@ -33,12 +33,12 @@ async function submit() {
 
 <template>
   <VContainer>
-    <ButtonsBase class="mb-6" to="/" variant="text">Back to dashboard</ButtonsBase>
+    <VBtn class="mb-6" to="/" variant="text">Back to dashboard</VBtn>
     <h1 class="text-h4 font-weight-bold">Create notification</h1>
     <VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert>
     <VForm class="mt-6" @submit.prevent="submit">
       <FormsVjsfForm v-if="formSchema" v-model="form" :schema="formSchema" />
-      <ButtonsBase class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.loading" type="submit">Create notification</ButtonsBase>
+      <VBtn class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.actionLoading.create" type="submit">Create notification</VBtn>
     </VForm>
   </VContainer>
 </template>

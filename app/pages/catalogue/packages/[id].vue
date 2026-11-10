@@ -27,9 +27,9 @@ onMounted(load)
 </script>
 
 <template>
-  <ButtonsBase class="mb-5" prepend-icon="mdi-arrow-left" to="/catalogue" variant="text">Catalogue</ButtonsBase>
+  <VBtn class="mb-5" prepend-icon="mdi-arrow-left" to="/catalogue" variant="text">Catalogue</VBtn>
   <VProgressLinear v-if="loading" class="mb-5" color="primary" indeterminate />
-  <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase></VAlert>
+  <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn></VAlert>
 
   <template v-if="item">
     <VCard class="mb-8 overflow-hidden" rounded="xl" variant="flat">

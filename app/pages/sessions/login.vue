@@ -39,7 +39,7 @@ async function login() {
         </template>
       </SessionsFormField>
 
-      <ButtonsBase :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Sign in</ButtonsBase>
+      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Sign in</VBtn>
     </VForm>
 
     <div class="text-center text-body-2 text-medium-emphasis mt-8">Need an account? <NuxtLink class="text-primary font-weight-medium" to="/sessions/set_password">Contact an administrator</NuxtLink></div>

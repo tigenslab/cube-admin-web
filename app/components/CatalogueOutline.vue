@@ -47,7 +47,7 @@ function unitTitle(row: CatalogueOutlineRow) {
         </div>
         <template #actions="{ expanded }">
           <div class="d-flex align-center ga-2">
-            <ButtonsBase
+            <VBtn
               v-if="isUnit(row) && unitPathFor(row)"
               class="text-none"
               color="primary"
@@ -58,7 +58,7 @@ function unitTitle(row: CatalogueOutlineRow) {
               @click.stop
             >
               Open unit
-            </ButtonsBase>
+            </VBtn>
             <VIcon :icon="expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
           </div>
         </template>

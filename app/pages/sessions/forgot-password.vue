@@ -51,7 +51,7 @@ async function resetPassword() {
 
 <template>
   <div>
-    <ButtonsBase class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/sessions/login" variant="text">Back to sign in</ButtonsBase>
+    <VBtn class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/sessions/login" variant="text">Back to sign in</VBtn>
     <SessionsPageHeading description="Enter your username and we’ll help you reset your password." eyebrow="ACCOUNT RECOVERY" title="Forgot password?" />
 
     <VAlert v-if="error" class="mt-6" color="error" density="compact" icon="mdi-alert-circle-outline" variant="tonal">
@@ -63,7 +63,7 @@ async function resetPassword() {
 
     <VForm v-if="!codeSent" class="mt-8" @submit.prevent="submit">
       <SessionsFormField id="username" v-model="username" density="comfortable" label="Username" placeholder="Enter your username" prepend-icon="mdi-account-outline" />
-      <ButtonsBase :loading="loading" block class="mt-4" color="primary" size="large" type="submit">Send reset instructions</ButtonsBase>
+      <VBtn :loading="loading" block class="mt-4" color="primary" size="large" type="submit">Send reset instructions</VBtn>
     </VForm>
 
     <VForm v-else-if="!completed" class="mt-8" @submit.prevent="resetPassword">
@@ -71,7 +71,7 @@ async function resetPassword() {
       <SessionsFormField id="new-password" v-model="password" container-class="mt-5" density="comfortable" hint="Use at least 8 characters." label="New password" persistent-hint prepend-icon="mdi-lock-outline" type="password" />
       <SessionsFormField id="confirm-password" v-model="passwordConfirmation" container-class="mt-5" label="Confirm new password" prepend-icon="mdi-lock-check-outline" type="password" />
 
-      <ButtonsBase :loading="loading" block class="mt-4" color="primary" size="large" type="submit">Reset password</ButtonsBase>
+      <VBtn :loading="loading" block class="mt-4" color="primary" size="large" type="submit">Reset password</VBtn>
     </VForm>
   </div>
 </template>

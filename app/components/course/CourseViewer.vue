@@ -220,12 +220,12 @@ watch(() => props.selectedVersion, (version, previousVersion) => {
 
 <template>
   <div v-if="!embedded" class="d-flex align-center ga-3 mb-5">
-    <ButtonsBase aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="dashboardPath" variant="text" />
+    <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="dashboardPath" variant="text" />
     <h1 class="text-h5 font-weight-bold">{{ course?.title || 'Course' }}</h1>
   </div>
 
   <VAlert v-if="error" class="mb-4" color="error" variant="tonal">
-    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
+    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
   </VAlert>
 
   <VCard rounded="xl" variant="flat">

@@ -94,7 +94,7 @@ const statusColor: Record<UserStatus, string> = {
       <h1 class="text-h4 font-weight-bold mt-1">Users</h1>
       <p class="text-body-1 text-medium-emphasis mt-2">Manage access, roles, and invitations for your team.</p>
     </div>
-    <ButtonsBase color="primary" prepend-icon="mdi-account-plus" to="/users/create">Invite user</ButtonsBase>
+    <VBtn color="primary" prepend-icon="mdi-account-plus" to="/users/create">Invite user</VBtn>
   </section>
 
   <VRow class="mb-4">
@@ -189,8 +189,8 @@ const statusColor: Record<UserStatus, string> = {
             <td><VChip :color="statusColor[user.status]" size="small" variant="tonal">{{ user.status }}</VChip></td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ user.lastActive }}</td>
             <td>
-              <ButtonsBase v-if="user.permissions?.update" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" @click="openEditUser(user)" />
-              <ButtonsBase v-if="user.permissions?.delete" :loading="deletingUserId === user.id" aria-label="Delete user" color="error" icon="mdi-delete-outline" size="small" variant="text" @click="deleteUser(user)" />
+              <VBtn v-if="user.permissions?.update" aria-label="Edit user" icon="mdi-pencil-outline" size="small" variant="text" @click="openEditUser(user)" />
+              <VBtn v-if="user.permissions?.delete" :loading="deletingUserId === user.id" aria-label="Delete user" color="error" icon="mdi-delete-outline" size="small" variant="text" @click="deleteUser(user)" />
             </td>
           </tr>
         </tbody>

@@ -85,7 +85,7 @@ async function verifyPhone() {
 
 <template>
   <VContainer>
-    <ButtonsBase class="mb-6" prepend-icon="mdi-arrow-left" to="/" variant="text">Back to dashboard</ButtonsBase>
+    <VBtn class="mb-6" prepend-icon="mdi-arrow-left" to="/" variant="text">Back to dashboard</VBtn>
     <h1 class="text-h4 font-weight-bold">My profile</h1>
     <p class="text-body-2 text-medium-emphasis mt-2">Manage your account details and security.</p>
     <VAlert v-if="error" class="mt-4" color="error" variant="tonal">{{ error }}</VAlert>
@@ -99,20 +99,20 @@ async function verifyPhone() {
             <VTextField :model-value="[firstName, lastName].filter(Boolean).join(' ') || session.userUsername" class="mt-5" label="Name" readonly variant="outlined" />
             <VTextField v-model="firstName" label="First name" variant="outlined" />
             <VTextField v-model="lastName" class="mt-4" label="Last name" variant="outlined" />
-            <ButtonsBase class="mt-2" color="primary" :loading="profileSaving" @click="updateProfile">Save profile</ButtonsBase>
+            <VBtn class="mt-2" color="primary" :loading="profileSaving" @click="updateProfile">Save profile</VBtn>
             <VTextField v-model="email" label="Email" type="email" variant="outlined" />
             <VTextField v-model="phone" class="mt-4" label="Phone" type="tel" variant="outlined" />
           </template>
-          <ButtonsBase class="mt-2" color="primary" @click="requestEmailVerification">Update email</ButtonsBase>
-          <ButtonsBase class="mt-2 ml-2" color="primary" @click="requestPhoneVerification">Update phone</ButtonsBase>
+          <VBtn class="mt-2" color="primary" @click="requestEmailVerification">Update email</VBtn>
+          <VBtn class="mt-2 ml-2" color="primary" @click="requestPhoneVerification">Update phone</VBtn>
           <VAlert v-if="message" class="mt-4" density="compact" variant="tonal">{{ message }}</VAlert>
           <div v-if="verificationSent" class="mt-4">
             <VTextField v-model="verificationCode" label="Email verification code" placeholder="Enter verification code" variant="outlined" />
-            <ButtonsBase class="mt-2" @click="verifyEmail">Verify email</ButtonsBase>
+            <VBtn class="mt-2" @click="verifyEmail">Verify email</VBtn>
           </div>
           <div v-if="phoneVerificationSent" class="mt-4">
             <VTextField v-model="phoneVerificationCode" label="Phone verification code" placeholder="Enter verification code" variant="outlined" />
-            <ButtonsBase class="mt-2" @click="verifyPhone">Verify phone</ButtonsBase>
+            <VBtn class="mt-2" @click="verifyPhone">Verify phone</VBtn>
           </div>
         </VCard>
       </VCol>
@@ -120,7 +120,7 @@ async function verifyPhone() {
         <VCard class="pa-6" rounded="lg">
           <h2 class="text-h6">Security</h2>
           <p class="text-body-2 text-medium-emphasis mt-3">Keep your account secure with a strong password.</p>
-          <ButtonsBase class="mt-3" color="primary" to="/sessions/change_password">Change password</ButtonsBase>
+          <VBtn class="mt-3" color="primary" to="/sessions/change_password">Change password</VBtn>
         </VCard>
       </VCol>
     </VRow>

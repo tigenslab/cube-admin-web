@@ -57,7 +57,7 @@ onMounted(load)
   </section>
 
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">
-    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
+    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
   </VAlert>
 
   <VTextField
@@ -98,7 +98,7 @@ onMounted(load)
           </VCardItem>
           <VCardText class="d-flex align-center justify-space-between pt-1">
             <span class="text-body-2 text-medium-emphasis">{{ courseCount(item.id, item.type) }} courses</span>
-            <ButtonsBase aria-label="View package" icon="mdi-arrow-right" size="small" variant="text" />
+            <VBtn aria-label="View package" icon="mdi-arrow-right" size="small" variant="text" />
           </VCardText>
         </VCard>
       </VCol>

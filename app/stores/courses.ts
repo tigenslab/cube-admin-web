@@ -24,7 +24,7 @@ export interface CoursePublishJob { job: { notification_id: string; status: stri
 
 export const useCoursesStore = defineStore('courses', () => {
   const courses = ref<Course[]>([])
-  const { api, loading, error, request } = useApiActions('The course request could not be completed.')
+  const { api, loading, actionLoading, error, request } = useApiActions('The course request could not be completed.')
 
   async function search() {
     const data = await request(() => api<Course[]>('/courses', {
@@ -50,20 +50,20 @@ export const useCoursesStore = defineStore('courses', () => {
   }
 
   async function editForm(id: string) {
-    return request(() => api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`), 'Unable to load the course form.')
+    return request(() => api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`), 'Unable to load the course form.', `edit_${id}`)
   }
 
   async function newForm(packageId?: string) {
     return request(() => api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id?: string; level?: number } } }>('/courses/new', {
       query: packageId ? { package_id: packageId } : undefined,
-    }), 'Unable to load the course form.')
+    }), 'Unable to load the course form.', 'new')
   }
 
   async function create(course: { title?: string; code?: string; package_id: string; level?: number }) {
     return request(() => api<Course>('/courses/create', {
       method: 'POST',
       body: { package_id: course.package_id, title: course.title, code: course.code, level: course.level, content: {} }
-    }), 'Unable to create the course.')
+    }), 'Unable to create the course.', 'create')
   }
 
   async function changeStatus(id: string, status: string) {
@@ -75,16 +75,16 @@ export const useCoursesStore = defineStore('courses', () => {
   }
 
   async function update(id: string, course: Partial<Omit<Course, 'id'>>) {
-    return request(() => api<Course>(`/courses/${id}`, { method: 'PUT', body: course }), 'Unable to update the course.')
+    return request(() => api<Course>(`/courses/${id}`, { method: 'PUT', body: course }), 'Unable to update the course.', `update_${id}`)
   }
 
   async function remove(id: string) {
-    await request(() => api(`/courses/${id}`, { method: 'DELETE' }), 'Unable to delete the course.')
+    await request(() => api(`/courses/${id}`, { method: 'DELETE' }), 'Unable to delete the course.', `destroy_${id}`)
     courses.value = courses.value.filter(course => course.id !== id)
   }
 
   return {
-    courses, loading, error,
+    courses, loading, actionLoading, error,
     index: search, search, show, version, versionUnit, edit: editForm, editForm, new: newForm, newForm,
     create, update, changeStatus, destroy: remove, remove,
   }

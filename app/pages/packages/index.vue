@@ -48,7 +48,7 @@ onMounted(load)
   </section>
 
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">
-    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
+    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
   </VAlert>
 
   <VTextField

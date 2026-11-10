@@ -34,8 +34,8 @@ function confirm() {
       <VCardText class="px-6 pt-2">{{ message }}</VCardText>
       <VCardActions class="px-6 pb-6">
         <VSpacer />
-        <ButtonsBase variant="text" @click="cancel">{{ cancelText }}</ButtonsBase>
-        <ButtonsBase :color="confirmColor" @click="confirm">{{ confirmText }}</ButtonsBase>
+        <VBtn variant="text" @click="cancel">{{ cancelText }}</VBtn>
+        <VBtn :color="confirmColor" @click="confirm">{{ confirmText }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

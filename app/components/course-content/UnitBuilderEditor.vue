@@ -655,7 +655,7 @@ watch(
   <NuxtLayout name="unit-builder">
     <template #course-title>
       <div class="course-title-bar">
-        <ButtonsBase aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseRoute" variant="text" />
+        <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseRoute" variant="text" />
         <div class="course-title-text">
           <div class="course-title-name">{{ course ? displayCourseTitle(course, 'Course') : 'Course' }}</div>
           <div v-if="course?.code" class="text-caption text-medium-emphasis">{{ displayCourseCode(course) }}</div>
@@ -680,7 +680,7 @@ watch(
     <template #course-structure-actions>
       <VMenu v-if="editable" location="bottom end">
         <template #activator="{ props: menuProps }">
-          <ButtonsBase v-bind="menuProps" aria-label="Add to course" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop />
+          <VBtn v-bind="menuProps" aria-label="Add to course" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop />
         </template>
         <VList density="comfortable" min-width="190">
           <VListItem prepend-icon="mdi-folder-plus-outline" title="Add group" @click="openAddCourseStructure('group')" />
@@ -730,7 +730,7 @@ watch(
         </div>
         <VMenu location="end">
           <template #activator="{ props: menuProps }">
-            <ButtonsBase v-bind="menuProps" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
+            <VBtn v-bind="menuProps" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList v-if="editable" density="comfortable" min-width="250">
             <VListItem prepend-icon="mdi-eye-outline" title="View unit" :to="`/courses/${courseId}/${versionSegment}/units/${unitId}/view`" />
@@ -781,7 +781,7 @@ watch(
             <template #append>
               <VMenu v-if="editable" location="end">
                 <template #activator="{ props: menuProps }">
-                  <ButtonsBase v-bind="menuProps" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
+                  <VBtn v-bind="menuProps" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
                 </template>
                 <VList density="comfortable" min-width="210">
                   <template v-if="isBlockGroup(block)">
@@ -825,7 +825,7 @@ watch(
             </div>
             <div class="d-flex align-center ga-3">
               <VChip color="primary" prepend-icon="mdi-shape-outline" variant="tonal">{{ activeBlock.type }}</VChip>
-              <ButtonsBase v-if="editable" prepend-icon="mdi-pencil-outline" variant="tonal" @click="openBlockEditor(activeBlock)">Edit block</ButtonsBase>
+              <VBtn v-if="editable" prepend-icon="mdi-pencil-outline" variant="tonal" @click="openBlockEditor(activeBlock)">Edit block</VBtn>
             </div>
           </div>
           <VCard class="block-summary-card mb-6" rounded="xl" variant="flat">
@@ -849,7 +849,7 @@ watch(
               </div>
               <VMenu v-if="editable" location="bottom">
                 <template #activator="{ props: menuProps }">
-                  <ButtonsBase v-bind="menuProps" prepend-icon="mdi-plus" :loading="componentSaving" :disabled="isBlockGroup(activeBlock)" variant="tonal">Add component</ButtonsBase>
+                  <VBtn v-bind="menuProps" prepend-icon="mdi-plus" :loading="componentSaving" :disabled="isBlockGroup(activeBlock)" variant="tonal">Add component</VBtn>
                 </template>
                 <VList density="comfortable" min-width="220">
                   <VListItem prepend-icon="mdi-text" title="Text" @click="addComponent('T:TXT', 'paragraph')" />
@@ -927,8 +927,8 @@ watch(
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <ButtonsBase variant="text" @click="dialog = false">Cancel</ButtonsBase>
-        <ButtonsBase color="primary" :loading="saving" @click="saveBlock">Save block</ButtonsBase>
+        <VBtn variant="text" @click="dialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="saving" @click="saveBlock">Save block</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -942,8 +942,8 @@ watch(
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <ButtonsBase :disabled="unitInfoSaving" variant="text" @click="unitInfoDialog = false">Cancel</ButtonsBase>
-        <ButtonsBase color="primary" :loading="unitInfoSaving" @click="saveUnitInfo">Save changes</ButtonsBase>
+        <VBtn :disabled="unitInfoSaving" variant="text" @click="unitInfoDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="unitInfoSaving" @click="saveUnitInfo">Save changes</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -979,10 +979,10 @@ watch(
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <ButtonsBase :disabled="courseStructureSaving" variant="text" @click="courseStructureDialog = false">Cancel</ButtonsBase>
-        <ButtonsBase color="primary" :disabled="courseStructureLoading" :loading="courseStructureSaving" @click="saveCourseStructure">
+        <VBtn :disabled="courseStructureSaving" variant="text" @click="courseStructureDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :disabled="courseStructureLoading" :loading="courseStructureSaving" @click="saveCourseStructure">
           {{ editingCourseGroup ? 'Save group' : 'Add' }}
-        </ButtonsBase>
+        </VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

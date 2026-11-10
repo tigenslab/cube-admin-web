@@ -28,7 +28,7 @@ export interface NotificationCreateForm {
 
 export const useNotificationsStore = defineStore('notifications', () => {
   const notifications = ref<Notification[]>([])
-  const { api, loading, error, request } = useApiActions('The notification request could not be completed.')
+  const { api, loading, actionLoading, error, request } = useApiActions('The notification request could not be completed.')
 
   async function search() {
     notifications.value = await request(() => api<Notification[]>('/notifications', { method: 'POST', body: {} }), 'Unable to load notifications.')
@@ -36,26 +36,26 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   async function createForm() {
-    return request(() => api<{ vjsf: NotificationCreateForm }>('/notifications/new'), 'Unable to load the notification form.')
+    return request(() => api<{ vjsf: NotificationCreateForm }>('/notifications/new'), 'Unable to load the notification form.', 'new')
   }
 
   async function create(notification: NotificationInput) {
-    const created = await request(() => api<Notification>('/notifications/create', { method: 'POST', body: notification }), 'Unable to create the notification.')
+    const created = await request(() => api<Notification>('/notifications/create', { method: 'POST', body: notification }), 'Unable to create the notification.', 'create')
     notifications.value.unshift(created)
     return created
   }
 
   async function update(id: string, notification: Partial<NotificationInput>) {
-    const updated = await request(() => api<Notification>(`/notifications/${id}`, { method: 'PUT', body: notification }), 'Unable to update the notification.')
+    const updated = await request(() => api<Notification>(`/notifications/${id}`, { method: 'PUT', body: notification }), 'Unable to update the notification.', `update_${id}`)
     const index = notifications.value.findIndex(item => item.id === id)
     if (index !== -1) notifications.value[index] = updated
     return updated
   }
 
   async function remove(id: string) {
-    await request(() => api(`/notifications/${id}`, { method: 'DELETE' }), 'Unable to delete the notification.')
+    await request(() => api(`/notifications/${id}`, { method: 'DELETE' }), 'Unable to delete the notification.', `destroy_${id}`)
     notifications.value = notifications.value.filter(item => item.id !== id)
   }
 
-  return { notifications, loading, error, index: search, search, new: createForm, createForm, create, update, destroy: remove, remove }
+  return { notifications, loading, actionLoading, error, index: search, search, new: createForm, createForm, create, update, destroy: remove, remove }
 })

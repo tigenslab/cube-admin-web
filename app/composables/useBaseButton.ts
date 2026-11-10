@@ -1,5 +1,7 @@
 import VjsfFormDialog from '~/components/forms/VjsfFormDialog.vue'
 import type { ConfirmDialogOptions } from '~/composables/useConfirmDialog'
+import { useConfirmDialog } from '~/composables/useConfirmDialog'
+import { useDialogService } from '~/composables/useDialogService'
 
 export type BaseButtonAction = 'new' | 'create' | 'edit' | 'update' | 'destroy'
 export type BaseButtonVariant = 'elevated' | 'flat' | 'tonal' | 'outlined' | 'text' | 'plain'
@@ -29,6 +31,7 @@ export interface BaseButtonProps {
 interface StoreActions {
   $id?: string
   loading?: boolean | Record<string, boolean | undefined>
+  actionLoading?: Record<string, boolean | undefined>
   [key: string]: unknown
 }
 
@@ -86,11 +89,14 @@ export function useBaseButton(props: BaseButtonProps, emit: BaseButtonEmit) {
   const tooltipLocation = computed(() => props.tooltipLocation ?? 'top')
   const loading = computed(() => {
     if (props.loading) return true
+    const params = props.params ?? {}
+    const key = [props.action, params.id, params.parent_id].filter(Boolean).join('_')
+    const actionLoading = store.value?.actionLoading
+    if (actionLoading) return Boolean(actionLoading[key])
+
     const loadingState = store.value?.loading
     if (typeof loadingState === 'boolean') return loadingState
     if (!loadingState || typeof loadingState !== 'object') return false
-    const params = props.params ?? {}
-    const key = [props.action, params.id, params.parent_id].filter(Boolean).join('_')
     return Boolean(loadingState[key])
   })
 

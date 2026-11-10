@@ -24,15 +24,15 @@ async function submit() {
 </script>
 <template>
   <VContainer
-    ><ButtonsBase class="mb-6" to="/users" variant="text">Back to users</ButtonsBase>
+    ><VBtn class="mb-6" to="/users" variant="text">Back to users</VBtn>
     <h1 class="text-h4 font-weight-bold">Edit user</h1>
     <VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert
     ><VForm class="mt-6" @submit.prevent="submit"
       ><VTextField v-model="form.email" label="Email" type="email" required /><VTextField v-model="form.first_name" label="First name" /><VTextField
         v-model="form.last_name"
         label="Last name"
-      /><VTextField v-model="form.phone" label="Phone" /><VSelect v-model="form.roles" :items="roles" label="Roles" multiple /><ButtonsBase class="mt-4" color="primary" type="submit"
-        >Save changes</ButtonsBase
+      /><VTextField v-model="form.phone" label="Phone" /><VSelect v-model="form.roles" :items="roles" label="Roles" multiple /><VBtn class="mt-4" color="primary" type="submit"
+        >Save changes</VBtn
       ></VForm
     ></VContainer
   >

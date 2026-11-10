@@ -48,7 +48,7 @@ async function logout() {
 <template>
   <VMenu>
     <template #activator="{ props }">
-      <ButtonsBase class="account-button" v-bind="props" variant="text">
+      <VBtn class="account-button" v-bind="props" variant="text">
         <VAvatar color="primary" size="36">
           <span class="text-caption font-weight-bold">{{ initials }}</span>
         </VAvatar>
@@ -57,7 +57,7 @@ async function logout() {
           <div class="text-caption text-medium-emphasis">{{ currentRoleLabel }}</div>
         </div>
         <VIcon class="ml-2 d-none d-sm-flex" icon="mdi-chevron-down" />
-      </ButtonsBase>
+      </VBtn>
     </template>
 
     <VList min-width="240">

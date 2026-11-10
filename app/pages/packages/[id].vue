@@ -82,11 +82,11 @@ onMounted(load)
 </script>
 
 <template>
-  <ButtonsBase class="mb-5" prepend-icon="mdi-arrow-left" to="/packages" variant="text">All packages</ButtonsBase>
+  <VBtn class="mb-5" prepend-icon="mdi-arrow-left" to="/packages" variant="text">All packages</VBtn>
 
   <VProgressLinear v-if="loading" class="mb-5" color="primary" indeterminate />
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">
-    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
+    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
   </VAlert>
 
   <template v-if="detail">
@@ -97,8 +97,8 @@ onMounted(load)
         <p class="text-body-1 text-medium-emphasis mt-2">{{ detail.item.code }}<span v-if="detail.item.description"> · {{ detail.item.description }}</span></p>
       </div>
       <div class="d-flex ga-3">
-        <ButtonsBase v-if="detail.permissions.create_unit" prepend-icon="mdi-plus" variant="outlined" @click="openUnitDialog">Create unit</ButtonsBase>
-        <ButtonsBase v-if="detail.permissions.create_course" color="primary" prepend-icon="mdi-plus" @click="openCourseDialog">Create course</ButtonsBase>
+        <VBtn v-if="detail.permissions.create_unit" prepend-icon="mdi-plus" variant="outlined" @click="openUnitDialog">Create unit</VBtn>
+        <VBtn v-if="detail.permissions.create_course" color="primary" prepend-icon="mdi-plus" @click="openCourseDialog">Create course</VBtn>
       </div>
     </section>
 

@@ -23,7 +23,7 @@ export type AccountCreateForm = AccountEditForm
 export const useAccountsStore = defineStore('accounts', () => {
   const accounts = ref<Account[]>([])
   const currentAccount = ref<Account | null>(null)
-  const { api, loading, error, request } = useApiActions('The account request could not be completed.')
+  const { api, loading, actionLoading, error, request } = useApiActions('The account request could not be completed.')
 
   async function index() {
     const data = await request(() => api<Account[]>('/accounts', { method: 'POST', body: {} }), 'Unable to load accounts.')
@@ -38,21 +38,21 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   async function editForm(id: string | number) {
-    return request(() => api<{ vjsf: AccountEditForm }>(`/accounts/${id}/edit`), 'Unable to load the account form.')
+    return request(() => api<{ vjsf: AccountEditForm }>(`/accounts/${id}/edit`), 'Unable to load the account form.', `edit_${id}`)
   }
 
   async function newForm() {
-    return request(() => api<{ vjsf: AccountCreateForm }>('/accounts/new'), 'Unable to load the account form.')
+    return request(() => api<{ vjsf: AccountCreateForm }>('/accounts/new'), 'Unable to load the account form.', 'new')
   }
 
   async function create(data: Partial<Account>) {
-    const created = await request(() => api<Account>('/accounts/create', { method: 'POST', body: data }), 'Unable to create the account.')
+    const created = await request(() => api<Account>('/accounts/create', { method: 'POST', body: data }), 'Unable to create the account.', 'create')
     accounts.value.push(created)
     return created
   }
 
   async function update(id: string | number, data: Partial<Account>) {
-    const updated = await request(() => api<Account>(`/accounts/${id}`, { method: 'PUT', body: data }), 'Unable to update the account.')
+    const updated = await request(() => api<Account>(`/accounts/${id}`, { method: 'PUT', body: data }), 'Unable to update the account.', `update_${id}`)
     const index = accounts.value.findIndex(account => account.id === id)
     if (index !== -1) accounts.value[index] = updated
     if (currentAccount.value?.id === id) currentAccount.value = updated
@@ -60,10 +60,10 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   async function destroy(id: string | number) {
-    await request(() => api<void>(`/accounts/${id}`, { method: 'DELETE' }), 'Unable to delete the account.')
+    await request(() => api<void>(`/accounts/${id}`, { method: 'DELETE' }), 'Unable to delete the account.', `destroy_${id}`)
     accounts.value = accounts.value.filter(account => account.id !== id)
     if (currentAccount.value?.id === id) currentAccount.value = null
   }
 
-  return { accounts, currentAccount, loading, error, index, show, new: newForm, newForm, edit: editForm, editForm, create, update, destroy }
+  return { accounts, currentAccount, loading, actionLoading, error, index, show, new: newForm, newForm, edit: editForm, editForm, create, update, destroy }
 })

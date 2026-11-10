@@ -19,12 +19,12 @@ async function submit() { try { await store.create(form); await navigateTo('/use
 </script>
 <template>
   <VContainer>
-    <ButtonsBase class="mb-6" to="/users" variant="text">Back to users</ButtonsBase>
+    <VBtn class="mb-6" to="/users" variant="text">Back to users</VBtn>
     <h1 class="text-h4 font-weight-bold">Create user</h1>
     <VAlert v-if="error" class="mt-4" color="error">{{ error }}</VAlert>
     <VForm class="mt-6" @submit.prevent="submit">
       <FormsVjsfForm v-if="formSchema" v-model="form" :schema="formSchema" />
-      <ButtonsBase class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.loading" type="submit">Create user</ButtonsBase>
+      <VBtn class="mt-4" color="primary" :disabled="loadingForm || !formSchema" :loading="loadingForm || store.actionLoading.create" type="submit">Create user</VBtn>
     </VForm>
   </VContainer>
 </template>

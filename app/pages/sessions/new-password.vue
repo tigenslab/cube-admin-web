@@ -39,7 +39,7 @@ async function submit() {
       <SessionsFormField id="new-password" v-model="password" hint="Use at least 8 characters." label="New password" persistent-hint prepend-icon="mdi-lock-outline" type="password" />
       <SessionsFormField id="confirm-password" v-model="confirmation" container-class="mt-5" label="Confirm password" prepend-icon="mdi-lock-check-outline" type="password" />
 
-      <ButtonsBase :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Set password</ButtonsBase>
+      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Set password</VBtn>
     </VForm>
   </div>
 </template>

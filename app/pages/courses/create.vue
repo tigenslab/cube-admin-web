@@ -131,8 +131,8 @@ async function submit() {
       <VForm @submit.prevent="submit">
         <FormsVjsfForm v-if="vjsfSchema" v-model="form" :schema="vjsfSchema" />
         <div class="d-flex justify-end ga-3">
-          <ButtonsBase to="/courses" variant="text">Cancel</ButtonsBase>
-          <ButtonsBase color="primary" :disabled="packagesLoading || formLoading || !vjsfSchema" :loading="submitting || formLoading" type="button" @click="submit">Create course</ButtonsBase>
+          <VBtn to="/courses" variant="text">Cancel</VBtn>
+          <VBtn color="primary" :disabled="packagesLoading || formLoading || !vjsfSchema" :loading="submitting || formLoading" type="button" @click="submit">Create course</VBtn>
         </div>
       </VForm>
     </VCardText>

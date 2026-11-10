@@ -318,7 +318,7 @@ watch(() => route.params.version, () => {
   <NuxtLayout name="unit-builder">
     <template #course-title>
       <div class="course-title-bar">
-        <ButtonsBase aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseDashboardPath" variant="text" />
+        <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseDashboardPath" variant="text" />
         <div class="course-title-text">
           <div class="course-title-name">{{ course ? displayCourseTitle(course, 'Course') : 'Course' }}</div>
           <div v-if="course?.code" class="text-caption text-medium-emphasis">{{ displayCourseCode(course) }}</div>
@@ -372,7 +372,7 @@ watch(() => route.params.version, () => {
         </div>
         <VMenu location="end">
           <template #activator="{ props }">
-            <ButtonsBase v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
+            <VBtn v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList>
             <VListItem v-if="!loading && !selectedVersion && !isCatalogueUnit" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
