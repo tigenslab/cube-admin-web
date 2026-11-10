@@ -1,27 +1,4 @@
-import type { CourseResourceInput, CourseResourceItem } from '~/types/course-resources'
-import type { ApiNewForm } from '~/types/api-form'
-
+/** Compatibility composable. Unit API actions live in the Pinia store. */
 export function useUnitsApi() {
-  const api = useApi()
-  const collection = (courseId: string) => `/courses/${encodeURIComponent(courseId)}/units`
-
-  return {
-    editForm(courseId: string, id: string) {
-      return api<{ vjsf: { schema: Record<string, unknown>; model: Partial<CourseResourceInput> } }>(`${collection(courseId)}/${encodeURIComponent(id)}/edit`)
-    },
-    newForm(courseId: string) {
-      return api<{ vjsf: ApiNewForm<CourseResourceInput> }>(`${collection(courseId)}/new`)
-    },
-    list(courseId: string) {
-      return api<{ items: CourseResourceItem[] }>(collection(courseId))
-    },
-    async save(courseId: string, data: CourseResourceInput, id?: string) {
-      if (!id && !data.package_id) throw new Error('A package_id is required to create a unit.')
-      const path = collection(courseId)
-      const response = await api<{ item: CourseResourceItem }>(id ? `${path}/update/${encodeURIComponent(id)}` : `${path}/create`, {
-        method: id ? 'PUT' : 'POST', body: data,
-      })
-      return response.item
-    },
-  }
+  return useUnitsStore()
 }

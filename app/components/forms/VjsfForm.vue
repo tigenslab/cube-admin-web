@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiFormDisplaySchema, type ApiFormSchema } from '~/types/api-form'
 import { defineComponent, h } from 'vue'
+import { VProgressLinear } from 'vuetify/components'
 
 const props = defineProps<{
   schema: ApiFormSchema
@@ -11,8 +12,15 @@ const model = defineModel<Record<string, any>>({ required: true })
 const displaySchema = computed(() => apiFormDisplaySchema(props.schema))
 const loadError = ref('')
 const EmptyVjsf = defineComponent({ setup: () => () => h('span') })
+const LoadingVjsf = defineComponent({
+  setup: () => () => h('div', { class: 'pa-4', role: 'status' }, [
+    h(VProgressLinear, { color: 'primary', indeterminate: true }),
+    h('div', { class: 'mt-3 text-body-2 text-medium-emphasis' }, 'Loading form…'),
+  ]),
+})
 const Vjsf = defineAsyncComponent({
   loader: () => import('@koumoul/vjsf'),
+  loadingComponent: LoadingVjsf,
   errorComponent: EmptyVjsf,
   onError(cause, _retry, fail) {
     loadError.value = cause instanceof Error ? cause.message : 'VJSF could not be loaded.'

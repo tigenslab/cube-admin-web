@@ -23,8 +23,8 @@ const activity = [
       <p class="text-body-1 text-medium-emphasis mt-2">Here’s what’s happening across your workspace today.</p>
     </div>
     <div class="d-flex ga-3">
-      <VBtn prepend-icon="mdi-download" variant="outlined">Export</VBtn>
-      <VBtn color="primary" prepend-icon="mdi-plus">Create new</VBtn>
+      <ButtonsBase prepend-icon="mdi-download" variant="outlined">Export</ButtonsBase>
+      <ButtonsBase color="primary" prepend-icon="mdi-plus">Create new</ButtonsBase>
     </div>
   </section>
 
@@ -53,7 +53,7 @@ const activity = [
           <template #title>Workspace activity</template>
           <template #subtitle>Active users over the last 12 months</template>
           <template #append>
-            <VBtn append-icon="mdi-chevron-down" size="small" variant="text">This year</VBtn>
+            <ButtonsBase append-icon="mdi-chevron-down" size="small" variant="text">This year</ButtonsBase>
           </template>
         </VCardItem>
         <VCardText class="pa-6 pt-2">
@@ -94,7 +94,7 @@ const activity = [
       <VCard rounded="xl" variant="flat">
         <VCardItem class="pa-6">
           <template #title>Recent activity</template>
-          <template #append><VBtn color="primary" size="small" variant="text">View all</VBtn></template>
+          <template #append><ButtonsBase color="primary" size="small" variant="text">View all</ButtonsBase></template>
         </VCardItem>
         <VList class="px-3 pb-4" lines="two">
           <VListItem v-for="item in activity" :key="item.title" :subtitle="item.detail" :title="item.title">
@@ -112,7 +112,7 @@ const activity = [
           <VIcon icon="mdi-lightning-bolt-outline" size="32" />
           <div class="text-h6 font-weight-bold mt-5">Keep your workspace moving</div>
           <p class="text-body-2 mt-2">Invite teammates, publish content, or review the latest reports.</p>
-          <VBtn class="mt-3" color="white" prepend-icon="mdi-arrow-right" variant="flat">Open quick actions</VBtn>
+          <ButtonsBase class="mt-3" color="white" prepend-icon="mdi-arrow-right" variant="flat">Open quick actions</ButtonsBase>
         </VCardText>
       </VCard>
     </VCol>

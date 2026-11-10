@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
+import type { CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/stores/catalogue'
 import CatalogueBlockTitles from '~/components/CatalogueBlockTitles.vue'
 import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
 
 defineOptions({ name: 'CatalogueOutline' })
-const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; courseType?: string; unitPath?: (unitId: string) => string | undefined; blockPath?: (unitId: string, blockId: string) => string | undefined; showBlockTitles?: boolean }>(), {
+const props = withDefaults(defineProps<{ rows: CatalogueOutlineRow[]; units: CatalogueUnitSnapshot[]; unitPath?: (unitId: string) => string | undefined; blockPath?: (unitId: string, blockId: string) => string | undefined; showBlockTitles?: boolean }>(), {
   showBlockTitles: true,
 })
 const unitSnapshots = computed(() => new Map(props.units.map(unit => [unit.unit_id, unit])))
@@ -24,12 +24,12 @@ function unitPathFor(row: CatalogueOutlineRow) {
 
 function unitCode(row: CatalogueOutlineRow) {
   const unit = unitSnapshots.value.get(row.unit_id || '')?.unit
-  return displayCourseUnitCode(props.courseType, { code: row.code || unit?.code, level: row.level ?? unit?.level })
+  return displayCourseUnitCode({ code: row.code || unit?.code })
 }
 
 function unitTitle(row: CatalogueOutlineRow) {
   const unit = unitSnapshots.value.get(row.unit_id || '')?.unit
-  return displayCourseUnitTitle(props.courseType, { title: row.title || unit?.title, level: row.level ?? unit?.level })
+  return displayCourseUnitTitle({ title: row.title || unit?.title })
 }
 </script>
 
@@ -47,7 +47,7 @@ function unitTitle(row: CatalogueOutlineRow) {
         </div>
         <template #actions="{ expanded }">
           <div class="d-flex align-center ga-2">
-            <VBtn
+            <ButtonsBase
               v-if="isUnit(row) && unitPathFor(row)"
               class="text-none"
               color="primary"
@@ -58,7 +58,7 @@ function unitTitle(row: CatalogueOutlineRow) {
               @click.stop
             >
               Open unit
-            </VBtn>
+            </ButtonsBase>
             <VIcon :icon="expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
           </div>
         </template>
@@ -73,7 +73,7 @@ function unitTitle(row: CatalogueOutlineRow) {
             <div v-else class="text-body-2 text-medium-emphasis">No blocks in this unit.</div>
           </template>
         </template>
-        <CatalogueOutline v-else-if="row.children?.length" :rows="row.children" :units="units" :course-type="courseType" :unit-path="unitPath" :block-path="blockPath" :show-block-titles="showBlockTitles">
+        <CatalogueOutline v-else-if="row.children?.length" :rows="row.children" :units="units" :unit-path="unitPath" :block-path="blockPath" :show-block-titles="showBlockTitles">
           <template #actions="slotProps"><slot name="actions" v-bind="slotProps" /></template>
         </CatalogueOutline>
       </VExpansionPanelText>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { CatalogueCourse, CataloguePackage } from '~/composables/useCatalogueApi'
+import type { CatalogueCourse, CataloguePackage } from '~/stores/catalogue'
 import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
-const catalogueApi = useCatalogueApi()
+const catalogueApi = useCatalogueStore()
 const item = ref<CataloguePackage | null>(null)
 const courses = ref<CatalogueCourse[]>([])
 const loading = ref(true)
@@ -27,9 +27,9 @@ onMounted(load)
 </script>
 
 <template>
-  <VBtn class="mb-5" prepend-icon="mdi-arrow-left" to="/catalogue" variant="text">Catalogue</VBtn>
+  <ButtonsBase class="mb-5" prepend-icon="mdi-arrow-left" to="/catalogue" variant="text">Catalogue</ButtonsBase>
   <VProgressLinear v-if="loading" class="mb-5" color="primary" indeterminate />
-  <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn></VAlert>
+  <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase></VAlert>
 
   <template v-if="item">
     <VCard class="mb-8 overflow-hidden" rounded="xl" variant="flat">

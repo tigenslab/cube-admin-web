@@ -4,7 +4,7 @@ import type { CourseResourceItem, UnitBlockComponent } from '~/types/course-reso
 import type { ApiFormSchema } from '~/types/api-form'
 import CourseUnitNavigation from '~/components/course-content/CourseUnitNavigation.vue'
 import type { CourseUnitNavigationRow } from '~/components/course-content/CourseUnitNavigation.vue'
-import { displayCourseUnitCode, displayCourseUnitTitle, unitMatchesCourseLevel } from '~/utils/course-unit-display'
+import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
 import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const props = withDefaults(defineProps<{ mode?: 'edit' | 'view' }>(), { mode: 'edit' })
@@ -13,10 +13,10 @@ const router = useRouter()
 const courseId = String(route.params.id)
 const unitId = computed(() => String(route.params.unitId))
 const courses = useCoursesStore()
-const unitsApi = useUnitsApi()
-const courseUnitsApi = useCourseUnitsApi()
-const unitBlocksApi = useUnitBlocksApi()
-const unitBlockComponentsApi = useUnitBlockComponentsApi()
+const unitsApi = useUnitsStore()
+const courseUnitsApi = useCourseUnitsStore()
+const unitBlocksApi = useUnitBlocksStore()
+const unitBlockComponentsApi = useUnitBlockComponentsStore()
 const course = useState<Course | null>(`unit-builder-course-${courseId}`, () => null)
 const courseUnits = useState<CourseUnitNavigationRow[]>(`unit-builder-course-units-${courseId}`, () => [])
 const courseUnitItems = useState<CourseResourceItem[]>(`unit-builder-course-unit-items-${courseId}`, () => [])
@@ -49,7 +49,7 @@ const availableCourseUnits = ref<CourseResourceItem[]>([])
 const editingBlock = ref<CourseResourceItem | null>(null)
 const form = reactive({ type: 'T:B', parent: '', position: '' as number | string })
 const blockForm = reactive({ title: '' })
-const unitInfoForm = reactive({ code: '', title: '', level: '' as number | string })
+const unitInfoForm = reactive({ code: '', title: '' })
 const courseGroupForm = reactive({ title: '' })
 const courseUnitForm = reactive({ unit_id: '' })
 const newCourseUnitForm = reactive({ code: '', title: '' })
@@ -86,9 +86,8 @@ const flatCourseUnits = computed(() => {
 const unlinkedCourseUnits = computed(() => {
   const linked = new Set(flatCourseUnits.value.map(row => row.unit_id).filter((id): id is string => Boolean(id)))
   return availableCourseUnits.value
-    .filter(item => !linked.has(item.id)
-      && unitMatchesCourseLevel(course.value?.type, course.value?.level, item.level))
-    .map(item => ({ title: `${displayCourseUnitCode(course.value?.type, item)} — ${displayCourseUnitTitle(course.value?.type, item)}`, value: item.id }))
+    .filter(item => !linked.has(item.id))
+    .map(item => ({ title: `${displayCourseUnitCode(item)} — ${displayCourseUnitTitle(item)}`, value: item.id }))
 })
 const courseStructureParentLabel = computed(() => {
   if (!courseStructureParentId.value) return 'Course root'
@@ -257,14 +256,12 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
     if (!id) continue
     const unit = unitId ? unitsById.get(unitId) : undefined
     const info = unit?.unit || unit
-    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, info?.level)) continue
     nodes.set(id, {
       id,
       type: isUnit ? 'U' : 'G',
       ...(isUnit ? { unit_id: unitId || id } : {}),
       title: isUnit ? info?.title || row.title : row.title,
       code: isUnit ? info?.code || row.code : row.code,
-      ...(isUnit && info?.level !== undefined ? { level: Number(info.level) } : {}),
       ancestry: String(row.ancestry || ''),
       position: Number(row.position || 0),
       children: [],
@@ -358,7 +355,7 @@ async function saveCourseStructure() {
 
     if (courseStructureKind.value === 'group') {
       const savedGroup = await courseUnitsApi.save(courseId, {
-        type: 'G',
+        ...(!editingCourseGroup.value ? { type: 'G' } : {}),
         ...(!editingCourseGroup.value ? { package_id: course.value.package_id } : {}),
         title: courseGroupForm.title,
         ancestry,
@@ -375,7 +372,6 @@ async function saveCourseStructure() {
             package_id: course.value.package_id,
             code: newCourseUnitForm.code,
             title: newCourseUnitForm.title,
-            ...(course.value.type === 'SCH:V9' ? { level: course.value.level } : {}),
             content: {},
           })).id
         : courseUnitForm.unit_id
@@ -474,7 +470,6 @@ function addBlockSubtype(kind: 'Theory' | 'Assessment', subtype: 'Group' | 'Sect
 function openUnitInfo() {
   unitInfoForm.code = unit.value?.code || ''
   unitInfoForm.title = unit.value?.title || ''
-  unitInfoForm.level = course.value?.type === 'SCH:V9' ? course.value.level ?? '' : unit.value?.level ?? ''
   unitInfoDialog.value = true
 }
 
@@ -484,10 +479,8 @@ async function saveUnitInfo() {
   error.value = ''
   try {
     unit.value = await unitsApi.save(courseId, {
-      type: unit.value.type,
       code: unitInfoForm.code.trim(),
       title: unitInfoForm.title.trim(),
-      ...(unit.value.type === 'SCH:V9' && unitInfoForm.level !== '' ? { level: Number(unitInfoForm.level) } : {}),
       content: unit.value.content,
     }, unitId.value)
     unitInfoDialog.value = false
@@ -595,7 +588,7 @@ async function saveBlock() {
   error.value = ''
   try {
     const data = {
-      type: form.type,
+      ...(!editingBlock.value ? { type: form.type } : {}),
       ancestry: form.parent,
       content: { ...editingBlock.value?.content, ...(blockForm.title.trim() ? { title: blockForm.title.trim() } : {}) },
       ...(form.position !== '' ? { position: Number(form.position) } : {}),
@@ -662,7 +655,7 @@ watch(
   <NuxtLayout name="unit-builder">
     <template #course-title>
       <div class="course-title-bar">
-        <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseRoute" variant="text" />
+        <ButtonsBase aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseRoute" variant="text" />
         <div class="course-title-text">
           <div class="course-title-name">{{ course ? displayCourseTitle(course, 'Course') : 'Course' }}</div>
           <div v-if="course?.code" class="text-caption text-medium-emphasis">{{ displayCourseCode(course) }}</div>
@@ -687,7 +680,7 @@ watch(
     <template #course-structure-actions>
       <VMenu v-if="editable" location="bottom end">
         <template #activator="{ props: menuProps }">
-          <VBtn v-bind="menuProps" aria-label="Add to course" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop />
+          <ButtonsBase v-bind="menuProps" aria-label="Add to course" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop />
         </template>
         <VList density="comfortable" min-width="190">
           <VListItem prepend-icon="mdi-folder-plus-outline" title="Add group" @click="openAddCourseStructure('group')" />
@@ -701,7 +694,6 @@ watch(
         <CourseUnitNavigation
           :rows="courseUnits"
           :selected-unit-id="unitId"
-          :course-type="course?.type"
           :editable="editable"
           @select="selectCourseUnit"
           @add-group="openAddCourseStructure('group', $event)"
@@ -720,9 +712,9 @@ watch(
         v-for="row in flatCourseUnits"
         :key="row.id"
         :active="row.unit_id === unitId"
-        :aria-label="`${displayCourseUnitCode(course?.type, row)}: ${displayCourseUnitTitle(course?.type, row)}`"
-        :title="displayCourseUnitTitle(course?.type, row)"
-        :subtitle="displayCourseUnitCode(course?.type, row)"
+        :aria-label="`${displayCourseUnitCode(row)}: ${displayCourseUnitTitle(row)}`"
+        :title="displayCourseUnitTitle(row)"
+        :subtitle="displayCourseUnitCode(row)"
         prepend-icon="mdi-book-open-page-variant-outline"
         @click="navigateToCourseUnit(row.unit_id!)"
       />
@@ -733,12 +725,12 @@ watch(
       <div class="unit-heading">
         <VIcon color="primary" icon="mdi-book-open-page-variant-outline" size="22" />
         <div class="unit-heading-text">
-          <div class="text-caption text-medium-emphasis">{{ displayCourseUnitCode(course?.type, unit || {}) || 'Unit' }}</div>
-          <strong>{{ displayCourseUnitTitle(course?.type, unit || {}) }}</strong>
+          <div class="text-caption text-medium-emphasis">{{ displayCourseUnitCode(unit || {}) || 'Unit' }}</div>
+          <strong>{{ displayCourseUnitTitle(unit || {}) }}</strong>
         </div>
         <VMenu location="end">
           <template #activator="{ props: menuProps }">
-            <VBtn v-bind="menuProps" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
+            <ButtonsBase v-bind="menuProps" aria-label="Unit actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList v-if="editable" density="comfortable" min-width="250">
             <VListItem prepend-icon="mdi-eye-outline" title="View unit" :to="`/courses/${courseId}/${versionSegment}/units/${unitId}/view`" />
@@ -789,7 +781,7 @@ watch(
             <template #append>
               <VMenu v-if="editable" location="end">
                 <template #activator="{ props: menuProps }">
-                  <VBtn v-bind="menuProps" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
+                  <ButtonsBase v-bind="menuProps" aria-label="Block actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
                 </template>
                 <VList density="comfortable" min-width="210">
                   <template v-if="isBlockGroup(block)">
@@ -828,12 +820,12 @@ watch(
         <template v-if="activeBlock">
           <div class="workspace-heading">
             <div>
-              <div class="text-overline text-medium-emphasis">{{ displayCourseUnitCode(course?.type, unit || {}) || 'Course unit' }}</div>
+              <div class="text-overline text-medium-emphasis">{{ displayCourseUnitCode(unit || {}) || 'Course unit' }}</div>
               <h1 class="text-h4 font-weight-bold">{{ blockTitle(activeBlock) }}</h1>
             </div>
             <div class="d-flex align-center ga-3">
               <VChip color="primary" prepend-icon="mdi-shape-outline" variant="tonal">{{ activeBlock.type }}</VChip>
-              <VBtn v-if="editable" prepend-icon="mdi-pencil-outline" variant="tonal" @click="openBlockEditor(activeBlock)">Edit block</VBtn>
+              <ButtonsBase v-if="editable" prepend-icon="mdi-pencil-outline" variant="tonal" @click="openBlockEditor(activeBlock)">Edit block</ButtonsBase>
             </div>
           </div>
           <VCard class="block-summary-card mb-6" rounded="xl" variant="flat">
@@ -842,7 +834,7 @@ watch(
                 <VAvatar color="primary" rounded="lg" variant="tonal"><VIcon icon="mdi-file-document-outline" /></VAvatar>
                 <div>
                   <div class="text-subtitle-1 font-weight-medium">Block overview</div>
-                  <div class="text-caption text-medium-emphasis">{{ displayCourseUnitTitle(course?.type, unit || {}) }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ displayCourseUnitTitle(unit || {}) }}</div>
                 </div>
               </div>
               <p v-if="activeBlock.content?.description" class="block-description text-body-1">{{ activeBlock.content.description }}</p>
@@ -857,7 +849,7 @@ watch(
               </div>
               <VMenu v-if="editable" location="bottom">
                 <template #activator="{ props: menuProps }">
-                  <VBtn v-bind="menuProps" prepend-icon="mdi-plus" :loading="componentSaving" :disabled="isBlockGroup(activeBlock)" variant="tonal">Add component</VBtn>
+                  <ButtonsBase v-bind="menuProps" prepend-icon="mdi-plus" :loading="componentSaving" :disabled="isBlockGroup(activeBlock)" variant="tonal">Add component</ButtonsBase>
                 </template>
                 <VList density="comfortable" min-width="220">
                   <VListItem prepend-icon="mdi-text" title="Text" @click="addComponent('T:TXT', 'paragraph')" />
@@ -935,8 +927,8 @@ watch(
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <VBtn variant="text" @click="dialog = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="saving" @click="saveBlock">Save block</VBtn>
+        <ButtonsBase variant="text" @click="dialog = false">Cancel</ButtonsBase>
+        <ButtonsBase color="primary" :loading="saving" @click="saveBlock">Save block</ButtonsBase>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -947,12 +939,11 @@ watch(
       <VCardText class="pa-6 pt-2">
         <VTextField v-model="unitInfoForm.code" class="mb-3" label="Unit code" required />
         <VTextField v-model="unitInfoForm.title" label="Unit title" required />
-        <VTextField v-if="unit?.type === 'SCH:V9'" v-model.number="unitInfoForm.level" class="mt-3" label="Year level" min="1" readonly type="number" />
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <VBtn :disabled="unitInfoSaving" variant="text" @click="unitInfoDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="unitInfoSaving" @click="saveUnitInfo">Save changes</VBtn>
+        <ButtonsBase :disabled="unitInfoSaving" variant="text" @click="unitInfoDialog = false">Cancel</ButtonsBase>
+        <ButtonsBase color="primary" :loading="unitInfoSaving" @click="saveUnitInfo">Save changes</ButtonsBase>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -988,10 +979,10 @@ watch(
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <VBtn :disabled="courseStructureSaving" variant="text" @click="courseStructureDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :disabled="courseStructureLoading" :loading="courseStructureSaving" @click="saveCourseStructure">
+        <ButtonsBase :disabled="courseStructureSaving" variant="text" @click="courseStructureDialog = false">Cancel</ButtonsBase>
+        <ButtonsBase color="primary" :disabled="courseStructureLoading" :loading="courseStructureSaving" @click="saveCourseStructure">
           {{ editingCourseGroup ? 'Save group' : 'Add' }}
-        </VBtn>
+        </ButtonsBase>
       </VCardActions>
     </VCard>
   </VDialog>

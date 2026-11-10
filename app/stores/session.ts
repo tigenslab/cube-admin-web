@@ -8,13 +8,35 @@ export interface LoginCredentials {
 export interface SessionUser {
   id?: string | number
   username?: string
-  email?: string
-  name?: string
-  phone?: string
+  email?: string | null
+  name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  phone?: string | null
   roles?: string[]
   valid_roles?: string[]
   current_role?: string | null
   permissions?: Record<string, string[]>
+}
+
+export interface ProfileUser extends SessionUser {
+  email?: string | null
+  name?: string | null
+  phone?: string | null
+  first_name?: string | null
+  last_name?: string | null
+}
+
+export interface ActiveSession {
+  id: string
+  user_id?: string
+  username?: string
+  device_id?: string
+  ip_address?: string
+  request_json?: { device_information?: { user_agent?: string } }
+  permissions?: Record<string, string[]>
+  created_at?: string
+  updated_at?: string
 }
 
 export interface SessionNavigationItem {
@@ -61,7 +83,8 @@ export const useSessionStore = defineStore('session', {
     validRoles: [] as string[],
     currentRole: null as string | null,
     permissions: {} as Record<string, string[]>,
-    navigation: [] as SessionNavigation
+    navigation: [] as SessionNavigation,
+    activeSessions: [] as ActiveSession[]
   }),
 
   actions: {
@@ -180,17 +203,80 @@ export const useSessionStore = defineStore('session', {
     },
 
     async changeRole(role: string) {
-      const payload = await useApi()<LoginResponse>('/sessions/change-role', {
-        method: 'POST',
-        body: { role }
-      })
-      const response = payload.data ?? payload
-      this.roles = response.roles ?? this.roles
-      this.validRoles = response.valid_roles ?? this.validRoles
-      this.currentRole = response.current_role ?? role
-      this.permissions = response.permissions ?? this.permissions
-      this.navigation = response.navigation ?? this.navigation
-      return response
+      return this.runApiAction(async () => {
+        const payload = await useApi()<LoginResponse>('/sessions/change-role', {
+          method: 'POST',
+          body: { role }
+        })
+        const response = payload.data ?? payload
+        this.roles = response.roles ?? this.roles
+        this.validRoles = response.valid_roles ?? this.validRoles
+        this.currentRole = response.current_role ?? role
+        this.permissions = response.permissions ?? this.permissions
+        this.navigation = response.navigation ?? this.navigation
+        return response
+      }, 'Unable to change your role.')
+    },
+
+    requestPasswordReset(username: string) {
+      return this.runApiAction(() => useApi()('/sessions/forgot-token', {
+        method: 'POST', body: { username }
+      }), 'Unable to process your request. Please try again.')
+    },
+
+    resetPassword(input: { username: string; confirmation_code: string; password: string; password_confirmation: string }) {
+      return this.runApiAction(() => useApi()('/sessions/reset-password', {
+        method: 'POST', body: input
+      }), 'Unable to reset your password. Please try again.')
+    },
+
+    async loadActiveSessions() {
+      return this.runApiAction(async () => {
+        this.activeSessions = await useApi()<ActiveSession[]>('/sessions/active')
+        return this.activeSessions
+      }, 'Unable to load active sessions.')
+    },
+
+    async loadProfile() {
+      return this.runApiAction(async () => {
+        const user = await useApi()<ProfileUser>('/sessions/user')
+        this.user = user
+        this.userUsername = user.username ?? ''
+        return user
+      }, 'Unable to load your profile.')
+    },
+
+    async updateProfile(data: Pick<ProfileUser, 'first_name' | 'last_name'>) {
+      return this.runApiAction(async () => {
+        const user = await useApi()<ProfileUser>('/sessions/user', { method: 'PATCH', body: data })
+        this.user = user
+        this.userUsername = user.username ?? this.userUsername
+        return user
+      }, 'Unable to update your profile.')
+    },
+
+    requestEmailVerification(email: string) {
+      return this.runApiAction(() => useApi()('/sessions/user/email-verification', {
+        method: 'POST', body: { email }
+      }), 'Unable to update your email address.')
+    },
+
+    confirmEmailVerification(code: string) {
+      return this.runApiAction(() => useApi()('/sessions/user/email-verification/confirm', {
+        method: 'POST', body: { code }
+      }), 'The verification code is invalid.')
+    },
+
+    requestPhoneVerification(phone: string) {
+      return this.runApiAction(() => useApi()('/sessions/user/phone-verification', {
+        method: 'POST', body: { phone }
+      }), 'Unable to update your phone number.')
+    },
+
+    confirmPhoneVerification(code: string) {
+      return this.runApiAction(() => useApi()('/sessions/user/phone-verification/confirm', {
+        method: 'POST', body: { code }
+      }), 'The verification code is invalid.')
     },
 
     setPassword() {
@@ -234,6 +320,20 @@ export const useSessionStore = defineStore('session', {
       this.currentRole = null
       this.permissions = {}
       this.navigation = []
+      this.activeSessions = []
+    },
+
+    async runApiAction<T>(operation: () => Promise<T>, fallback: string) {
+      this.loading = true
+      this.error = null
+      try {
+        return await operation()
+      } catch (cause) {
+        this.error = getApiErrorMessage(cause, fallback)
+        throw cause
+      } finally {
+        this.loading = false
+      }
     },
 
     async logout() {

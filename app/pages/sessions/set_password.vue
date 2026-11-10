@@ -12,21 +12,17 @@ function setPassword() {
 
 <template>
   <div>
-    <VBtn class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/sessions/login" variant="text">Back to sign in</VBtn>
-    <div class="text-overline text-primary font-weight-bold">ACCOUNT SETUP</div>
-    <h2 class="text-h4 font-weight-bold mt-2">Set your password</h2>
-    <p class="text-body-2 text-medium-emphasis mt-3">Create a strong password to protect your account.</p>
+    <ButtonsBase class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/sessions/login" variant="text">Back to sign in</ButtonsBase>
+    <SessionsPageHeading description="Create a strong password to protect your account." eyebrow="ACCOUNT SETUP" title="Set your password" />
 
     <VAlert v-if="session.lastAction === 'set-password'" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
       Your password has been set. You can now sign in.
     </VAlert>
 
     <VForm class="mt-8" @submit.prevent="setPassword">
-      <label class="text-body-2 font-weight-medium" for="new-password">New password</label>
-      <VTextField id="new-password" v-model="password" class="mt-2" density="comfortable" hint="Use at least 8 characters." persistent-hint prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
-      <label class="text-body-2 font-weight-medium d-block mt-5" for="confirm-password">Confirm password</label>
-      <VTextField id="confirm-password" v-model="confirmation" class="mt-2" density="comfortable" placeholder="Repeat your password" prepend-inner-icon="mdi-lock-check-outline" required rounded="lg" type="password" variant="outlined" />
-      <VBtn block class="mt-4" color="primary" size="large" type="submit">Set password</VBtn>
+      <SessionsFormField id="new-password" v-model="password" density="comfortable" hint="Use at least 8 characters." label="New password" persistent-hint prepend-icon="mdi-lock-outline" type="password" />
+      <SessionsFormField id="confirm-password" v-model="confirmation" container-class="mt-5" density="comfortable" label="Confirm password" placeholder="Repeat your password" prepend-icon="mdi-lock-check-outline" type="password" />
+      <ButtonsBase block class="mt-4" color="primary" size="large" type="submit">Set password</ButtonsBase>
     </VForm>
   </div>
 </template>

@@ -2,9 +2,9 @@
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
 import type { ApiFormSchema } from '~/types/api-form'
-import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
+import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/stores/catalogue'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
-import { displayCourseUnitCode, displayCourseUnitTitle, unitMatchesCourseLevel } from '~/utils/course-unit-display'
+import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
 const props = defineProps<{ embedded?: boolean; courseId?: string }>()
 const emit = defineEmits<{
   courseUpdated: [course: Course]
@@ -13,10 +13,10 @@ const emit = defineEmits<{
 const route = useRoute()
 const coursesStore = useCoursesStore()
 const courseEdit = useCourseEditModel()
-const courseUnitsApi = useCourseUnitsApi()
-const unitsApi = useUnitsApi()
-const unitBlocksApi = useUnitBlocksApi()
-const catalogueApi = useCatalogueApi()
+const courseUnitsApi = useCourseUnitsStore()
+const unitsApi = useUnitsStore()
+const unitBlocksApi = useUnitBlocksStore()
+const catalogueApi = useCatalogueStore()
 const course = ref<Course | null>(null)
 const units = ref<CourseResourceItem[]>([])
 const outline = ref<CourseResourceItem[]>([])
@@ -35,7 +35,7 @@ const addKind = ref<'group' | 'unit'>('unit')
 const addUnitMode = ref<'existing' | 'create'>('existing')
 const groupForm = reactive({ title: '' })
 const existingUnitForm = reactive({ unit_id: '' })
-const newUnitForm = reactive({ code: '', title: '', level: undefined as number | undefined })
+const newUnitForm = reactive({ code: '', title: '' })
 const editingGroup = ref<CourseResourceItem | null>(null)
 const addParentGroupId = ref<string | null>(null)
 const courseId = props.courseId || String(route.params.id)
@@ -47,14 +47,11 @@ const outlineTree = computed(() => {
   for (const item of outline.value) {
     const isUnit = item.type === 'U' || item.type === 'CourseUnit::Unit' || Boolean(item.unit_id)
     const unit = item.unit_id ? unitById.get(item.unit_id) : undefined
-    const level = unit?.level ?? item.level
-    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, level)) continue
     nodes.set(item.id, {
       ...item,
       type: isUnit ? 'U' : 'G',
       title: isUnit ? unit?.title || item.title || 'Untitled unit' : item.title || item.code || 'Untitled group',
       code: isUnit ? unit?.code || item.code : item.code,
-      ...(isUnit ? { level: unit?.level ?? item.level } : {}),
       children: [],
     })
   }
@@ -105,7 +102,7 @@ function blockTitleTree(items: CourseResourceItem[]): CatalogueBlockTitle[] {
 const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map(unit => ({
   unit_id: unit.id,
   version: 0,
-  unit: { id: unit.id, code: unit.code, title: unit.title, level: unit.level },
+  unit: { id: unit.id, code: unit.code, title: unit.title },
   blocks: (unit as CourseResourceItem & { blocks?: CatalogueBlockTitle[] }).blocks || [],
 })))
 const catalogueUnitIds = computed(() => new Set(units.value.filter(unit => unit.catalogue_source).map(unit => unit.id)))
@@ -122,9 +119,8 @@ function flattenCatalogueOutline(rows: CatalogueOutlineRow[], ancestry = '', res
 }
 const availableUnits = computed(() => {
   const linked = new Set(outline.value.filter(item => item.type === 'U').map(item => item.unit_id))
-  return units.value.filter(unit => !linked.has(unit.id)
-    && unitMatchesCourseLevel(course.value?.type, course.value?.level, unit.level)).map(unit => ({
-    title: `${displayCourseUnitCode(course.value?.type, unit)} — ${displayCourseUnitTitle(course.value?.type, unit)}`,
+  return units.value.filter(unit => !linked.has(unit.id)).map(unit => ({
+    title: `${displayCourseUnitCode(unit)} — ${displayCourseUnitTitle(unit)}`,
     value: unit.id,
   }))
 })
@@ -153,11 +149,10 @@ const addVjsfSchema = computed<ApiFormSchema | null>(() => {
   }
   const code = unitCreateFormSchema.value?.properties?.code
   const title = unitCreateFormSchema.value?.properties?.title
-  const level = course.value?.type === 'SCH:V9' ? unitCreateFormSchema.value?.properties?.level : undefined
   return code && title ? {
     type: 'object',
     title: 'New unit details',
-    properties: { code, title, ...(level ? { level } : {}) },
+    properties: { code, title },
   } : null
 })
 async function deleteOutlineItem(item: CourseResourceItem) {
@@ -283,7 +278,6 @@ async function loadAddFormSchemas() {
     existingUnitForm.unit_id = addUnitIdForNewForm()
     newUnitForm.code = String(unitForm.vjsf.model.code || '')
     newUnitForm.title = String(unitForm.vjsf.model.title || '')
-    newUnitForm.level = unitForm.vjsf.model.level as number | undefined
   } catch (cause) {
     addError.value = getApiErrorMessage(cause, 'Unable to load the create form.')
   } finally {
@@ -301,7 +295,7 @@ async function openAddDialog() {
   addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
   Object.assign(groupForm, { title: '' })
   Object.assign(existingUnitForm, { unit_id: '' })
-  Object.assign(newUnitForm, { code: '', title: '', level: undefined })
+  Object.assign(newUnitForm, { code: '', title: '' })
   addParentGroupId.value = null
   addError.value = ''
   addDialog.value = true
@@ -315,7 +309,7 @@ async function openAddUnitDialog(groupId?: string, kind: 'group' | 'unit' = 'uni
   addUnitMode.value = availableUnits.value.length ? 'existing' : 'create'
   Object.assign(groupForm, { title: '' })
   Object.assign(existingUnitForm, { unit_id: '' })
-  Object.assign(newUnitForm, { code: '', title: '', level: undefined })
+  Object.assign(newUnitForm, { code: '', title: '' })
   addParentGroupId.value = group?.id || null
   addError.value = ''
   addDialog.value = true
@@ -366,14 +360,14 @@ async function addToCourse() {
             package_id: course.value.package_id,
             code: newUnitForm.code.trim(),
             title: newUnitForm.title.trim(),
-            ...(course.value.type === 'SCH:V9' && newUnitForm.level !== undefined ? { level: Number(newUnitForm.level) } : {}),
             content: {},
           })).id
         : existingUnitForm.unit_id
       : ''
-    await courseUnitsApi.save(courseId, addKind.value === 'group'
-      ? { type: 'G', ...(!editingGroup.value ? { package_id: course.value.package_id } : {}), title: groupForm.title.trim(), ancestry, position: editingGroup.value?.position || position }
-      : { type: 'U', ...(!editingGroup.value ? { package_id: course.value.package_id } : {}), unit_id: unitId, ancestry, position }, editingGroup.value?.id)
+    const data = addKind.value === 'group'
+      ? { ...(!editingGroup.value ? { type: 'G', package_id: course.value.package_id } : {}), title: groupForm.title.trim(), ancestry, position: editingGroup.value?.position || position }
+      : { type: 'U', package_id: course.value.package_id, unit_id: unitId, ancestry, position }
+    await courseUnitsApi.save(courseId, data, editingGroup.value?.id)
     addDialog.value = false
     editingGroup.value = null
     await loadUnits()
@@ -407,19 +401,19 @@ function blockEditPath(unitId: string, blockId: string) {
       <h1 class="text-h4 font-weight-bold mt-1">{{ course?.title || 'Edit course' }}</h1>
     </div>
     <div class="d-flex ga-3">
-      <VBtn :to="`/courses/${courseId}/dashboard`" variant="text">Back</VBtn>
-      <VBtn color="primary" prepend-icon="mdi-pencil-outline" :disabled="!course?.permissions?.update" @click="detailsDialog = true">Course details</VBtn>
+      <ButtonsBase :to="`/courses/${courseId}/dashboard`" variant="text">Back</ButtonsBase>
+      <ButtonsBase color="primary" prepend-icon="mdi-pencil-outline" :disabled="!course?.permissions?.update" @click="detailsDialog = true">Course details</ButtonsBase>
     </div>
   </section>
   <div v-else class="d-flex justify-end pa-5 pb-0">
-    <VBtn color="primary" prepend-icon="mdi-pencil-outline" @click="detailsDialog = true">Edit course details</VBtn>
+    <ButtonsBase color="primary" prepend-icon="mdi-pencil-outline" @click="detailsDialog = true">Edit course details</ButtonsBase>
   </div>
   <VAlert v-if="error && !detailsDialog" class="mb-5" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
 
   <VCard class="mt-6" rounded="xl" variant="flat">
     <div class="d-flex align-center justify-space-between ga-4 bg-grey-lighten-4 px-5 py-2">
       <VTextField v-model="search" class="unit-search" density="compact" hide-details placeholder="Search" prepend-inner-icon="mdi-magnify" rounded="lg" variant="solo" />
-      <VBtn v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" variant="text" @click="openAddDialog">Add to course</VBtn>
+      <ButtonsBase v-if="course?.permissions?.update" color="primary" prepend-icon="mdi-plus" variant="text" @click="openAddDialog">Add to course</ButtonsBase>
     </div>
     <VProgressLinear v-if="loadingUnits" color="primary" indeterminate />
     <div v-if="!loadingUnits && !outlineTree.length" class="pa-8 text-center text-medium-emphasis">No units found.</div>
@@ -427,7 +421,6 @@ function blockEditPath(unitId: string, blockId: string) {
       v-if="outlineTree.length"
       :rows="outlineTree"
       :units="outlineUnits"
-      :course-type="course?.type"
       :unit-path="unitEditPath"
       :block-path="blockEditPath"
       :show-block-titles="true"
@@ -435,11 +428,11 @@ function blockEditPath(unitId: string, blockId: string) {
       <template #actions="{ row }">
         <VChip v-if="row.catalogue_source" size="x-small" variant="tonal">Catalogue</VChip>
         <template v-else-if="row.type === 'G'">
-          <VBtn v-if="course?.permissions?.update" density="compact" prepend-icon="mdi-plus" size="small" variant="text" @click.stop="openAddUnitDialog(row.id)">Add to group</VBtn>
-          <VBtn v-if="course?.permissions?.update" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="editGroup(row.id)" />
-          <VBtn v-if="course?.permissions?.delete" aria-label="Delete group" color="error" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteGroup(row.id)" />
+          <ButtonsBase v-if="course?.permissions?.update" density="compact" prepend-icon="mdi-plus" size="small" variant="text" @click.stop="openAddUnitDialog(row.id)">Add to group</ButtonsBase>
+          <ButtonsBase v-if="course?.permissions?.update" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="editGroup(row.id)" />
+          <ButtonsBase v-if="course?.permissions?.delete" aria-label="Delete group" color="error" density="compact" icon="mdi-delete-outline" size="small" variant="text" @click.stop="deleteGroup(row.id)" />
         </template>
-        <VBtn v-else-if="row.type === 'U' && course?.permissions?.delete" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(row.id)">Remove from course</VBtn>
+        <ButtonsBase v-else-if="row.type === 'U' && course?.permissions?.delete" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="removeUnitReference(row.id)">Remove from course</ButtonsBase>
       </template>
     </CatalogueOutline>
   </VCard>
@@ -452,8 +445,8 @@ function blockEditPath(unitId: string, blockId: string) {
         <VForm @submit.prevent="submit">
           <FormsVjsfForm v-if="courseEdit.form.value" v-model="courseEdit.form.value.model" :schema="courseEdit.form.value.schema" />
           <div class="d-flex justify-end ga-3 mt-4">
-            <VBtn :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</VBtn>
-            <VBtn color="primary" :loading="submitting" type="submit">Save changes</VBtn>
+            <ButtonsBase :disabled="submitting" variant="text" @click="detailsDialog = false">Cancel</ButtonsBase>
+            <ButtonsBase color="primary" :loading="submitting" type="submit">Save changes</ButtonsBase>
           </div>
         </VForm>
       </VCardText>
@@ -484,8 +477,8 @@ function blockEditPath(unitId: string, blockId: string) {
       </VCardText>
       <VCardActions class="pa-6 pt-0">
         <VSpacer />
-        <VBtn :disabled="adding || addFormLoading" variant="text" @click="addDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :disabled="addFormLoading || !addVjsfSchema" :loading="adding" @click="addToCourse">{{ editingGroup ? 'Save group' : 'Add' }}</VBtn>
+        <ButtonsBase :disabled="adding || addFormLoading" variant="text" @click="addDialog = false">Cancel</ButtonsBase>
+        <ButtonsBase color="primary" :disabled="addFormLoading || !addVjsfSchema" :loading="adding" @click="addToCourse">{{ editingGroup ? 'Save group' : 'Add' }}</ButtonsBase>
       </VCardActions>
     </VCard>
   </VDialog>

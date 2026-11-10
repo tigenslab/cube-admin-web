@@ -5,7 +5,7 @@ import type { UnitViewerTreeNode } from '~/components/course-content/UnitViewerT
 import type { CourseUnitNavigationRow } from '~/components/course-content/CourseUnitNavigation.vue'
 import UnitViewerTree from '~/components/course-content/UnitViewerTree.vue'
 import CourseUnitNavigation from '~/components/course-content/CourseUnitNavigation.vue'
-import { displayCourseUnitCode, displayCourseUnitTitle, unitMatchesCourseLevel } from '~/utils/course-unit-display'
+import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
 import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
@@ -13,11 +13,11 @@ const router = useRouter()
 const courseId = String(route.params.id)
 const unitId = String(route.params.unitId)
 const courses = useCoursesStore()
-const unitsApi = useUnitsApi()
-const unitBlocksApi = useUnitBlocksApi()
-const courseUnitsApi = useCourseUnitsApi()
-const unitBlockComponentsApi = useUnitBlockComponentsApi()
-const catalogueApi = useCatalogueApi()
+const unitsApi = useUnitsStore()
+const unitBlocksApi = useUnitBlocksStore()
+const courseUnitsApi = useCourseUnitsStore()
+const unitBlockComponentsApi = useUnitBlockComponentsStore()
+const catalogueApi = useCatalogueStore()
 const course = ref<Course | null>(null)
 const courseUnits = ref<CourseUnitNavigationRow[]>([])
 const catalogueVersions = ref<number[]>([])
@@ -187,14 +187,12 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
     if (!id) continue
     const unit = unitId ? unitsById.get(unitId) : undefined
     const info = unit?.unit || unit
-    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, info?.level)) continue
     nodes.set(id, {
       id,
       type: isUnit ? 'U' : 'G',
       ...(isUnit ? { unit_id: unitId || id } : {}),
       title: isUnit ? info?.title || row.title : row.title,
       code: isUnit ? info?.code || row.code : row.code,
-      ...(isUnit && info?.level !== undefined ? { level: Number(info.level) } : {}),
       children: [],
     })
   }
@@ -320,7 +318,7 @@ watch(() => route.params.version, () => {
   <NuxtLayout name="unit-builder">
     <template #course-title>
       <div class="course-title-bar">
-        <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseDashboardPath" variant="text" />
+        <ButtonsBase aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="courseDashboardPath" variant="text" />
         <div class="course-title-text">
           <div class="course-title-name">{{ course ? displayCourseTitle(course, 'Course') : 'Course' }}</div>
           <div v-if="course?.code" class="text-caption text-medium-emphasis">{{ displayCourseCode(course) }}</div>
@@ -344,7 +342,7 @@ watch(() => route.params.version, () => {
 
     <template #course-units="{ collapse }">
       <VList v-if="courseUnitCount" v-model:opened="openCourseUnitGroups" class="course-unit-tree" density="compact" nav>
-        <CourseUnitNavigation :rows="courseUnits" :selected-unit-id="unitId" :course-type="course?.type" @select="selectCourseUnit($event, collapse)" />
+        <CourseUnitNavigation :rows="courseUnits" :selected-unit-id="unitId" @select="selectCourseUnit($event, collapse)" />
       </VList>
       <VList v-else class="course-unit-tree" density="compact" nav>
         <VListItem disabled prepend-icon="mdi-information-outline" title="No units in this course" />
@@ -356,9 +354,9 @@ watch(() => route.params.version, () => {
         v-for="row in flatCourseUnits"
         :key="row.id"
         :active="row.unit_id === unitId"
-        :aria-label="`${displayCourseUnitCode(course?.type, row)}: ${displayCourseUnitTitle(course?.type, row)}`"
-        :title="displayCourseUnitTitle(course?.type, row)"
-        :subtitle="displayCourseUnitCode(course?.type, row)"
+        :aria-label="`${displayCourseUnitCode(row)}: ${displayCourseUnitTitle(row)}`"
+        :title="displayCourseUnitTitle(row)"
+        :subtitle="displayCourseUnitCode(row)"
         prepend-icon="mdi-book-open-page-variant-outline"
         @click="navigateToUnit(row.unit_id!)"
       />
@@ -369,12 +367,12 @@ watch(() => route.params.version, () => {
       <div class="unit-heading">
         <VIcon color="primary" icon="mdi-book-open-page-variant-outline" size="22" />
         <div class="unit-heading-text">
-          <div class="text-caption text-medium-emphasis">{{ displayCourseUnitCode(course?.type, unit || {}) || 'Unit' }}</div>
-          <strong>{{ displayCourseUnitTitle(course?.type, unit || {}) }}</strong>
+          <div class="text-caption text-medium-emphasis">{{ displayCourseUnitCode(unit || {}) || 'Unit' }}</div>
+          <strong>{{ displayCourseUnitTitle(unit || {}) }}</strong>
         </div>
         <VMenu location="end">
           <template #activator="{ props }">
-            <VBtn v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
+            <ButtonsBase v-bind="props" aria-label="Unit view actions" icon="mdi-dots-vertical" variant="text" />
           </template>
           <VList>
             <VListItem v-if="!loading && !selectedVersion && !isCatalogueUnit" prepend-icon="mdi-pencil-outline" title="Edit unit" :to="`/courses/${courseId}/current/units/${unitId}/edit`" />
@@ -402,7 +400,7 @@ watch(() => route.params.version, () => {
         <template v-if="activeBlock">
           <div class="workspace-heading">
             <div>
-              <div class="text-overline text-medium-emphasis">{{ displayCourseUnitCode(course?.type, unit || {}) || 'Course unit' }}</div>
+              <div class="text-overline text-medium-emphasis">{{ displayCourseUnitCode(unit || {}) || 'Course unit' }}</div>
               <h1 class="text-h4 font-weight-bold">{{ blockTitle(activeBlock) }}</h1>
             </div>
             <VChip color="primary" prepend-icon="mdi-shape-outline" variant="tonal">{{ activeBlock.type }}</VChip>
@@ -413,7 +411,7 @@ watch(() => route.params.version, () => {
                 <VAvatar color="primary" rounded="lg" variant="tonal"><VIcon icon="mdi-file-document-outline" /></VAvatar>
                 <div>
                   <div class="text-subtitle-1 font-weight-medium">Block overview</div>
-                  <div class="text-caption text-medium-emphasis">{{ displayCourseUnitTitle(course?.type, unit || {}) }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ displayCourseUnitTitle(unit || {}) }}</div>
                 </div>
               </div>
               <p v-if="activeBlock.content?.description" class="block-description text-body-1">

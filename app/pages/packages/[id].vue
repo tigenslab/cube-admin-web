@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { PackageDetail, PackageUnit } from '~/composables/usePackagesApi'
+import type { PackageDetail, PackageUnit } from '~/stores/packages'
 import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
-const packagesApi = usePackagesApi()
+const packagesApi = usePackagesStore()
 const coursesStore = useCoursesStore()
 const vjsfDialog = useVjsfFormDialog()
 const detail = ref<PackageDetail | null>(null)
@@ -35,7 +35,6 @@ async function openUnitDialog() {
       const { item } = await packagesApi.createUnit(currentPackageId, {
         code: String(model.code || '').trim(),
         title: String(model.title || '').trim(),
-        ...(model.level !== undefined ? { level: Number(model.level) } : {}),
         metadata: model.metadata as Record<string, unknown> | undefined,
         content: model.content as Record<string, unknown> | undefined,
       })
@@ -83,11 +82,11 @@ onMounted(load)
 </script>
 
 <template>
-  <VBtn class="mb-5" prepend-icon="mdi-arrow-left" to="/packages" variant="text">All packages</VBtn>
+  <ButtonsBase class="mb-5" prepend-icon="mdi-arrow-left" to="/packages" variant="text">All packages</ButtonsBase>
 
   <VProgressLinear v-if="loading" class="mb-5" color="primary" indeterminate />
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">
-    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
+    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
   </VAlert>
 
   <template v-if="detail">
@@ -98,8 +97,8 @@ onMounted(load)
         <p class="text-body-1 text-medium-emphasis mt-2">{{ detail.item.code }}<span v-if="detail.item.description"> · {{ detail.item.description }}</span></p>
       </div>
       <div class="d-flex ga-3">
-        <VBtn v-if="detail.permissions.create_unit" prepend-icon="mdi-plus" variant="outlined" @click="openUnitDialog">Create unit</VBtn>
-        <VBtn v-if="detail.permissions.create_course" color="primary" prepend-icon="mdi-plus" @click="openCourseDialog">Create course</VBtn>
+        <ButtonsBase v-if="detail.permissions.create_unit" prepend-icon="mdi-plus" variant="outlined" @click="openUnitDialog">Create unit</ButtonsBase>
+        <ButtonsBase v-if="detail.permissions.create_course" color="primary" prepend-icon="mdi-plus" @click="openCourseDialog">Create course</ButtonsBase>
       </div>
     </section>
 

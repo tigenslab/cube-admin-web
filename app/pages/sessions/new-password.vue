@@ -29,23 +29,17 @@ async function submit() {
 
 <template>
   <div>
-    <div class="text-overline text-primary font-weight-bold">FIRST SIGN IN</div>
-    <h2 class="text-h4 font-weight-bold mt-2">Set your password</h2>
-    <p class="text-body-2 text-medium-emphasis mt-3">Choose a new password to continue to your workspace.</p>
+    <SessionsPageHeading description="Choose a new password to continue to your workspace." eyebrow="FIRST SIGN IN" title="Set your password" />
 
     <VAlert v-if="error" class="mt-6" color="error" density="compact" icon="mdi-alert-circle-outline" variant="tonal">
       {{ error }}
     </VAlert>
 
     <VForm class="mt-8" @submit.prevent="submit">
-      <label class="text-body-2 font-weight-medium" for="new-password">New password</label>
-      <VTextField id="new-password" v-model="password" class="mt-2" hint="Use at least 8 characters." persistent-hint prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
+      <SessionsFormField id="new-password" v-model="password" hint="Use at least 8 characters." label="New password" persistent-hint prepend-icon="mdi-lock-outline" type="password" />
+      <SessionsFormField id="confirm-password" v-model="confirmation" container-class="mt-5" label="Confirm password" prepend-icon="mdi-lock-check-outline" type="password" />
 
-      <label class="text-body-2 font-weight-medium d-block mt-5" for="confirm-password">Confirm password</label>
-      <VTextField id="confirm-password" v-model="confirmation" class="mt-2" prepend-inner-icon="mdi-lock-check-outline" required rounded="lg" type="password" variant="outlined" />
-
-
-      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Set password</VBtn>
+      <ButtonsBase :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Set password</ButtonsBase>
     </VForm>
   </div>
 </template>

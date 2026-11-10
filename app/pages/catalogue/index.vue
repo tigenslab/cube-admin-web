@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { CatalogueCourse, CataloguePackage } from '~/composables/useCatalogueApi'
-import type { PackageType } from '~/composables/usePackagesApi'
+import type { CatalogueCourse, CataloguePackage } from '~/stores/catalogue'
+import type { PackageType } from '~/stores/packages'
 
-const catalogueApi = useCatalogueApi()
+const catalogueApi = useCatalogueStore()
 const packages = ref<CataloguePackage[]>([])
 const courses = ref<CatalogueCourse[]>([])
 const courseTypes = ref<PackageType[]>([])
@@ -57,7 +57,7 @@ onMounted(load)
   </section>
 
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">
-    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
+    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
   </VAlert>
 
   <VTextField
@@ -98,7 +98,7 @@ onMounted(load)
           </VCardItem>
           <VCardText class="d-flex align-center justify-space-between pt-1">
             <span class="text-body-2 text-medium-emphasis">{{ courseCount(item.id, item.type) }} courses</span>
-            <VBtn aria-label="View package" icon="mdi-arrow-right" size="small" variant="text" />
+            <ButtonsBase aria-label="View package" icon="mdi-arrow-right" size="small" variant="text" />
           </VCardText>
         </VCard>
       </VCol>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CatalogueBlockTitle } from '~/composables/useCatalogueApi'
+import type { CatalogueBlockTitle } from '~/stores/catalogue'
 
 defineOptions({ name: 'CatalogueBlockTitles' })
 const props = defineProps<{ blocks: CatalogueBlockTitle[]; blockPath?: (blockId: string) => string | undefined }>()

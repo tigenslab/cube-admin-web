@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { Course } from '~/stores/courses'
 import type { CourseResourceItem } from '~/types/course-resources'
-import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/composables/useCatalogueApi'
+import type { CatalogueBlockTitle, CatalogueCourseContent, CatalogueOutlineRow, CatalogueUnitSnapshot } from '~/stores/catalogue'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
-import { unitMatchesCourseLevel } from '~/utils/course-unit-display'
 
 const props = defineProps<{
   embedded?: boolean
@@ -14,10 +13,10 @@ const route = useRoute()
 const router = useRouter()
 const courseId = computed(() => props.courseId || String(route.params.id))
 const courses = useCoursesStore()
-const courseUnitsApi = useCourseUnitsApi()
-const catalogueApi = useCatalogueApi()
-const unitBlocksApi = useUnitBlocksApi()
-const unitsApi = useUnitsApi()
+const courseUnitsApi = useCourseUnitsStore()
+const catalogueApi = useCatalogueStore()
+const unitBlocksApi = useUnitBlocksStore()
+const unitsApi = useUnitsStore()
 const course = ref<Course | null>(null)
 const units = ref<CourseResourceItem[]>([])
 const outline = ref<CourseResourceItem[]>([])
@@ -34,18 +33,13 @@ const canEditUnits = computed(() => props.embedded && props.selectedVersion === 
 const dashboardPath = computed(() => `/courses/${encodeURIComponent(courseId.value)}/${isCurrentView.value ? 'current' : selectedVersion.value || 'current'}/dashboard`)
 
 const outlineTree = computed(() => {
-  const unitById = new Map(units.value.map(unit => [unit.id, unit]))
   const nodes = new Map<string, CatalogueOutlineRow>()
   const roots: CatalogueOutlineRow[] = []
   for (const row of outline.value) {
     const isUnit = Boolean(row.unit_id) || row.type === 'CourseUnit::Unit'
-    const unit = row.unit_id ? unitById.get(row.unit_id) : undefined
-    const level = unit?.level ?? row.level
-    if (isUnit && !unitMatchesCourseLevel(course.value?.type, course.value?.level, level)) continue
     nodes.set(row.id, {
       ...row,
       type: isUnit ? 'U' : row.type === 'CourseUnit::Group' ? 'G' : row.type,
-      level,
       children: [],
     })
   }
@@ -71,7 +65,7 @@ const outlineTree = computed(() => {
 const outlineUnits = computed<CatalogueUnitSnapshot[]>(() => units.value.map((unit) => ({
   unit_id: unit.id,
   version: Number(unit.version || 0),
-  unit: { id: unit.id, code: unit.code, title: unit.title, level: unit.level },
+  unit: { id: unit.id, code: unit.code, title: unit.title },
   blocks: ((unit as CourseResourceItem & { blocks?: CatalogueUnitSnapshot['blocks'] }).blocks || []),
 })))
 
@@ -226,12 +220,12 @@ watch(() => props.selectedVersion, (version, previousVersion) => {
 
 <template>
   <div v-if="!embedded" class="d-flex align-center ga-3 mb-5">
-    <VBtn aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="dashboardPath" variant="text" />
+    <ButtonsBase aria-label="Back to course dashboard" icon="mdi-arrow-left" :to="dashboardPath" variant="text" />
     <h1 class="text-h5 font-weight-bold">{{ course?.title || 'Course' }}</h1>
   </div>
 
   <VAlert v-if="error" class="mb-4" color="error" variant="tonal">
-    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
+    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
   </VAlert>
 
   <VCard rounded="xl" variant="flat">
@@ -261,7 +255,6 @@ watch(() => props.selectedVersion, (version, previousVersion) => {
       v-else-if="!loading && outlineTree.length"
       :rows="outlineTree"
       :units="outlineUnits"
-      :course-type="course?.type"
       :unit-path="unitViewPath"
       :block-path="blockViewPath"
       :show-block-titles="true"

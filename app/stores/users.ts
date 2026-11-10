@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { ApiFormSchema } from '~/types/api-form'
+import { useApiActions } from '~/composables/useApiActions'
 
 export interface User {
   id: string | number
@@ -36,70 +37,49 @@ export interface UserCreateForm {
 export const useUsersStore = defineStore('users', () => {
   const users = ref<User[]>([])
   const currentUser = ref<User | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-
-  async function request<T>(operation: () => Promise<T>) {
-    loading.value = true
-    error.value = null
-
-    try {
-      return await operation()
-    } catch (cause) {
-      error.value = getApiErrorMessage(cause, 'The request could not be completed.')
-      throw cause
-    } finally {
-      loading.value = false
-    }
-  }
+  const { api, loading, error, request } = useApiActions('The user request could not be completed.')
 
   async function index() {
-    const api = useApi()
     const data = await request(() => api<User[]>('/users', {
       method: 'POST',
       body: {}
-    }))
+    }), 'Unable to load users.')
     users.value = data
     return data
   }
 
   async function show(id: string | number) {
-    const api = useApi()
     const data = await request(async () => {
       const results = await api<User[]>('/users', { method: 'POST', body: { filters: { id } } })
       if (!results[0]) throw new Error('User does not exist.')
       return results[0]
-    })
+    }, 'Unable to load the user.')
     currentUser.value = data
     return data
   }
 
   async function editForm(id: string | number) {
-    const api = useApi()
-    return request(() => api<{ vjsf: UserEditForm }>(`/users/${id}/edit`))
+    return request(() => api<{ vjsf: UserEditForm }>(`/users/${id}/edit`), 'Unable to load the user form.')
   }
 
   async function newForm() {
-    const api = useApi()
-    return request(() => api<{ vjsf: UserCreateForm }>('/users/new'))
+    return request(() => api<{ vjsf: UserCreateForm }>('/users/new'), 'Unable to load the user form.')
   }
 
   async function create(data: CreateUserInput) {
-    const api = useApi()
     const createdUser = await request(() => api<User>('/users/create', {
       method: 'POST',
       body: data
-    }))
+    }), 'Unable to create the user.')
     users.value.push(createdUser)
     return createdUser
   }
 
   async function update(id: string | number, data: UpdateUserInput) {
-    const api = useApi()
     const updatedUser = await request(() => api<User>(`/users/edit/${id}`, {
       method: 'PATCH',
       body: data
-    }))
+    }), 'Unable to update the user.')
     const index = users.value.findIndex((user) => user.id === id)
 
     if (index !== -1) users.value[index] = updatedUser
@@ -109,8 +89,7 @@ export const useUsersStore = defineStore('users', () => {
   }
 
   async function destroy(id: string | number) {
-    const api = useApi()
-    await request(() => api<void>(`/users/delete/${id}`, { method: 'DELETE' }))
+    await request(() => api<void>(`/users/delete/${id}`, { method: 'DELETE' }), 'Unable to delete the user.')
     users.value = users.value.filter((user) => user.id !== id)
 
     if (currentUser.value?.id === id) currentUser.value = null
@@ -123,7 +102,9 @@ export const useUsersStore = defineStore('users', () => {
     error,
     index,
     show,
+    new: newForm,
     editForm,
+    edit: editForm,
     newForm,
     create,
     update,

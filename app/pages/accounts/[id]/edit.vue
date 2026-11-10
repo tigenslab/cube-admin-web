@@ -19,7 +19,7 @@ async function returnToAccounts() {
 
 <template>
   <VContainer>
-    <VBtn class="mb-6" to="/accounts" variant="text">Back to accounts</VBtn>
+    <ButtonsBase class="mb-6" to="/accounts" variant="text">Back to accounts</ButtonsBase>
     <h1 class="text-h4 font-weight-bold">Edit account</h1>
     <FormsVjsfFormDialog
       v-model="editDialog"

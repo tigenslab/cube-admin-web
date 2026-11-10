@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { CoursePackage } from '~/composables/usePackagesApi'
+import type { CoursePackage } from '~/stores/packages'
 import type { ApiFormSchema } from '~/types/api-form'
 
 const coursesStore = useCoursesStore()
-const packagesApi = usePackagesApi()
+const packagesApi = usePackagesStore()
 const route = useRoute()
 const router = useRouter()
 const packages = ref<CoursePackage[]>([])
@@ -131,8 +131,8 @@ async function submit() {
       <VForm @submit.prevent="submit">
         <FormsVjsfForm v-if="vjsfSchema" v-model="form" :schema="vjsfSchema" />
         <div class="d-flex justify-end ga-3">
-          <VBtn to="/courses" variant="text">Cancel</VBtn>
-          <VBtn color="primary" :disabled="packagesLoading || formLoading || !vjsfSchema" :loading="submitting || formLoading" type="button" @click="submit">Create course</VBtn>
+          <ButtonsBase to="/courses" variant="text">Cancel</ButtonsBase>
+          <ButtonsBase color="primary" :disabled="packagesLoading || formLoading || !vjsfSchema" :loading="submitting || formLoading" type="button" @click="submit">Create course</ButtonsBase>
         </div>
       </VForm>
     </VCardText>

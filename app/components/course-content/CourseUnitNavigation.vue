@@ -6,7 +6,6 @@ export interface CourseUnitNavigationRow {
   type: string
   title?: string
   code?: string
-  level?: number
   unit_id?: string
   ancestry?: string
   position?: number
@@ -18,9 +17,8 @@ defineOptions({ name: 'CourseUnitNavigation' })
 withDefaults(defineProps<{
   rows: CourseUnitNavigationRow[]
   selectedUnitId: string
-  courseType?: string
   editable?: boolean
-}>(), { editable: false, courseType: undefined })
+}>(), { editable: false })
 
 const emit = defineEmits<{
   select: [unitId: string]
@@ -47,7 +45,7 @@ function unitId(row: CourseUnitNavigationRow) {
           <template v-if="editable" #append>
             <VMenu location="end">
               <template #activator="{ props: menuProps }">
-                <VBtn v-bind="menuProps" aria-label="Group actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
+                <ButtonsBase v-bind="menuProps" aria-label="Group actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
               </template>
               <VList density="comfortable" min-width="190">
                 <VListItem prepend-icon="mdi-folder-plus-outline" title="Add group" @click.stop="emit('addGroup', row.id)" />
@@ -63,7 +61,6 @@ function unitId(row: CourseUnitNavigationRow) {
       <CourseUnitNavigation
         :rows="row.children"
         :selected-unit-id="selectedUnitId"
-        :course-type="courseType"
         :editable="editable"
         @select="emit('select', $event)"
         @add-group="emit('addGroup', $event)"
@@ -75,15 +72,15 @@ function unitId(row: CourseUnitNavigationRow) {
     <VListItem
       v-else-if="unitId(row)"
       :active="unitId(row) === selectedUnitId"
-      :title="displayCourseUnitTitle(courseType, row)"
-      :subtitle="displayCourseUnitCode(courseType, row)"
+      :title="displayCourseUnitTitle(row)"
+      :subtitle="displayCourseUnitCode(row)"
       prepend-icon="mdi-book-open-page-variant-outline"
       @click="emit('select', unitId(row))"
     >
       <template v-if="editable" #append>
         <VMenu location="end">
           <template #activator="{ props: menuProps }">
-            <VBtn v-bind="menuProps" aria-label="Unit actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
+            <ButtonsBase v-bind="menuProps" aria-label="Unit actions" density="compact" icon="mdi-dots-vertical" size="small" variant="text" @click.stop />
           </template>
           <VList density="comfortable" min-width="190">
             <VListItem prepend-icon="mdi-pencil-outline" title="Edit unit" @click.stop="emit('select', unitId(row))" />

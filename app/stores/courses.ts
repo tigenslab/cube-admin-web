@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import type { ApiFormSchema } from '~/types/api-form'
 import type { VersionMetadata } from '~/types/course-resources'
-import { useApi } from '~/composables/useApi'
+import { useApiActions } from '~/composables/useApiActions'
 
 export interface Course {
   id: string
@@ -24,70 +24,50 @@ export interface CoursePublishJob { job: { notification_id: string; status: stri
 
 export const useCoursesStore = defineStore('courses', () => {
   const courses = ref<Course[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const { api, loading, error, request } = useApiActions('The course request could not be completed.')
 
   async function search() {
-    loading.value = true
-    error.value = null
-
-    try {
-      const api = useApi()
-      const data = await api<Course[]>('/courses', {
+    const data = await request(() => api<Course[]>('/courses', {
         method: 'POST',
         body: {}
-      })
-
-      courses.value = data
-      return data
-    } catch (cause) {
-      error.value = getApiErrorMessage(cause, 'Unable to load courses.')
-      throw cause
-    } finally {
-      loading.value = false
-    }
+      }), 'Unable to load courses.')
+    courses.value = data
+    return data
   }
 
   async function show(id: string) {
-    const api = useApi()
-    return api<Course>(`/courses/${id}`)
+    return request(() => api<Course>(`/courses/${id}`), 'Unable to load the course.')
   }
 
   async function version(id: string, version: number) {
-    const api = useApi()
-    return api<Record<string, any>>(`/courses/${encodeURIComponent(id)}/versions/${version}`)
+    return request(() => api<Record<string, any>>(`/courses/${encodeURIComponent(id)}/versions/${version}`), 'Unable to load the course version.')
   }
 
   async function versionUnit(id: string, version: number, unitId: string) {
-    const api = useApi()
-    return api<{ course: Partial<Course>; version: number; unit: Record<string, any>; blocks: Record<string, any>[] }>(
+    return request(() => api<{ course: Partial<Course>; version: number; unit: Record<string, any>; blocks: Record<string, any>[] }>(
       `/courses/${encodeURIComponent(id)}/versions/${version}/units/${encodeURIComponent(unitId)}`,
-    )
+    ), 'Unable to load the course unit.')
   }
 
   async function editForm(id: string) {
-    const api = useApi()
-    return api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`)
+    return request(() => api<{ vjsf: { schema: Record<string, unknown>; model: Partial<Course> } }>(`/courses/${id}/edit`), 'Unable to load the course form.')
   }
 
   async function newForm(packageId?: string) {
-    const api = useApi()
-    return api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id?: string; level?: number } } }>('/courses/new', {
+    return request(() => api<{ vjsf: { schema: ApiFormSchema; model: Partial<Course> & { package_id?: string; level?: number } } }>('/courses/new', {
       query: packageId ? { package_id: packageId } : undefined,
-    })
+    }), 'Unable to load the course form.')
   }
 
   async function create(course: { title?: string; code?: string; package_id: string; level?: number }) {
-    const api = useApi()
-    return api<Course>('/courses/create', {
+    return request(() => api<Course>('/courses/create', {
       method: 'POST',
       body: { package_id: course.package_id, title: course.title, code: course.code, level: course.level, content: {} }
-    })
+    }), 'Unable to create the course.')
   }
 
   async function changeStatus(id: string, status: string) {
-    const api = useApi()
-    const updated = await api<Course | CoursePublishJob>(`/courses/${id}/update_status`, { method: 'POST', body: { status } })
+    const updated = await request(() => api<Course | CoursePublishJob>(`/courses/${id}/update_status`, { method: 'POST', body: { status } }), 'Unable to change the course status.')
     if ('job' in updated) return updated
     const index = courses.value.findIndex(course => course.id === id)
     if (index !== -1) courses.value[index] = { ...courses.value[index], ...updated }
@@ -95,15 +75,17 @@ export const useCoursesStore = defineStore('courses', () => {
   }
 
   async function update(id: string, course: Partial<Omit<Course, 'id'>>) {
-    const api = useApi()
-    return api<Course>(`/courses/${id}`, { method: 'PUT', body: course })
+    return request(() => api<Course>(`/courses/${id}`, { method: 'PUT', body: course }), 'Unable to update the course.')
   }
 
   async function remove(id: string) {
-    const api = useApi()
-    await api(`/courses/${id}`, { method: 'DELETE' })
+    await request(() => api(`/courses/${id}`, { method: 'DELETE' }), 'Unable to delete the course.')
     courses.value = courses.value.filter(course => course.id !== id)
   }
 
-  return { courses, loading, error, search, show, version, versionUnit, editForm, newForm, create, update, changeStatus, remove }
+  return {
+    courses, loading, error,
+    index: search, search, show, version, versionUnit, edit: editForm, editForm, new: newForm, newForm,
+    create, update, changeStatus, destroy: remove, remove,
+  }
 })

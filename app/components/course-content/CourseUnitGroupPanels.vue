@@ -47,9 +47,9 @@ function updateOpenGroups(value: string[] | string | null) {
         <div class="d-flex align-center w-100">
           <span>{{ group.title }}</span>
           <VSpacer />
-          <VBtn v-if="editable" aria-label="Add unit to group" color="primary" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop="emit('add-unit', group.id)" />
-          <VBtn v-if="editable" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="emit('edit-group', group.id)" />
-          <VBtn
+          <ButtonsBase v-if="editable" aria-label="Add unit to group" color="primary" density="compact" icon="mdi-plus" size="small" variant="text" @click.stop="emit('add-unit', group.id)" />
+          <ButtonsBase v-if="editable" aria-label="Edit group" density="compact" icon="mdi-pencil-outline" size="small" variant="text" @click.stop="emit('edit-group', group.id)" />
+          <ButtonsBase
             v-if="deletable"
             aria-label="Delete group"
             color="error"
@@ -73,8 +73,8 @@ function updateOpenGroups(value: string[] | string | null) {
               <VCardTitle class="text-body-1 font-weight-medium text-wrap">{{ entry.unit.title || 'Untitled unit' }}</VCardTitle>
               <VCardText v-if="entry.unit.content?.description" class="text-body-2 text-medium-emphasis">{{ entry.unit.content.description }}</VCardText>
               <VCardActions v-if="editable || deletable" class="justify-end">
-                <VBtn v-if="editable" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</VBtn>
-                <VBtn v-if="deletable" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="emit('remove-unit', entry.reference.id)">Remove from course</VBtn>
+                <ButtonsBase v-if="editable" :to="`/courses/${courseId}/current/units/${entry.unit.id}/edit`" color="primary" density="compact" prepend-icon="mdi-pencil-outline" size="small" variant="text">Edit unit</ButtonsBase>
+                <ButtonsBase v-if="deletable" aria-label="Remove unit from course" color="error" density="compact" prepend-icon="mdi-delete-outline" size="small" variant="text" @click.stop="emit('remove-unit', entry.reference.id)">Remove from course</ButtonsBase>
               </VCardActions>
             </VCard>
           </VCol>

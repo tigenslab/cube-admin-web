@@ -24,14 +24,14 @@ async function deleteUser() {
 }
 </script>
 <template>
-  <VBtn class="mb-6" to="/users" variant="text">Back to users</VBtn>
+  <ButtonsBase class="mb-6" to="/users" variant="text">Back to users</ButtonsBase>
   <VAlert v-if="error" class="mb-4" type="error">{{ error }}</VAlert>
   <VCard v-if="user" max-width="720" rounded="xl" variant="flat">
     <VCardItem><template #title>{{ user.first_name }} {{ user.last_name }}</template><template #subtitle>{{ user.email || user.username }}</template></VCardItem>
     <VCardText><div>Username: {{ user.username }}</div><div>Phone: {{ user.phone || '—' }}</div><div class="mt-3">Roles: {{ user.roles?.join(', ') || '—' }}</div></VCardText>
     <VCardActions>
-      <VBtn v-if="user.permissions?.update" :to="`/users/${user.id}/edit`" color="primary">Edit user</VBtn>
-      <VBtn v-if="user.permissions?.delete" :loading="deleting" color="error" variant="tonal" @click="deleteUser">Delete user</VBtn>
+      <ButtonsBase v-if="user.permissions?.update" :to="`/users/${user.id}/edit`" color="primary">Edit user</ButtonsBase>
+      <ButtonsBase v-if="user.permissions?.delete" :loading="deleting" color="error" variant="tonal" @click="deleteUser">Delete user</ButtonsBase>
     </VCardActions>
   </VCard>
 </template>

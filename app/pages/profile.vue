@@ -13,21 +13,9 @@ const phoneVerificationCode = ref('')
 const phoneVerificationSent = ref(false)
 const message = ref('')
 
-interface ProfileUser {
-  id?: string | number
-  username?: string
-  name?: string | null
-  email?: string | null
-  phone?: string | null
-  first_name?: string | null
-  last_name?: string | null
-}
-
 onMounted(async () => {
   try {
-    const user = await useApi()<ProfileUser>('/sessions/user')
-    session.user = user
-    session.userUsername = user.username ?? ''
+    const user = await session.loadProfile()
     email.value = user.email ?? ''
     phone.value = user.phone ?? ''
     firstName.value = user.first_name ?? ''
@@ -43,7 +31,7 @@ async function requestEmailVerification() {
   message.value = ''
   verificationSent.value = false
   try {
-    await useApi()('/sessions/user/email-verification', { method: 'POST', body: { email: email.value } })
+    await session.requestEmailVerification(email.value)
     verificationSent.value = true
     message.value = 'A verification code was sent to your new email address.'
   } catch (error) {
@@ -55,11 +43,7 @@ async function updateProfile() {
   message.value = ''
   profileSaving.value = true
   try {
-    const user = await useApi()<ProfileUser>('/sessions/user', {
-      method: 'PATCH',
-      body: { first_name: firstName.value, last_name: lastName.value }
-    })
-    session.user = user
+    await session.updateProfile({ first_name: firstName.value, last_name: lastName.value })
     message.value = 'Your profile has been updated.'
   } catch (cause) {
     message.value = getApiErrorMessage(cause, 'Unable to update your profile.')
@@ -70,9 +54,7 @@ async function updateProfile() {
 
 async function verifyEmail() {
   try {
-    await useApi()('/sessions/user/email-verification/confirm', {
-      method: 'POST', body: { code: verificationCode.value }
-    })
+    await session.confirmEmailVerification(verificationCode.value)
     message.value = 'Your email address has been updated.'
     verificationSent.value = false
   } catch (error) {
@@ -82,7 +64,7 @@ async function verifyEmail() {
 
 async function requestPhoneVerification() {
   try {
-    await useApi()('/sessions/user/phone-verification', { method: 'POST', body: { phone: phone.value } })
+    await session.requestPhoneVerification(phone.value)
     phoneVerificationSent.value = true
     message.value = 'A verification code was sent to your phone number.'
   } catch (error) {
@@ -92,7 +74,7 @@ async function requestPhoneVerification() {
 
 async function verifyPhone() {
   try {
-    await useApi()('/sessions/user/phone-verification/confirm', { method: 'POST', body: { code: phoneVerificationCode.value } })
+    await session.confirmPhoneVerification(phoneVerificationCode.value)
     phoneVerificationSent.value = false
     message.value = 'Your phone number has been verified.'
   } catch (error) {
@@ -103,7 +85,7 @@ async function verifyPhone() {
 
 <template>
   <VContainer>
-    <VBtn class="mb-6" prepend-icon="mdi-arrow-left" to="/" variant="text">Back to dashboard</VBtn>
+    <ButtonsBase class="mb-6" prepend-icon="mdi-arrow-left" to="/" variant="text">Back to dashboard</ButtonsBase>
     <h1 class="text-h4 font-weight-bold">My profile</h1>
     <p class="text-body-2 text-medium-emphasis mt-2">Manage your account details and security.</p>
     <VAlert v-if="error" class="mt-4" color="error" variant="tonal">{{ error }}</VAlert>
@@ -117,20 +99,20 @@ async function verifyPhone() {
             <VTextField :model-value="[firstName, lastName].filter(Boolean).join(' ') || session.userUsername" class="mt-5" label="Name" readonly variant="outlined" />
             <VTextField v-model="firstName" label="First name" variant="outlined" />
             <VTextField v-model="lastName" class="mt-4" label="Last name" variant="outlined" />
-            <VBtn class="mt-2" color="primary" :loading="profileSaving" @click="updateProfile">Save profile</VBtn>
+            <ButtonsBase class="mt-2" color="primary" :loading="profileSaving" @click="updateProfile">Save profile</ButtonsBase>
             <VTextField v-model="email" label="Email" type="email" variant="outlined" />
             <VTextField v-model="phone" class="mt-4" label="Phone" type="tel" variant="outlined" />
           </template>
-          <VBtn class="mt-2" color="primary" @click="requestEmailVerification">Update email</VBtn>
-          <VBtn class="mt-2 ml-2" color="primary" @click="requestPhoneVerification">Update phone</VBtn>
+          <ButtonsBase class="mt-2" color="primary" @click="requestEmailVerification">Update email</ButtonsBase>
+          <ButtonsBase class="mt-2 ml-2" color="primary" @click="requestPhoneVerification">Update phone</ButtonsBase>
           <VAlert v-if="message" class="mt-4" density="compact" variant="tonal">{{ message }}</VAlert>
           <div v-if="verificationSent" class="mt-4">
             <VTextField v-model="verificationCode" label="Email verification code" placeholder="Enter verification code" variant="outlined" />
-            <VBtn class="mt-2" @click="verifyEmail">Verify email</VBtn>
+            <ButtonsBase class="mt-2" @click="verifyEmail">Verify email</ButtonsBase>
           </div>
           <div v-if="phoneVerificationSent" class="mt-4">
             <VTextField v-model="phoneVerificationCode" label="Phone verification code" placeholder="Enter verification code" variant="outlined" />
-            <VBtn class="mt-2" @click="verifyPhone">Verify phone</VBtn>
+            <ButtonsBase class="mt-2" @click="verifyPhone">Verify phone</ButtonsBase>
           </div>
         </VCard>
       </VCol>
@@ -138,7 +120,7 @@ async function verifyPhone() {
         <VCard class="pa-6" rounded="lg">
           <h2 class="text-h6">Security</h2>
           <p class="text-body-2 text-medium-emphasis mt-3">Keep your account secure with a strong password.</p>
-          <VBtn class="mt-3" color="primary" to="/sessions/change_password">Change password</VBtn>
+          <ButtonsBase class="mt-3" color="primary" to="/sessions/change_password">Change password</ButtonsBase>
         </VCard>
       </VCol>
     </VRow>

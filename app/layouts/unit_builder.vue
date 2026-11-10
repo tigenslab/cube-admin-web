@@ -18,7 +18,7 @@ const unitStructureOpen = useState('unit-builder-unit-structure-open', () => tru
         <template #append>
           <slot name="course-structure-actions" />
           <VChip class="mr-1" color="primary" size="x-small" variant="tonal"><slot name="course-unit-count">0</slot></VChip>
-          <VBtn aria-label="Collapse course structure" density="compact" icon="mdi-chevron-left" size="small" variant="text" @click.stop="courseUnitsOpen = false" />
+          <ButtonsBase aria-label="Collapse course structure" density="compact" icon="mdi-chevron-left" size="small" variant="text" @click.stop="courseUnitsOpen = false" />
         </template>
       </VListItem>
       <template v-else>
@@ -44,7 +44,7 @@ const unitStructureOpen = useState('unit-builder-unit-structure-open', () => tru
           rounded="lg"
         >
           <template #append>
-            <VBtn aria-label="Collapse unit blocks" density="compact" icon="mdi-chevron-left" size="small" variant="text" @click.stop="unitStructureOpen = false" />
+            <ButtonsBase aria-label="Collapse unit blocks" density="compact" icon="mdi-chevron-left" size="small" variant="text" @click.stop="unitStructureOpen = false" />
           </template>
         </VListItem>
         <VListItem

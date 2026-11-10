@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { CoursePackage, PackageType } from '~/composables/usePackagesApi'
+import type { CoursePackage, PackageType } from '~/stores/packages'
 
-const packagesApi = usePackagesApi()
+const packagesApi = usePackagesStore()
 const packages = ref<CoursePackage[]>([])
 const search = ref('')
 const loading = ref(true)
@@ -48,7 +48,7 @@ onMounted(load)
   </section>
 
   <VAlert v-if="error" class="mb-5" color="error" variant="tonal">
-    {{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn>
+    {{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase>
   </VAlert>
 
   <VTextField

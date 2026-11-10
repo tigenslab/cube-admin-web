@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { CatalogueCourseContent, CatalogueOutlineRow } from '~/composables/useCatalogueApi'
+import type { CatalogueCourseContent, CatalogueOutlineRow } from '~/stores/catalogue'
 import CatalogueOutline from '~/components/CatalogueOutline.vue'
 import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
 const router = useRouter()
-const catalogueApi = useCatalogueApi()
+const catalogueApi = useCatalogueStore()
 const detail = ref<CatalogueCourseContent | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -104,9 +104,9 @@ onMounted(load)
 </script>
 
 <template>
-  <VBtn class="mb-5" prepend-icon="mdi-arrow-left" :to="detail?.course.package_id ? `/catalogue/packages/${encodeURIComponent(detail.course.package_id)}` : '/catalogue'" variant="text">Back to package</VBtn>
+  <ButtonsBase class="mb-5" prepend-icon="mdi-arrow-left" :to="detail?.course.package_id ? `/catalogue/packages/${encodeURIComponent(detail.course.package_id)}` : '/catalogue'" variant="text">Back to package</ButtonsBase>
   <VProgressLinear v-if="loading" class="mb-5" color="primary" indeterminate />
-  <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <VBtn size="small" variant="text" @click="load">Retry</VBtn></VAlert>
+  <VAlert v-if="error" class="mb-5" color="error" variant="tonal">{{ error }} <ButtonsBase size="small" variant="text" @click="load">Retry</ButtonsBase></VAlert>
 
   <template v-if="detail">
     <VAlert v-if="addError" class="mb-5" color="error" variant="tonal">{{ addError }}</VAlert>
@@ -118,7 +118,7 @@ onMounted(load)
       </div>
       <div class="d-flex align-center ga-3">
         <VChip prepend-icon="mdi-book-open-page-variant-outline" variant="tonal">Version {{ detail.version }}</VChip>
-        <VBtn color="primary" prepend-icon="mdi-plus" :loading="adding" @click="addToOrganisation">Add to organisation</VBtn>
+        <ButtonsBase color="primary" prepend-icon="mdi-plus" :loading="adding" @click="addToOrganisation">Add to organisation</ButtonsBase>
       </div>
     </section>
 

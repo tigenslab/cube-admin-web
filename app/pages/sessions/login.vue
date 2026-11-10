@@ -22,9 +22,7 @@ async function login() {
 
 <template>
   <div>
-    <div class="text-overline text-primary font-weight-bold">WELCOME BACK</div>
-    <h2 class="text-h4 font-weight-bold mt-2">Sign in to your account</h2>
-    <p class="text-body-2 text-medium-emphasis mt-3">Enter your details to continue to your workspace.</p>
+    <SessionsPageHeading description="Enter your details to continue to your workspace." eyebrow="WELCOME BACK" title="Sign in to your account" />
 
     <VAlert v-if="error" class="mt-6" color="error" density="compact" icon="mdi-alert-circle-outline" variant="tonal">
       {{ error }}
@@ -34,16 +32,14 @@ async function login() {
     </VAlert>
 
     <VForm class="mt-8" @submit.prevent="login">
-      <label class="text-body-2 font-weight-medium" for="username">Username</label>
-      <VTextField id="username" v-model="session.username" autocomplete="username" class="mt-2" density="comfortable" placeholder="Enter your username" prepend-inner-icon="mdi-account-outline" required rounded="lg" type="text" variant="outlined" />
+      <SessionsFormField id="username" v-model="session.username" autocomplete="username" density="comfortable" label="Username" placeholder="Enter your username" prepend-icon="mdi-account-outline" />
+      <SessionsFormField id="password" v-model="password" container-class="mt-2" density="comfortable" label="Password" placeholder="Enter your password" prepend-icon="mdi-lock-outline" type="password">
+        <template #label-action>
+          <NuxtLink class="text-primary text-body-2 font-weight-medium" to="/sessions/forgot-password">Forgot password?</NuxtLink>
+        </template>
+      </SessionsFormField>
 
-      <div class="d-flex align-center justify-space-between mt-2">
-        <label class="text-body-2 font-weight-medium" for="password">Password</label>
-        <NuxtLink class="text-primary text-body-2 font-weight-medium" to="/sessions/forgot-password">Forgot password?</NuxtLink>
-      </div>
-      <VTextField id="password" v-model="password" class="mt-2" density="comfortable" placeholder="Enter your password" prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
-
-      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Sign in</VBtn>
+      <ButtonsBase :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Sign in</ButtonsBase>
     </VForm>
 
     <div class="text-center text-body-2 text-medium-emphasis mt-8">Need an account? <NuxtLink class="text-primary font-weight-medium" to="/sessions/set_password">Contact an administrator</NuxtLink></div>

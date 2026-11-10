@@ -27,10 +27,8 @@ async function changePassword() {
 
 <template>
   <div>
-    <VBtn class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/" variant="text">Back to dashboard</VBtn>
-    <div class="text-overline text-primary font-weight-bold">SECURITY</div>
-    <h2 class="text-h4 font-weight-bold mt-2">Change password</h2>
-    <p class="text-body-2 text-medium-emphasis mt-3">Use a unique password that you do not use elsewhere.</p>
+    <ButtonsBase class="mb-6" prepend-icon="mdi-arrow-left" size="small" to="/" variant="text">Back to dashboard</ButtonsBase>
+    <SessionsPageHeading description="Use a unique password that you do not use elsewhere." eyebrow="SECURITY" title="Change password" />
 
     <VAlert v-if="error" class="mt-6" color="error" density="compact" icon="mdi-alert-circle-outline" variant="tonal">{{ error }}</VAlert>
     <VAlert v-if="session.lastAction === 'change-password'" class="mt-6" color="success" density="compact" icon="mdi-check-circle-outline" variant="tonal">
@@ -38,13 +36,10 @@ async function changePassword() {
     </VAlert>
 
     <VForm class="mt-8" @submit.prevent="changePassword">
-      <label class="text-body-2 font-weight-medium" for="current-password">Current password</label>
-      <VTextField id="current-password" v-model="currentPassword" class="mt-2" density="comfortable" placeholder="Enter your current password" prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
-      <label class="text-body-2 font-weight-medium d-block mt-5" for="changed-password">New password</label>
-      <VTextField id="changed-password" v-model="password" class="mt-2" density="comfortable" hint="Use at least 8 characters." persistent-hint prepend-inner-icon="mdi-lock-outline" required rounded="lg" type="password" variant="outlined" />
-      <label class="text-body-2 font-weight-medium d-block mt-5" for="changed-confirmation">Confirm new password</label>
-      <VTextField id="changed-confirmation" v-model="confirmation" class="mt-2" density="comfortable" placeholder="Repeat your new password" prepend-inner-icon="mdi-lock-check-outline" required rounded="lg" type="password" variant="outlined" />
-      <VBtn :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Update password</VBtn>
+      <SessionsFormField id="current-password" v-model="currentPassword" density="comfortable" label="Current password" placeholder="Enter your current password" prepend-icon="mdi-lock-outline" type="password" />
+      <SessionsFormField id="changed-password" v-model="password" container-class="mt-5" density="comfortable" hint="Use at least 8 characters." label="New password" persistent-hint prepend-icon="mdi-lock-outline" type="password" />
+      <SessionsFormField id="changed-confirmation" v-model="confirmation" container-class="mt-5" density="comfortable" label="Confirm new password" placeholder="Repeat your new password" prepend-icon="mdi-lock-check-outline" type="password" />
+      <ButtonsBase :loading="session.loading" block class="mt-4" color="primary" size="large" type="submit">Update password</ButtonsBase>
     </VForm>
   </div>
 </template>
