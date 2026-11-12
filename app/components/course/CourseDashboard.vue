@@ -2,12 +2,15 @@
 import CourseViewer from '~/components/course/CourseViewer.vue'
 import CourseEditor from '~/components/course/CourseEditor.vue'
 import type { Course } from '~/stores/courses'
+import type { Enrolment } from '~/stores/enrolments'
 import { displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
 const router = useRouter()
 const courses = useCoursesStore()
 const catalogueApi = useCatalogueStore()
+const enrolmentsApi = useEnrolmentsStore()
+const session = useSessionStore()
 const course = ref<Awaited<ReturnType<typeof courses.show>> | null>(null)
 const selectedVersion = ref<number | 'current' | null>(null)
 const catalogueVersions = ref<number[]>([])
@@ -15,6 +18,27 @@ const activeTab = ref('view-course')
 const viewerKey = ref(0)
 const error = ref('')
 const statusLoading = ref(false)
+const courseEnrolments = ref<Enrolment[]>([])
+const usersLoading = ref(false)
+const usersError = ref('')
+const loadedEnrolmentsFor = ref('')
+const enrolUserDialog = ref(false)
+const loadingLearners = ref(false)
+const learnerOptions = ref<{ title: string; value: string }[]>([])
+const trainerOptions = ref<{ title: string; value: string }[]>([])
+const selectedLearnerId = ref('')
+const selectedTrainerIds = ref<string[]>([])
+const enrolUserError = ref('')
+const trainerDialog = ref(false)
+const editingEnrolment = ref<Enrolment | null>(null)
+const editingTrainerOptions = ref<{ title: string; value: string }[]>([])
+const editingTrainerIds = ref<string[]>([])
+const loadingTrainerForm = ref(false)
+const savingTrainerAssignments = ref(false)
+const trainerEditError = ref('')
+const canEnrolUser = computed(() => Boolean(
+  session.permissions.Enrolment?.includes('create') || session.permissions.all?.includes('manage'),
+))
 const isCatalogueLinked = computed(() => Boolean(course.value?.catalogue_course_id))
 const versionOptions = computed(() => {
   if (isCatalogueLinked.value) return catalogueVersions.value.map(version => ({ value: version, label: `Version ${version}` }))
@@ -47,6 +71,124 @@ function updateCourse(courseUpdate: Course) {
   course.value = courseUpdate
   viewerKey.value += 1
 }
+
+function personName(person?: Enrolment['learner']) {
+  if (!person) return 'Unavailable user'
+  return [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || person.email || 'Unnamed user'
+}
+
+async function loadCourseEnrolments(force = false) {
+  const courseId = course.value?.id
+  if (!courseId || usersLoading.value || (!force && loadedEnrolmentsFor.value === courseId)) return
+  usersLoading.value = true
+  usersError.value = ''
+  try {
+    const enrolments = await enrolmentsApi.search()
+    courseEnrolments.value = enrolments.filter(item => String(item.course_id) === String(courseId))
+    loadedEnrolmentsFor.value = courseId
+  } catch (cause) {
+    usersError.value = getApiErrorMessage(cause, 'Unable to load course users.')
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+async function openEnrolUserDialog() {
+  enrolUserDialog.value = true
+  loadingLearners.value = true
+  enrolUserError.value = ''
+  selectedLearnerId.value = ''
+  selectedTrainerIds.value = []
+  learnerOptions.value = []
+  trainerOptions.value = []
+  try {
+    await loadCourseEnrolments()
+    const { vjsf } = await enrolmentsApi.newForm()
+    const enrolledIds = new Set(courseEnrolments.value.map(item => String(item.learner_id)))
+    const options = vjsf.schema.properties?.learner_id?.oneOf || []
+    learnerOptions.value = options
+      .filter(option => option.const != null && !enrolledIds.has(String(option.const)))
+      .map(option => ({ title: option.title || String(option.const), value: String(option.const) }))
+    const trainerChoices = vjsf.schema.properties?.trainer_ids?.items?.oneOf || []
+    trainerOptions.value = trainerChoices
+      .filter(option => option.const != null)
+      .map(option => ({ title: option.title || String(option.const), value: String(option.const) }))
+    selectedLearnerId.value = learnerOptions.value[0]?.value || ''
+  } catch (cause) {
+    enrolUserError.value = getApiErrorMessage(cause, 'Unable to load available learners.')
+  } finally {
+    loadingLearners.value = false
+  }
+}
+
+async function enrolUser() {
+  if (!course.value || !selectedLearnerId.value) return
+  enrolUserError.value = ''
+  try {
+    await enrolmentsApi.create({
+      course_id: String(course.value.id),
+      learner_id: selectedLearnerId.value,
+      trainer_ids: selectedTrainerIds.value,
+    })
+    enrolUserDialog.value = false
+    await loadCourseEnrolments(true)
+  } catch (cause) {
+    enrolUserError.value = getApiErrorMessage(cause, 'Unable to enrol the user.')
+  }
+}
+
+async function deleteEnrolment(item: Enrolment) {
+  if (!item.permissions?.delete || !confirm('Remove this enrolment?')) return
+  usersError.value = ''
+  try {
+    await enrolmentsApi.remove(item.id)
+    courseEnrolments.value = courseEnrolments.value.filter(enrolment => enrolment.id !== item.id)
+  } catch (cause) {
+    usersError.value = getApiErrorMessage(cause, 'Unable to remove the enrolment.')
+  }
+}
+
+async function openTrainerAssignment(item: Enrolment) {
+  if (!item.permissions?.update) return
+  editingEnrolment.value = item
+  trainerDialog.value = true
+  loadingTrainerForm.value = true
+  trainerEditError.value = ''
+  editingTrainerOptions.value = []
+  editingTrainerIds.value = []
+  try {
+    const { vjsf } = await enrolmentsApi.editForm(item.id)
+    const trainerField = vjsf.schema.properties?.trainer_ids
+    const choices = trainerField?.items?.oneOf || []
+    editingTrainerOptions.value = choices
+      .filter(option => option.const != null)
+      .map(option => ({ title: option.title || String(option.const), value: String(option.const) }))
+    editingTrainerIds.value = (vjsf.model.trainer_ids || []).map(String)
+  } catch (cause) {
+    trainerEditError.value = getApiErrorMessage(cause, 'Unable to load trainer assignments.')
+  } finally {
+    loadingTrainerForm.value = false
+  }
+}
+
+async function saveTrainerAssignments() {
+  if (!editingEnrolment.value) return
+  savingTrainerAssignments.value = true
+  trainerEditError.value = ''
+  try {
+    await enrolmentsApi.updateTrainers(editingEnrolment.value.id, editingTrainerIds.value)
+    trainerDialog.value = false
+    await loadCourseEnrolments(true)
+  } catch (cause) {
+    trainerEditError.value = getApiErrorMessage(cause, 'Unable to update trainers.')
+  } finally {
+    savingTrainerAssignments.value = false
+  }
+}
+
+watch([activeTab, () => course.value?.id], ([tab, courseId]) => {
+  if (tab === 'users' && courseId) void loadCourseEnrolments()
+})
 
 async function refreshCourse() {
   if (!course.value) return
@@ -148,9 +290,9 @@ onMounted(async () => {
       <VTabs v-model="activeTab" color="primary">
         <VTab v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" prepend-icon="mdi-eye-outline" value="view-course">View course</VTab>
         <VTab v-if="course.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="view-course">View course</VTab>
-        <VTab v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="users">Users</VTab>
-        <VTab v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="groups">Groups</VTab>
-        <VTab v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="files">Files</VTab>
+        <VTab value="users">Users</VTab>
+        <VTab value="groups">Groups</VTab>
+        <VTab value="files">Files</VTab>
       </VTabs>
 
       <VWindow v-model="activeTab">
@@ -160,16 +302,121 @@ onMounted(async () => {
         <VWindowItem v-if="course.permissions?.update && selectedVersion === 'current'" value="view-course">
           <CourseEditor :course-id="course.id" embedded @content-updated="viewerKey++" @course-updated="updateCourse" />
         </VWindowItem>
-        <VWindowItem v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="users">
-          <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course users will appear here.</div></VCardText>
+        <VWindowItem value="users">
+          <VCardText class="pa-6">
+            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
+              <div class="text-h6">Enrolled users</div>
+              <VBtn v-if="canEnrolUser" color="primary" prepend-icon="mdi-account-plus" @click="openEnrolUserDialog">Enrol user</VBtn>
+            </div>
+            <VAlert v-if="usersError" class="mb-4" color="error" variant="tonal">{{ usersError }}</VAlert>
+            <VProgressLinear v-if="usersLoading" class="mb-3" color="primary" indeterminate />
+            <VTable v-if="courseEnrolments.length" density="comfortable">
+              <thead><tr><th>Learner</th><th>Email</th><th>Trainers</th><th>Enrolled</th><th aria-label="Actions" /></tr></thead>
+              <tbody>
+                <tr v-for="item in courseEnrolments" :key="item.id">
+                  <td>{{ personName(item.learner) }}</td>
+                  <td>{{ item.learner?.email || '—' }}</td>
+                  <td>
+                    <span v-if="!item.trainers?.length" class="text-medium-emphasis">No trainers assigned</span>
+                    <VChip v-for="trainer in item.trainers" :key="trainer.id" class="mr-1" size="small" variant="tonal">{{ personName(trainer) }}</VChip>
+                  </td>
+                  <td>{{ item.created_at ? new Date(item.created_at).toLocaleDateString() : '—' }}</td>
+                  <td class="text-no-wrap">
+                    <VBtn
+                      v-if="item.permissions?.update"
+                      aria-label="Assign trainers"
+                      icon="mdi-account-multiple-plus-outline"
+                      size="small"
+                      variant="text"
+                      @click="openTrainerAssignment(item)"
+                    />
+                    <VBtn
+                      v-if="item.permissions?.delete"
+                      aria-label="Remove enrolment"
+                      color="error"
+                      icon="mdi-delete-outline"
+                      size="small"
+                      variant="text"
+                      @click="deleteEnrolment(item)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </VTable>
+            <div v-else-if="!usersLoading && !usersError" class="py-8 text-center text-body-2 text-medium-emphasis">No users are enrolled in this course yet.</div>
+          </VCardText>
         </VWindowItem>
-        <VWindowItem v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="groups">
+        <VWindowItem value="groups">
           <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course groups will appear here.</div></VCardText>
         </VWindowItem>
-        <VWindowItem v-if="selectedVersion !== 'current' && !isCatalogueLinked" value="files">
+        <VWindowItem value="files">
           <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course files will appear here.</div></VCardText>
         </VWindowItem>
       </VWindow>
+
+      <VDialog v-model="enrolUserDialog" max-width="520">
+        <VCard rounded="xl">
+          <VCardTitle class="pa-6 pb-2">Enrol user</VCardTitle>
+          <VCardText class="pa-6 pt-2">
+            <VAlert v-if="enrolUserError" class="mb-4" color="error" variant="tonal">{{ enrolUserError }}</VAlert>
+            <VProgressLinear v-if="loadingLearners" class="mb-4" color="primary" indeterminate />
+            <VSelect
+              v-else-if="learnerOptions.length"
+              v-model="selectedLearnerId"
+              :items="learnerOptions"
+              item-title="title"
+              item-value="value"
+              label="Learner"
+              variant="outlined"
+            />
+            <div v-else-if="!enrolUserError" class="text-body-2 text-medium-emphasis">There are no eligible learners available to enrol.</div>
+            <VSelect
+              v-if="!loadingLearners && trainerOptions.length"
+              v-model="selectedTrainerIds"
+              class="mt-3"
+              :items="trainerOptions"
+              item-title="title"
+              item-value="value"
+              chips
+              label="Assign trainers"
+              multiple
+              variant="outlined"
+            />
+          </VCardText>
+          <VCardActions class="px-6 pb-6">
+            <VSpacer />
+            <VBtn variant="text" @click="enrolUserDialog = false">Cancel</VBtn>
+            <VBtn color="primary" :disabled="loadingLearners || !selectedLearnerId" :loading="enrolmentsApi.actionLoading.create" @click="enrolUser">Enrol</VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
+
+      <VDialog v-model="trainerDialog" max-width="520">
+        <VCard rounded="xl">
+          <VCardTitle class="pa-6 pb-2">Assign trainers</VCardTitle>
+          <VCardText class="pa-6 pt-2">
+            <VAlert v-if="trainerEditError" class="mb-4" color="error" variant="tonal">{{ trainerEditError }}</VAlert>
+            <VProgressLinear v-if="loadingTrainerForm" class="mb-4" color="primary" indeterminate />
+            <VSelect
+              v-else-if="editingTrainerOptions.length"
+              v-model="editingTrainerIds"
+              :items="editingTrainerOptions"
+              item-title="title"
+              item-value="value"
+              chips
+              label="Trainers"
+              multiple
+              variant="outlined"
+            />
+            <div v-else-if="!trainerEditError" class="text-body-2 text-medium-emphasis">No trainers are available to assign.</div>
+          </VCardText>
+          <VCardActions class="px-6 pb-6">
+            <VSpacer />
+            <VBtn variant="text" @click="trainerDialog = false">Cancel</VBtn>
+            <VBtn color="primary" :disabled="loadingTrainerForm || !editingTrainerOptions.length || Boolean(trainerEditError)" :loading="savingTrainerAssignments" @click="saveTrainerAssignments">Save</VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
     </template>
   </VCard>
 </template>
