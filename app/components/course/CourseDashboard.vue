@@ -77,6 +77,25 @@ function personName(person?: Enrolment['learner']) {
   return [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || person.email || 'Unnamed user'
 }
 
+function trainerIdsFromSelection(value: unknown): string[] {
+  const ids = Array.isArray(value) ? value : value == null || value === '' ? [] : [value]
+  return [...new Set(ids.map(String).filter(Boolean))]
+}
+
+function updateSelectedTrainer(trainerId: string, selected: unknown) {
+  const ids = new Set(selectedTrainerIds.value)
+  if (selected === true) ids.add(trainerId)
+  else ids.delete(trainerId)
+  selectedTrainerIds.value = [...ids]
+}
+
+function updateEditingTrainer(trainerId: string, selected: unknown) {
+  const ids = new Set(editingTrainerIds.value)
+  if (selected === true) ids.add(trainerId)
+  else ids.delete(trainerId)
+  editingTrainerIds.value = [...ids]
+}
+
 async function loadCourseEnrolments(force = false) {
   const courseId = course.value?.id
   if (!courseId || usersLoading.value || (!force && loadedEnrolmentsFor.value === courseId)) return
@@ -128,7 +147,7 @@ async function enrolUser() {
     await enrolmentsApi.create({
       course_id: String(course.value.id),
       learner_id: selectedLearnerId.value,
-      trainer_ids: selectedTrainerIds.value,
+      trainer_ids: trainerIdsFromSelection(selectedTrainerIds.value),
     })
     enrolUserDialog.value = false
     await loadCourseEnrolments(true)
@@ -317,8 +336,10 @@ onMounted(async () => {
                   <td>{{ personName(item.learner) }}</td>
                   <td>{{ item.learner?.email || '—' }}</td>
                   <td>
-                    <span v-if="!item.trainers?.length" class="text-medium-emphasis">No trainers assigned</span>
-                    <VChip v-for="trainer in item.trainers" :key="trainer.id" class="mr-1" size="small" variant="tonal">{{ personName(trainer) }}</VChip>
+                    <div v-if="item.trainers?.length" class="d-flex flex-wrap ga-1">
+                      <VChip v-for="trainer in item.trainers" :key="trainer.id" size="small" variant="tonal">{{ personName(trainer) }}</VChip>
+                    </div>
+                    <span v-else class="text-medium-emphasis">No trainers assigned</span>
                   </td>
                   <td>{{ item.created_at ? new Date(item.created_at).toLocaleDateString() : '—' }}</td>
                   <td class="text-no-wrap">
@@ -370,18 +391,23 @@ onMounted(async () => {
               variant="outlined"
             />
             <div v-else-if="!enrolUserError" class="text-body-2 text-medium-emphasis">There are no eligible learners available to enrol.</div>
-            <VSelect
-              v-if="!loadingLearners && trainerOptions.length"
-              v-model="selectedTrainerIds"
-              class="mt-3"
-              :items="trainerOptions"
-              item-title="title"
-              item-value="value"
-              chips
-              label="Assign trainers"
-              multiple
-              variant="outlined"
-            />
+            <div v-if="!loadingLearners && trainerOptions.length" class="mt-3">
+              <div class="d-flex align-center justify-space-between mb-1">
+                <div class="text-subtitle-2">Assign trainers</div>
+                <div class="text-caption text-medium-emphasis">{{ selectedTrainerIds.length }} selected</div>
+              </div>
+              <div class="trainer-choice-list">
+                <VCheckbox
+                  v-for="trainer in trainerOptions"
+                  :key="trainer.value"
+                  :model-value="selectedTrainerIds.includes(trainer.value)"
+                  :label="trainer.title"
+                  density="compact"
+                  hide-details
+                  @update:model-value="updateSelectedTrainer(trainer.value, $event)"
+                />
+              </div>
+            </div>
           </VCardText>
           <VCardActions class="px-6 pb-6">
             <VSpacer />
@@ -397,17 +423,23 @@ onMounted(async () => {
           <VCardText class="pa-6 pt-2">
             <VAlert v-if="trainerEditError" class="mb-4" color="error" variant="tonal">{{ trainerEditError }}</VAlert>
             <VProgressLinear v-if="loadingTrainerForm" class="mb-4" color="primary" indeterminate />
-            <VSelect
-              v-else-if="editingTrainerOptions.length"
-              v-model="editingTrainerIds"
-              :items="editingTrainerOptions"
-              item-title="title"
-              item-value="value"
-              chips
-              label="Trainers"
-              multiple
-              variant="outlined"
-            />
+            <div v-else-if="editingTrainerOptions.length">
+              <div class="d-flex align-center justify-space-between mb-1">
+                <div class="text-subtitle-2">Trainers</div>
+                <div class="text-caption text-medium-emphasis">{{ editingTrainerIds.length }} selected</div>
+              </div>
+              <div class="trainer-choice-list">
+                <VCheckbox
+                  v-for="trainer in editingTrainerOptions"
+                  :key="trainer.value"
+                  :model-value="editingTrainerIds.includes(trainer.value)"
+                  :label="trainer.title"
+                  density="compact"
+                  hide-details
+                  @update:model-value="updateEditingTrainer(trainer.value, $event)"
+                />
+              </div>
+            </div>
             <div v-else-if="!trainerEditError" class="text-body-2 text-medium-emphasis">No trainers are available to assign.</div>
           </VCardText>
           <VCardActions class="px-6 pb-6">
@@ -423,4 +455,5 @@ onMounted(async () => {
 
 <style scoped>
 .version-select { min-width: 180px; }
+.trainer-choice-list { max-height: 240px; overflow-y: auto; }
 </style>

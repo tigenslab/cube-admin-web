@@ -39,6 +39,11 @@ export interface EnrolmentForm {
   }
 }
 
+function normalizeTrainerIds(value: unknown): string[] {
+  const ids = Array.isArray(value) ? value : value == null || value === '' ? [] : [value]
+  return [...new Set(ids.map(String).filter(Boolean))]
+}
+
 export const useEnrolmentsStore = defineStore('enrolments', () => {
   const enrolments = ref<Enrolment[]>([])
   const { api, loading, actionLoading, error, request } = useApiActions('The enrolment request could not be completed.')
@@ -57,11 +62,13 @@ export const useEnrolmentsStore = defineStore('enrolments', () => {
   }
 
   async function create(data: Pick<Enrolment, 'course_id' | 'learner_id' | 'trainer_ids'>) {
-    return request(() => api<Enrolment>('/enrolments/create', { method: 'POST', body: data }), 'Unable to enrol the learner.', 'create')
+    const body = { ...data, trainer_ids: normalizeTrainerIds(data.trainer_ids) }
+    return request(() => api<Enrolment>('/enrolments/create', { method: 'POST', body }), 'Unable to enrol the learner.', 'create')
   }
 
   async function updateTrainers(id: string, trainer_ids: string[]) {
-    const updated = await request(() => api<Enrolment>(`/enrolments/edit/${id}`, { method: 'PATCH', body: { trainer_ids } }), 'Unable to update trainers.', `update_${id}`)
+    const body = { trainer_ids: normalizeTrainerIds(trainer_ids) }
+    const updated = await request(() => api<Enrolment>(`/enrolments/edit/${id}`, { method: 'PATCH', body }), 'Unable to update trainers.', `update_${id}`)
     const index = enrolments.value.findIndex(item => item.id === id)
     if (index !== -1) enrolments.value[index] = { ...enrolments.value[index], ...updated }
     return updated
