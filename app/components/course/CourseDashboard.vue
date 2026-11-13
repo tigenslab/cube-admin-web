@@ -2,7 +2,7 @@
 import CourseViewer from '~/components/course/CourseViewer.vue'
 import CourseEditor from '~/components/course/CourseEditor.vue'
 import type { Course } from '~/stores/courses'
-import type { Enrolment } from '~/stores/enrolments'
+import type { Enrolment, EnrolmentActivity, EnrolmentStatus } from '~/stores/enrolments'
 import type { Group } from '~/stores/groups'
 import { displayCourseTitle } from '~/utils/course-display'
 
@@ -42,6 +42,22 @@ const editingTrainerIds = ref<string[]>([])
 const loadingTrainerForm = ref(false)
 const savingTrainerAssignments = ref(false)
 const trainerEditError = ref('')
+const activityDialog = ref(false)
+const activityTarget = ref<Enrolment | null>(null)
+const activityItems = ref<EnrolmentActivity[]>([])
+const activityLoading = ref(false)
+const activityError = ref('')
+const enrolmentStatuses: EnrolmentStatus[] = ['new', 'in_progress', 'submitted', 'marking_pending', 'not_yet_competent', 'not_competent', 'draft_not_competent', 'competent', 'draft_competent', 'max_attempts_exceeded']
+const enrolmentTransitions: Record<EnrolmentStatus, EnrolmentStatus[]> = {
+  new: ['in_progress', 'submitted', 'max_attempts_exceeded'],
+  in_progress: ['submitted', 'max_attempts_exceeded'],
+  submitted: ['in_progress', 'marking_pending', 'not_yet_competent', 'not_competent', 'draft_not_competent', 'competent', 'draft_competent', 'max_attempts_exceeded'],
+  marking_pending: ['in_progress', 'submitted', 'not_yet_competent', 'not_competent', 'draft_not_competent', 'competent', 'draft_competent', 'max_attempts_exceeded'],
+  not_yet_competent: ['in_progress', 'submitted', 'marking_pending', 'max_attempts_exceeded'],
+  not_competent: [], draft_not_competent: ['submitted', 'competent', 'not_competent', 'not_yet_competent', 'in_progress'],
+  competent: [], draft_competent: ['submitted', 'competent', 'not_competent', 'not_yet_competent', 'in_progress'], max_attempts_exceeded: [],
+}
+const enrolmentStatusOptions = enrolmentStatuses.map(value => ({ title: value.replaceAll('_', ' '), value }))
 const canEnrolUser = computed(() => Boolean(
   session.permissions.Enrolment?.includes('create') || session.permissions.all?.includes('manage'),
 ))
@@ -87,6 +103,66 @@ function updateCourse(courseUpdate: Course) {
 function personName(person?: Enrolment['learner']) {
   if (!person) return 'Unavailable user'
   return [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || person.email || 'Unnamed user'
+}
+
+function statusOptions(item: Enrolment) {
+  const current = (item.status || 'new') as EnrolmentStatus
+  const transitions = enrolmentTransitions[current] || []
+  const role = String(session.currentRole || '').toLowerCase()
+  const choices = role === 'learner'
+    ? transitions.filter(status => ['in_progress', 'submitted'].includes(status))
+    : role === 'trainer'
+      ? transitions.filter(status => ['in_progress', 'submitted', 'marking_pending', 'max_attempts_exceeded'].includes(status))
+      : transitions
+  return [{ title: current.replaceAll('_', ' '), value: current }, ...enrolmentStatusOptions.filter(option => choices.includes(option.value))]
+}
+
+function canChangeStatus(item: Enrolment) {
+  const role = String(session.currentRole || '').toLowerCase()
+  const userId = String(session.user?.id || '')
+  return Boolean(item.permissions?.update
+    || (role === 'learner' && String(item.learner_id) === userId)
+    || (role === 'trainer' && item.trainer_ids.some(id => String(id) === userId)))
+}
+
+async function updateEnrolmentStatus(item: Enrolment, status: EnrolmentStatus) {
+  if (status === (item.status || 'new')) return
+  usersError.value = ''
+  try {
+    const updated = await enrolmentsApi.changeStatus(item.id, status)
+    courseEnrolments.value = courseEnrolments.value.map(current => current.id === updated.id ? { ...current, ...updated } : current)
+  } catch (cause) {
+    usersError.value = getApiErrorMessage(cause, 'Unable to update enrolment status.')
+  }
+}
+
+async function showActivityHistory(item: Enrolment) {
+  activityTarget.value = item
+  activityDialog.value = true
+  activityLoading.value = true
+  activityError.value = ''
+  try {
+    activityItems.value = await enrolmentsApi.activities(item.id)
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to load enrolment activity history.')
+  } finally {
+    activityLoading.value = false
+  }
+}
+
+async function trackCourseView(courseId: string) {
+  try {
+    const role = String(session.currentRole || '').toLowerCase()
+    const userId = String(session.user?.id || '')
+    const enrolments = await enrolmentsApi.search()
+    const enrolment = enrolments.find(item => String(item.course_id) === String(courseId)
+      && (role === 'learner' ? String(item.learner_id) === userId
+        : role === 'trainer' ? item.trainer_ids.some(id => String(id) === userId)
+          : true))
+    if (enrolment) await enrolmentsApi.recordActivity(enrolment.id, { activity_type: 'view_course' })
+  } catch {
+    // Course browsing should not fail if optional activity tracking is unavailable.
+  }
 }
 
 function trainerIdsFromSelection(value: unknown): string[] {
@@ -271,6 +347,7 @@ async function changeStatus(status: string) {
 onMounted(async () => {
   try {
     course.value = await courses.show(String(route.params.id))
+    void trackCourseView(course.value.id)
     const requestedSegment = String(route.params.version || '')
     if (course.value.catalogue_course_id) {
       const catalogueCourse = await catalogueApi.course(course.value.catalogue_course_id)
@@ -359,7 +436,7 @@ onMounted(async () => {
             <VAlert v-if="usersError" class="mb-4" color="error" variant="tonal">{{ usersError }}</VAlert>
             <VProgressLinear v-if="usersLoading" class="mb-3" color="primary" indeterminate />
             <VTable v-if="courseEnrolments.length" density="comfortable">
-              <thead><tr><th>Learner</th><th>Email</th><th>Trainers</th><th>Enrolled</th><th aria-label="Actions" /></tr></thead>
+              <thead><tr><th>Learner</th><th>Email</th><th>Trainers</th><th>Enrolled</th><th>Status</th><th aria-label="Actions" /></tr></thead>
               <tbody>
                 <tr v-for="item in courseEnrolments" :key="item.id">
                   <td>{{ personName(item.learner) }}</td>
@@ -371,7 +448,22 @@ onMounted(async () => {
                     <span v-else class="text-medium-emphasis">No trainers assigned</span>
                   </td>
                   <td>{{ item.created_at ? new Date(item.created_at).toLocaleDateString() : '—' }}</td>
+                  <td>
+                    <VSelect
+                      v-if="canChangeStatus(item)"
+                      :model-value="item.status || 'new'"
+                      :items="statusOptions(item)"
+                      class="enrolment-status-select"
+                      density="compact"
+                      hide-details
+                      item-title="title"
+                      item-value="value"
+                      @update:model-value="updateEnrolmentStatus(item, $event)"
+                    />
+                    <VChip v-else size="small" variant="tonal">{{ (item.status || 'new').replaceAll('_', ' ') }}</VChip>
+                  </td>
                   <td class="text-no-wrap">
+                    <VBtn aria-label="View activity history" icon="mdi-history" size="small" variant="text" @click="showActivityHistory(item)" />
                     <VBtn
                       v-if="item.permissions?.update"
                       aria-label="Assign trainers"
@@ -496,11 +588,35 @@ onMounted(async () => {
           </VCardActions>
         </VCard>
       </VDialog>
+
+      <VDialog v-model="activityDialog" max-width="720">
+        <VCard rounded="xl">
+          <VCardTitle class="pa-6 pb-2">Activity history · {{ personName(activityTarget?.learner) }}</VCardTitle>
+          <VCardText class="pa-6 pt-2">
+            <VAlert v-if="activityError" class="mb-4" color="error" variant="tonal">{{ activityError }}</VAlert>
+            <VProgressLinear v-if="activityLoading" class="mb-4" color="primary" indeterminate />
+            <VList v-else-if="activityItems.length" lines="two">
+              <VListItem v-for="activity in activityItems" :key="activity.id" :title="activity.activity_type.replaceAll('_', ' ')">
+                <template #subtitle>
+                  {{ new Date(activity.created_at).toLocaleString() }} · {{ activity.user_id }}<span v-if="activity.activity_data?.feedback || activity.activity_data?.answer"> · {{ String(activity.activity_data.feedback || activity.activity_data.answer) }}</span>
+                </template>
+                <template #append>
+                  <span v-if="activity.activity_data?.outcome" class="text-body-2">{{ String(activity.activity_data.outcome).replaceAll('_', ' ') }}{{ activity.activity_data.draft ? ' · Draft' : '' }}</span>
+                  <span v-else-if="activity.activity_data?.new_status" class="text-body-2">{{ String(activity.activity_data.previous_status || '—').replaceAll('_', ' ') }} → {{ String(activity.activity_data.new_status).replaceAll('_', ' ') }}</span>
+                </template>
+              </VListItem>
+            </VList>
+            <div v-else-if="!activityError" class="py-8 text-center text-body-2 text-medium-emphasis">No activity has been recorded yet.</div>
+          </VCardText>
+          <VCardActions class="px-6 pb-6"><VSpacer /><VBtn variant="text" @click="activityDialog = false">Close</VBtn></VCardActions>
+        </VCard>
+      </VDialog>
     </template>
   </VCard>
 </template>
 
 <style scoped>
 .version-select { min-width: 180px; }
+.enrolment-status-select { min-width: 175px; }
 .trainer-choice-list { max-height: 240px; overflow-y: auto; }
 </style>

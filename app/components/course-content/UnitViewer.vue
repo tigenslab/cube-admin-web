@@ -7,6 +7,7 @@ import UnitViewerTree from '~/components/course-content/UnitViewerTree.vue'
 import CourseUnitNavigation from '~/components/course-content/CourseUnitNavigation.vue'
 import { displayCourseUnitCode, displayCourseUnitTitle } from '~/utils/course-unit-display'
 import { displayCourseCode, displayCourseTitle } from '~/utils/course-display'
+import type { Enrolment, EnrolmentActivity, EnrolmentStatus } from '~/stores/enrolments'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +19,8 @@ const unitBlocksApi = useUnitBlocksStore()
 const courseUnitsApi = useCourseUnitsStore()
 const unitBlockComponentsApi = useUnitBlockComponentsStore()
 const catalogueApi = useCatalogueStore()
+const enrolmentsApi = useEnrolmentsStore()
+const session = useSessionStore()
 const course = ref<Course | null>(null)
 const courseUnits = ref<CourseUnitNavigationRow[]>([])
 const catalogueVersions = ref<number[]>([])
@@ -27,6 +30,32 @@ const blocks = ref<CourseResourceItem[]>([])
 const blockComponents = ref<UnitBlockComponent[]>([])
 const activeBlockId = ref<string | null>(null)
 const componentsLoading = ref(false)
+const activeEnrolment = ref<Enrolment | null>(null)
+const activityHistory = ref<EnrolmentActivity[]>([])
+const activityError = ref('')
+const answerDrafts = ref<Record<string, string>>({})
+const answerSaving = ref<Record<string, boolean>>({})
+const unitMarkDialog = ref(false)
+const unitMarkOutcome = ref<'competent' | 'not_yet_competent' | 'not_competent'>('competent')
+const unitMarkDraft = ref(false)
+const unitMarkFeedback = ref('')
+const markingUnit = ref(false)
+const componentMarkOutcomes = ref<Record<string, 'competent' | 'not_yet_competent' | 'not_competent'>>({})
+const componentMarkDrafts = ref<Record<string, boolean>>({})
+const componentMarkFeedback = ref<Record<string, string>>({})
+const componentMarkSaving = ref<Record<string, boolean>>({})
+const markingOutcomes = [
+  { title: 'Competent', value: 'competent' },
+  { title: 'Not yet competent', value: 'not_yet_competent' },
+  { title: 'Not competent', value: 'not_competent' },
+]
+const isLearner = computed(() => String(session.currentRole || '').toLowerCase() === 'learner')
+const canAnswer = computed(() => Boolean(activeEnrolment.value && isLearner.value && ['new', 'in_progress'].includes(activeEnrolment.value.status || 'new')))
+const canRetry = computed(() => Boolean(activeEnrolment.value && isLearner.value && activeEnrolment.value.status === 'not_yet_competent'))
+const canMark = computed(() => Boolean(activeEnrolment.value
+  && (String(session.currentRole || '').toLowerCase() === 'trainer' || session.permissions.Enrolment?.includes('update') || session.permissions.all?.includes('manage'))
+  && ['submitted', 'marking_pending', 'draft_competent', 'draft_not_competent'].includes(activeEnrolment.value.status || 'new')))
+const unitActivityHistory = computed(() => activityHistory.value.filter(activity => String(activity.unit_id || '') === unitId).slice().reverse())
 const openGroups = ref<string[]>([])
 const openCourseUnitGroups = ref<string[]>([])
 const loading = ref(true)
@@ -67,6 +96,124 @@ const versionOptions = computed(() => {
 const activeBlock = computed(() => blocks.value.find(block => block.id === activeBlockId.value) || null)
 let componentsRequest = 0
 
+async function findEnrolment() {
+  try {
+    const items = await enrolmentsApi.search()
+    const role = String(session.currentRole || '').toLowerCase()
+    const userId = String(session.user?.id || '')
+    activeEnrolment.value = items.find(item => String(item.course_id) === courseId
+      && (role === 'learner' ? String(item.learner_id) === userId
+        : role === 'trainer' ? (item.trainer_ids || []).some(id => String(id) === userId)
+          : true)) || null
+    if (activeEnrolment.value) {
+      const history = await enrolmentsApi.activities(activeEnrolment.value.id)
+      activityHistory.value = history
+      for (const activity of history) {
+        if (activity.activity_type === 'answered' && activity.component_id && typeof activity.activity_data?.answer === 'string') {
+          answerDrafts.value[activity.component_id] = activity.activity_data.answer
+        }
+      }
+      await enrolmentsApi.recordActivity(activeEnrolment.value.id, { activity_type: 'view_course' })
+      await recordView('view_unit')
+      if (activeBlockId.value) await recordView('view_block', activeBlockId.value)
+    }
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to load enrolment activity.')
+  }
+}
+
+async function recordView(activity_type: 'view_unit' | 'view_block', blockId?: string) {
+  if (!activeEnrolment.value) return
+  try {
+    await enrolmentsApi.recordActivity(activeEnrolment.value.id, {
+      activity_type,
+      unit_id: unitId,
+      ...(blockId ? { block_id: blockId } : {}),
+    })
+    activityHistory.value = await enrolmentsApi.activities(activeEnrolment.value.id, { unit_id: unitId })
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to record course activity.')
+  }
+}
+
+async function saveAnswer(component: UnitBlockComponent) {
+  if (!activeEnrolment.value || !canAnswer.value) return
+  answerSaving.value[component.id] = true
+  activityError.value = ''
+  try {
+    await enrolmentsApi.recordActivity(activeEnrolment.value.id, {
+      activity_type: 'answered', unit_id: unitId, block_id: activeBlockId.value || undefined,
+      component_id: component.id, activity_data: { answer: answerDrafts.value[component.id] || '' },
+    })
+    activityHistory.value = await enrolmentsApi.activities(activeEnrolment.value.id, { unit_id: unitId })
+    activeEnrolment.value.status = activeEnrolment.value.status === 'new' ? 'in_progress' : activeEnrolment.value.status
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to save your answer.')
+  } finally {
+    answerSaving.value[component.id] = false
+  }
+}
+
+async function submitUnit() {
+  if (!activeEnrolment.value || !canAnswer.value) return
+  activityError.value = ''
+  try {
+    await enrolmentsApi.recordActivity(activeEnrolment.value.id, { activity_type: 'completed', unit_id: unitId, activity_data: { completed: true } })
+    activeEnrolment.value = await enrolmentsApi.changeStatus(activeEnrolment.value.id, 'submitted')
+    activityHistory.value = await enrolmentsApi.activities(activeEnrolment.value.id, { unit_id: unitId })
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to submit this unit for marking.')
+  }
+}
+
+async function startAnotherAttempt() {
+  if (!activeEnrolment.value || !canRetry.value) return
+  activityError.value = ''
+  try {
+    activeEnrolment.value = await enrolmentsApi.changeStatus(activeEnrolment.value.id, 'in_progress')
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to start another attempt.')
+  }
+}
+
+async function markComponent(component: UnitBlockComponent) {
+  if (!activeEnrolment.value || !activeBlockId.value || !canMark.value) return
+  componentMarkSaving.value[component.id] = true
+  activityError.value = ''
+  try {
+    await enrolmentsApi.markComponent(activeEnrolment.value.id, {
+      unit_id: unitId, block_id: activeBlockId.value, component_id: component.id,
+      outcome: componentMarkOutcomes.value[component.id] || 'competent',
+      draft: Boolean(componentMarkDrafts.value[component.id]),
+      feedback: componentMarkFeedback.value[component.id] || '',
+    })
+    activityHistory.value = await enrolmentsApi.activities(activeEnrolment.value.id, { unit_id: unitId })
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to save component marking.')
+  } finally {
+    componentMarkSaving.value[component.id] = false
+  }
+}
+
+async function markUnit() {
+  if (!activeEnrolment.value || !canMark.value) return
+  markingUnit.value = true
+  activityError.value = ''
+  try {
+    const result = await enrolmentsApi.markUnit(activeEnrolment.value.id, {
+      unit_id: unitId, outcome: unitMarkOutcome.value, draft: unitMarkDraft.value,
+      feedback: unitMarkFeedback.value,
+    })
+    activeEnrolment.value.status = result.status
+    unitMarkDialog.value = false
+    activityHistory.value = await enrolmentsApi.activities(activeEnrolment.value.id, { unit_id: unitId })
+  } catch (cause) {
+    activityError.value = getApiErrorMessage(cause, 'Unable to save unit marking.')
+  } finally {
+    markingUnit.value = false
+  }
+}
+
 watch(activeBlockId, async (blockId) => {
   const request = ++componentsRequest
   blockComponents.value = []
@@ -75,6 +222,7 @@ watch(activeBlockId, async (blockId) => {
     componentsLoading.value = false
     return
   }
+  void recordView('view_block', blockId)
   if (selectedVersion.value) {
     const block = activeBlock.value as (CourseResourceItem & { components?: UnitBlockComponent[] }) | null
     blockComponents.value = block?.components || []
@@ -250,6 +398,7 @@ async function load() {
   try {
     const courseData = await courses.show(courseId)
     course.value = courseData
+    await findEnrolment()
     catalogueCourseId.value = courseData.catalogue_course_id || null
     if (isCatalogueUnit.value) {
       const courseSnapshot = await catalogueApi.course(catalogueCourseId.value!, selectedVersion.value || undefined)
@@ -397,6 +546,13 @@ watch(() => route.params.version, () => {
     <div class="viewer-shell">
     <main class="viewer-main">
       <section class="viewer-content">
+        <VAlert v-if="activityError" class="mb-4" color="error" variant="tonal">{{ activityError }}</VAlert>
+        <div v-if="canAnswer || canRetry || canMark" class="d-flex flex-wrap align-center justify-end ga-2 mb-5">
+          <VChip v-if="activeEnrolment" size="small" variant="tonal">{{ (activeEnrolment.status || 'new').replaceAll('_', ' ') }}</VChip>
+          <VBtn v-if="canAnswer" color="primary" prepend-icon="mdi-send-outline" variant="flat" @click="submitUnit">Submit unit</VBtn>
+          <VBtn v-if="canRetry" color="primary" prepend-icon="mdi-refresh" variant="flat" @click="startAnotherAttempt">Start another attempt</VBtn>
+          <VBtn v-if="canMark" prepend-icon="mdi-clipboard-check-outline" variant="outlined" @click="unitMarkDialog = true">Mark unit</VBtn>
+        </div>
         <template v-if="activeBlock">
           <div class="workspace-heading">
             <div>
@@ -452,10 +608,37 @@ watch(() => route.params.version, () => {
                     </div>
                   </template>
                   <div v-else class="text-body-2 text-medium-emphasis">No displayable content in this component.</div>
+                  <div v-if="component.type.startsWith('A:') && canAnswer" class="mt-5">
+                    <VTextarea v-model="answerDrafts[component.id]" auto-grow label="Your answer" rows="3" variant="outlined" />
+                    <VBtn color="primary" :loading="answerSaving[component.id]" @click="saveAnswer(component)">Save answer</VBtn>
+                  </div>
+                  <div v-if="canMark" class="component-marking mt-5">
+                    <div class="text-subtitle-2 mb-3">Trainer marking</div>
+                    <VSelect v-model="componentMarkOutcomes[component.id]" :items="markingOutcomes" item-title="title" item-value="value" label="Outcome" variant="outlined" />
+                    <VTextarea v-model="componentMarkFeedback[component.id]" auto-grow label="Feedback" rows="2" variant="outlined" />
+                    <div class="d-flex align-center justify-space-between">
+                      <VCheckbox v-model="componentMarkDrafts[component.id]" density="compact" hide-details label="Save as draft" />
+                      <VBtn color="primary" :loading="componentMarkSaving[component.id]" @click="markComponent(component)">Save marking</VBtn>
+                    </div>
+                  </div>
                 </VCardText>
               </VCard>
             </div>
           </div>
+          <VCard v-if="activeEnrolment && unitActivityHistory.length" class="activity-history mt-8" rounded="xl" variant="flat">
+            <VCardTitle class="px-5 pt-5">Activity and marking history</VCardTitle>
+            <VList density="compact">
+              <VListItem v-for="activity in unitActivityHistory" :key="activity.id" :title="activity.activity_type.replaceAll('_', ' ')">
+                <template #subtitle>
+                  {{ new Date(activity.created_at).toLocaleString() }} · {{ activity.user_id }}<span v-if="activity.activity_data?.feedback || activity.activity_data?.answer"> · {{ String(activity.activity_data.feedback || activity.activity_data.answer) }}</span>
+                </template>
+                <template #append>
+                  <span v-if="activity.activity_data?.outcome" class="text-body-2 font-weight-medium">{{ String(activity.activity_data.outcome).replaceAll('_', ' ') }}{{ activity.activity_data.draft ? ' · Draft' : '' }}</span>
+                  <span v-else-if="activity.activity_data?.new_status" class="text-body-2">{{ String(activity.activity_data.new_status).replaceAll('_', ' ') }}</span>
+                </template>
+              </VListItem>
+            </VList>
+          </VCard>
         </template>
         <VCard v-else-if="loading" class="workspace-empty mx-auto pa-10 text-center" max-width="560" rounded="xl" variant="flat">
           <VProgressCircular class="mb-4" color="primary" indeterminate />
@@ -475,6 +658,21 @@ watch(() => route.params.version, () => {
       </section>
     </main>
     </div>
+    <VDialog v-model="unitMarkDialog" max-width="560">
+      <VCard rounded="xl">
+        <VCardTitle class="px-6 pt-6">Mark unit</VCardTitle>
+        <VCardText class="px-6">
+          <VSelect v-model="unitMarkOutcome" :items="markingOutcomes" item-title="title" item-value="value" label="Assessment outcome" variant="outlined" />
+          <VTextarea v-model="unitMarkFeedback" auto-grow label="Trainer feedback" rows="4" variant="outlined" />
+          <VCheckbox v-model="unitMarkDraft" density="compact" hide-details label="Save as draft" />
+        </VCardText>
+        <VCardActions class="px-6 pb-6">
+          <VSpacer />
+          <VBtn variant="text" @click="unitMarkDialog = false">Cancel</VBtn>
+          <VBtn color="primary" :loading="markingUnit" @click="markUnit">Save marking</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
     <template #footer>
       <VAlert v-if="error" class="footer-error" color="error" density="compact" variant="tonal">{{ error }}</VAlert>
     </template>
@@ -508,6 +706,7 @@ watch(() => route.params.version, () => {
 .components-section { margin-top: 28px; }
 .component-grid { display: grid; gap: 16px; }
 .component-card { overflow: hidden; }
+.component-marking, .activity-history { border-top: 1px solid #e7e9ef; }
 .component-card-content { display: grid; gap: 14px; }
 .component-field-label { margin-bottom: 5px; color: #667085; font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .component-value { margin: 0; color: #344054; font-size: .95rem; line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; }
