@@ -3,6 +3,7 @@ import CourseViewer from '~/components/course/CourseViewer.vue'
 import CourseEditor from '~/components/course/CourseEditor.vue'
 import type { Course } from '~/stores/courses'
 import type { Enrolment } from '~/stores/enrolments'
+import type { Group } from '~/stores/groups'
 import { displayCourseTitle } from '~/utils/course-display'
 
 const route = useRoute()
@@ -10,6 +11,7 @@ const router = useRouter()
 const courses = useCoursesStore()
 const catalogueApi = useCatalogueStore()
 const enrolmentsApi = useEnrolmentsStore()
+const groupsApi = useGroupsStore()
 const session = useSessionStore()
 const course = ref<Awaited<ReturnType<typeof courses.show>> | null>(null)
 const selectedVersion = ref<number | 'current' | null>(null)
@@ -19,6 +21,10 @@ const viewerKey = ref(0)
 const error = ref('')
 const statusLoading = ref(false)
 const courseEnrolments = ref<Enrolment[]>([])
+const courseGroups = ref<Group[]>([])
+const groupsLoading = ref(false)
+const groupsError = ref('')
+const loadedGroupsFor = ref('')
 const usersLoading = ref(false)
 const usersError = ref('')
 const loadedEnrolmentsFor = ref('')
@@ -38,6 +44,12 @@ const savingTrainerAssignments = ref(false)
 const trainerEditError = ref('')
 const canEnrolUser = computed(() => Boolean(
   session.permissions.Enrolment?.includes('create') || session.permissions.all?.includes('manage'),
+))
+const canReadGroups = computed(() => Boolean(
+  session.permissions.Group?.includes('read') || session.permissions.all?.includes('manage'),
+))
+const canCreateGroups = computed(() => Boolean(
+  session.permissions.Group?.includes('create') || session.permissions.all?.includes('manage'),
 ))
 const isCatalogueLinked = computed(() => Boolean(course.value?.catalogue_course_id))
 const versionOptions = computed(() => {
@@ -109,6 +121,22 @@ async function loadCourseEnrolments(force = false) {
     usersError.value = getApiErrorMessage(cause, 'Unable to load course users.')
   } finally {
     usersLoading.value = false
+  }
+}
+
+async function loadCourseGroups(force = false) {
+  const courseId = course.value?.id
+  if (!courseId || !canReadGroups.value || groupsLoading.value || (!force && loadedGroupsFor.value === courseId)) return
+  groupsLoading.value = true
+  groupsError.value = ''
+  try {
+    const groups = await groupsApi.search({ type: 'course' })
+    courseGroups.value = groups.filter(group => group.group_items.some(id => String(id) === String(courseId)))
+    loadedGroupsFor.value = courseId
+  } catch (cause) {
+    groupsError.value = getApiErrorMessage(cause, 'Unable to load course groups.')
+  } finally {
+    groupsLoading.value = false
   }
 }
 
@@ -207,6 +235,7 @@ async function saveTrainerAssignments() {
 
 watch([activeTab, () => course.value?.id], ([tab, courseId]) => {
   if (tab === 'users' && courseId) void loadCourseEnrolments()
+  if (tab === 'groups' && courseId) void loadCourseGroups()
 })
 
 async function refreshCourse() {
@@ -310,7 +339,7 @@ onMounted(async () => {
         <VTab v-if="course.permissions?.read && !(course.permissions?.update && selectedVersion === 'current')" prepend-icon="mdi-eye-outline" value="view-course">View course</VTab>
         <VTab v-if="course.permissions?.update && selectedVersion === 'current'" prepend-icon="mdi-pencil-outline" value="view-course">View course</VTab>
         <VTab value="users">Users</VTab>
-        <VTab value="groups">Groups</VTab>
+        <VTab v-if="canReadGroups" value="groups">Groups</VTab>
         <VTab value="files">Files</VTab>
       </VTabs>
 
@@ -367,8 +396,26 @@ onMounted(async () => {
             <div v-else-if="!usersLoading && !usersError" class="py-8 text-center text-body-2 text-medium-emphasis">No users are enrolled in this course yet.</div>
           </VCardText>
         </VWindowItem>
-        <VWindowItem value="groups">
-          <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course groups will appear here.</div></VCardText>
+        <VWindowItem v-if="canReadGroups" value="groups">
+          <VCardText class="pa-6">
+            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
+              <div class="text-h6">Groups containing this course</div>
+              <div class="d-flex ga-2">
+                <VBtn v-if="canCreateGroups" color="primary" prepend-icon="mdi-account-multiple-plus-outline" :to="{ path: '/groups/create', query: { type: 'course', course_id: course.id } }">Create group</VBtn>
+                <VBtn prepend-icon="mdi-open-in-new" to="/groups" variant="outlined">Manage groups</VBtn>
+              </div>
+            </div>
+            <VAlert v-if="groupsError" class="mb-4" color="error" variant="tonal">{{ groupsError }}</VAlert>
+            <VProgressLinear v-if="groupsLoading" class="mb-3" color="primary" indeterminate />
+            <VList v-if="courseGroups.length" lines="two">
+              <VListItem v-for="group in courseGroups" :key="group.id" :to="`/groups/${encodeURIComponent(group.id)}`" :title="group.title" :subtitle="group.description || `${group.group_items.length} courses in this group`" prepend-icon="mdi-account-multiple-outline">
+                <template #append>
+                  <VBtn v-if="group.permissions?.update" :to="`/groups/${encodeURIComponent(group.id)}/edit`" aria-label="Edit group" icon="mdi-pencil-outline" size="small" variant="text" />
+                </template>
+              </VListItem>
+            </VList>
+            <div v-else-if="!groupsLoading && !groupsError" class="py-8 text-center text-body-2 text-medium-emphasis">This course is not in any groups yet.</div>
+          </VCardText>
         </VWindowItem>
         <VWindowItem value="files">
           <VCardText class="pa-6"><div class="text-body-2 text-medium-emphasis">Course files will appear here.</div></VCardText>

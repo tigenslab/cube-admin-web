@@ -7,6 +7,7 @@ type UserStatus = 'Active' | 'Invited' | 'Suspended'
 const usersStore = useUsersApi()
 const { users, loading, error } = storeToRefs(usersStore)
 const search = ref('')
+const activeTab = ref('users')
 const status = ref<'All' | UserStatus>('All')
 const deletingUserId = ref<string | number | null>(null)
 const editingUser = ref<User | null>(null)
@@ -91,12 +92,19 @@ const statusColor: Record<UserStatus, string> = {
   <section class="page-header mb-8">
     <div>
       <div class="text-overline text-primary font-weight-bold">WORKSPACE</div>
-      <h1 class="text-h4 font-weight-bold mt-1">Users</h1>
-      <p class="text-body-1 text-medium-emphasis mt-2">Manage access, roles, and invitations for your team.</p>
+      <h1 class="text-h4 font-weight-bold mt-1">{{ activeTab === 'groups' ? 'User groups' : 'Users' }}</h1>
+      <p class="text-body-1 text-medium-emphasis mt-2">{{ activeTab === 'groups' ? 'Organise users into groups.' : 'Manage access, roles, and invitations for your team.' }}</p>
     </div>
-    <VBtn color="primary" prepend-icon="mdi-account-plus" to="/users/create">Invite user</VBtn>
+    <VBtn v-if="activeTab === 'users'" color="primary" prepend-icon="mdi-account-plus" to="/users/create">Invite user</VBtn>
   </section>
 
+  <VTabs v-model="activeTab" class="mb-6" color="primary">
+    <VTab value="users">Users</VTab>
+    <VTab value="groups">Groups</VTab>
+  </VTabs>
+
+  <VWindow v-model="activeTab">
+    <VWindowItem value="users">
   <VRow class="mb-4">
     <VCol cols="12" md="4">
       <VCard rounded="xl" variant="flat">
@@ -203,6 +211,11 @@ const statusColor: Record<UserStatus, string> = {
       </div>
     </VCardText>
   </VCard>
+    </VWindowItem>
+    <VWindowItem value="groups">
+      <GroupsGroupManager type="user" :show-header="false" :show-type-tabs="false" />
+    </VWindowItem>
+  </VWindow>
 
   <FormsVjsfFormDialog
     v-model="editDialog"

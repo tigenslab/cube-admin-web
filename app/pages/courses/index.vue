@@ -9,6 +9,7 @@ const confirmDialog = useConfirmDialog()
 const { courses, loading, error } = storeToRefs(coursesStore)
 const search = ref('')
 const publishMessage = ref('')
+const activeTab = ref('courses')
 
 onMounted(() => {
   coursesStore.search().catch(() => {
@@ -83,12 +84,19 @@ async function deleteCourse(course: Course) {
   <section class="page-header mb-8">
     <div>
       <div class="text-overline text-primary font-weight-bold">LEARNING</div>
-      <h1 class="text-h4 font-weight-bold mt-1">Courses</h1>
-      <p class="text-body-1 text-medium-emphasis mt-2">Manage your course catalogue and learning content.</p>
+      <h1 class="text-h4 font-weight-bold mt-1">{{ activeTab === 'groups' ? 'Course groups' : 'Courses' }}</h1>
+      <p class="text-body-1 text-medium-emphasis mt-2">{{ activeTab === 'groups' ? 'Organise courses into groups.' : 'Manage your course catalogue and learning content.' }}</p>
     </div>
-    <VBtn color="primary" prepend-icon="mdi-plus" to="/courses/create">Create course</VBtn>
+    <VBtn v-if="activeTab === 'courses'" color="primary" prepend-icon="mdi-plus" to="/courses/create">Create course</VBtn>
   </section>
 
+  <VTabs v-model="activeTab" class="mb-6" color="primary">
+    <VTab value="courses">Courses</VTab>
+    <VTab value="groups">Groups</VTab>
+  </VTabs>
+
+  <VWindow v-model="activeTab">
+    <VWindowItem value="courses">
   <VRow class="mb-4">
     <VCol cols="12" sm="6">
       <VCard rounded="xl" variant="flat">
@@ -189,7 +197,11 @@ async function deleteCourse(course: Course) {
       </div>
     </VCardText>
   </VCard>
-
+    </VWindowItem>
+    <VWindowItem value="groups">
+      <GroupsGroupManager type="course" :show-header="false" :show-type-tabs="false" />
+    </VWindowItem>
+  </VWindow>
 </template>
 
 <style scoped>
