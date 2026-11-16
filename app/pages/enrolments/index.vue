@@ -36,7 +36,9 @@ async function remove(id: string) {
       <tbody>
         <tr v-for="item in store.enrolments" :key="item.id">
           <td>
-            <div class="font-weight-medium">{{ item.course?.title || 'Unavailable course' }}</div>
+            <NuxtLink class="font-weight-medium text-decoration-none" :to="`/enrolments/${encodeURIComponent(item.id)}/dashboard`">
+              {{ item.course?.title || 'Unavailable course' }}
+            </NuxtLink>
             <div class="text-caption text-medium-emphasis">{{ item.course?.code || item.course_id }}</div>
           </td>
           <td>{{ personName(item.learner) }}</td>

@@ -7,6 +7,7 @@ import CatalogueOutline from '~/components/CatalogueOutline.vue'
 const props = defineProps<{
   embedded?: boolean
   courseId?: string
+  enrolmentId?: string
   selectedVersion?: number | 'current' | null
 }>()
 const route = useRoute()
@@ -30,7 +31,9 @@ const isVersionView = computed(() => props.embedded
   ? typeof props.selectedVersion === 'number'
   : Boolean(course.value && course.value.status !== 'draft' && !isCurrentView.value))
 const canEditUnits = computed(() => props.embedded && props.selectedVersion === 'current' && course.value?.permissions?.update)
-const dashboardPath = computed(() => `/courses/${encodeURIComponent(courseId.value)}/${isCurrentView.value ? 'current' : selectedVersion.value || 'current'}/dashboard`)
+const dashboardPath = computed(() => props.enrolmentId
+  ? `/enrolments/${encodeURIComponent(props.enrolmentId)}/dashboard`
+  : `/courses/${encodeURIComponent(courseId.value)}/${isCurrentView.value ? 'current' : selectedVersion.value || 'current'}/dashboard`)
 
 const outlineTree = computed(() => {
   const nodes = new Map<string, CatalogueOutlineRow>()
@@ -204,12 +207,13 @@ async function switchVersion(version: number | null) {
 
 function unitViewPath(unitId: string) {
   const version = isCurrentView.value ? 'current' : selectedVersion.value || 'current'
-  const path = `/courses/${encodeURIComponent(courseId.value)}/${version}/units/${encodeURIComponent(unitId)}`
-  return `${path}/${canEditUnits.value ? 'edit' : 'view'}`
+  const mode = canEditUnits.value ? 'edit' : 'view'
+  if (props.enrolmentId) return `/enrolments/${encodeURIComponent(props.enrolmentId)}/courses/${encodeURIComponent(courseId.value)}/units/${encodeURIComponent(unitId)}/${mode}`
+  return `/courses/${encodeURIComponent(courseId.value)}/${version}/units/${encodeURIComponent(unitId)}/${mode}`
 }
 
 function blockViewPath(unitId: string, blockId: string) {
-  return `${unitViewPath(unitId)}/blocks/${encodeURIComponent(blockId)}`
+  return `${unitViewPath(unitId).replace(/\/$/, '')}/blocks/${encodeURIComponent(blockId)}`
 }
 
 onMounted(load)

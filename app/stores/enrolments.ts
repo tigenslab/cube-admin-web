@@ -23,7 +23,7 @@ export interface Enrolment {
   course_id: string
   learner_id: string
   trainer_ids: string[]
-  status?: EnrolmentStatus
+  status: EnrolmentStatus
   course?: EnrolmentCourse | null
   learner?: EnrolmentPerson | null
   trainers?: EnrolmentPerson[]
@@ -53,6 +53,7 @@ export interface EnrolmentForm {
     course_id?: string
     learner_id?: string
     trainer_ids: string[]
+    status: 'new'
   }
 }
 
@@ -79,7 +80,7 @@ export const useEnrolmentsStore = defineStore('enrolments', () => {
   }
 
   async function create(data: Pick<Enrolment, 'course_id' | 'learner_id' | 'trainer_ids'>) {
-    const body = { ...data, trainer_ids: normalizeTrainerIds(data.trainer_ids) }
+    const body = { ...data, trainer_ids: normalizeTrainerIds(data.trainer_ids), status: 'new' as const }
     return request(() => api<Enrolment>('/enrolments/create', { method: 'POST', body }), 'Unable to enrol the learner.', 'create')
   }
 

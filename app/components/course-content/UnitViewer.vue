@@ -11,7 +11,8 @@ import type { Enrolment, EnrolmentActivity, EnrolmentStatus } from '~/stores/enr
 
 const route = useRoute()
 const router = useRouter()
-const courseId = String(route.params.id)
+const enrolmentId = route.path.startsWith('/enrolments/') ? String(route.params.id) : ''
+const courseId = String(route.params.courseId || route.params.id)
 const unitId = String(route.params.unitId)
 const courses = useCoursesStore()
 const unitsApi = useUnitsStore()
@@ -61,13 +62,15 @@ const openCourseUnitGroups = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
 const selectedVersion = computed(() => {
-  const value = Number(route.params.version)
+  const value = Number(route.params.version || route.query.version)
   return Number.isInteger(value) && value > 0 ? value : null
 })
 const isCatalogueUnit = computed(() => Boolean(catalogueCourseId.value))
 const selectedCatalogueVersion = ref<number | null>(null)
 const versionSegment = computed(() => selectedVersion.value ? String(selectedVersion.value) : 'current')
-const courseDashboardPath = computed(() => `/courses/${courseId}/${versionSegment.value}/dashboard`)
+const courseDashboardPath = computed(() => enrolmentId
+  ? `/enrolments/${encodeURIComponent(enrolmentId)}/dashboard`
+  : `/courses/${courseId}/${versionSegment.value}/dashboard`)
 const courseUnitCount = computed(() => {
   const count = (rows: CourseUnitNavigationRow[]): number => rows.reduce((sum, row) => sum + (row.type === 'U' ? 1 : count(row.children)), 0)
   return count(courseUnits.value)
@@ -101,10 +104,13 @@ async function findEnrolment() {
     const items = await enrolmentsApi.search()
     const role = String(session.currentRole || '').toLowerCase()
     const userId = String(session.user?.id || '')
-    activeEnrolment.value = items.find(item => String(item.course_id) === courseId
-      && (role === 'learner' ? String(item.learner_id) === userId
-        : role === 'trainer' ? (item.trainer_ids || []).some(id => String(id) === userId)
-          : true)) || null
+    const requestedEnrolmentId = enrolmentId
+    activeEnrolment.value = requestedEnrolmentId
+      ? items.find(item => String(item.id) === requestedEnrolmentId && String(item.course_id) === courseId) || null
+      : items.find(item => String(item.course_id) === courseId
+        && (role === 'learner' ? String(item.learner_id) === userId
+          : role === 'trainer' ? (item.trainer_ids || []).some(id => String(id) === userId)
+            : true)) || null
     if (activeEnrolment.value) {
       const history = await enrolmentsApi.activities(activeEnrolment.value.id)
       activityHistory.value = history
@@ -308,7 +314,16 @@ function componentFields(value: Record<string, unknown>) {
 }
 
 function blockPath(blockId: string) {
+  if (enrolmentId) {
+    const path = `/enrolments/${encodeURIComponent(enrolmentId)}/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
+    return versionSegment.value === 'current' ? path : `${path}?version=${encodeURIComponent(versionSegment.value)}`
+  }
   return `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(unitId)}/view/blocks/${encodeURIComponent(blockId)}`
+}
+
+function enrolmentUnitPath(targetUnitId: string, version = versionSegment.value) {
+  const base = `/enrolments/${encodeURIComponent(enrolmentId)}/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(targetUnitId)}/view`
+  return version === 'current' ? base : `${base}?version=${encodeURIComponent(version)}`
 }
 
 function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
@@ -367,7 +382,9 @@ function setCourseUnits(rows: unknown[], unitItems: unknown[] = []) {
 
 async function navigateToUnit(nextUnitId: string) {
   if (!nextUnitId || nextUnitId === unitId) return
-  await router.push(`/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(nextUnitId)}/view`)
+  await router.push(enrolmentId
+    ? enrolmentUnitPath(nextUnitId)
+    : `/courses/${encodeURIComponent(courseId)}/${versionSegment.value}/units/${encodeURIComponent(nextUnitId)}/view`)
 }
 
 function selectCourseUnit(nextUnitId: string, collapse: () => void) {
@@ -378,7 +395,9 @@ function selectCourseUnit(nextUnitId: string, collapse: () => void) {
 async function switchVersion(value: string | number | null) {
   const segment = String(value || '')
   if (!segment || segment === versionSegment.value) return
-  await router.push(`/courses/${encodeURIComponent(courseId)}/${segment}/units/${encodeURIComponent(unitId)}/view`)
+  await router.push(enrolmentId
+    ? enrolmentUnitPath(unitId, segment)
+    : `/courses/${encodeURIComponent(courseId)}/${segment}/units/${encodeURIComponent(unitId)}/view`)
 }
 
 function selectBlock(blockId: string) {
@@ -439,7 +458,9 @@ async function load() {
     if (activeBlockId.value && route.params.blockId !== activeBlockId.value) {
       await router.replace(blockPath(activeBlockId.value))
     } else if (!activeBlockId.value && route.params.blockId) {
-      await router.replace(`/courses/${courseId}/${versionSegment.value}/units/${unitId}/view`)
+      await router.replace(enrolmentId
+        ? enrolmentUnitPath(unitId)
+        : `/courses/${courseId}/${versionSegment.value}/units/${unitId}/view`)
     }
   } catch (cause) {
     error.value = getApiErrorMessage(cause, 'Unable to load unit content.')
@@ -458,7 +479,7 @@ function flattenSnapshotBlocks(rows: Record<string, any>[], ancestry = '', resul
 }
 
 onMounted(load)
-watch(() => route.params.version, () => {
+watch([() => route.params.version, () => route.query.version], () => {
   load()
 })
 </script>

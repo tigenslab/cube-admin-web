@@ -5,13 +5,22 @@
 export function useApi() {
   const config = useRuntimeConfig()
   const subdomain = getSubdomain(useRequestURL().hostname)
+  const route = useRoute()
   return $fetch.create({
     baseURL: config.public.apiBase,
     credentials: 'include',
-    onRequest({ options }) {
+    onRequest({ request, options }) {
       const headers = new Headers(options.headers)
       headers.set('subdomain', subdomain)
       options.headers = headers
+
+      const requestUrl = typeof request === 'string'
+        ? request
+        : request instanceof URL ? request.pathname : request instanceof Request ? request.url : ''
+      const routeEnrolmentId = route.params.id && /^\/enrolments\/[^/]+\/(?:dashboard|courses\/.*)$/.test(route.path)
+        ? String(route.params.id)
+        : ''
+      if (routeEnrolmentId && (requestUrl.includes('/courses/') || requestUrl.includes('/catalogue/courses/'))) headers.set('enrolment-id', routeEnrolmentId)
     },
     onResponse({ response }) {
     },
