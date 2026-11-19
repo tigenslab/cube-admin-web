@@ -33,9 +33,12 @@ const componentSaving = ref(false)
 const unitInfoSaving = ref(false)
 const error = ref('')
 const dialog = ref(false)
+const componentDialog = ref(false)
 const blockFormSchema = ref<ApiFormSchema | null>(null)
 const componentFormSchema = ref<ApiFormSchema | null>(null)
 const componentFormModel = ref<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>>({})
+const componentEditSchema = ref<ApiFormSchema | null>(null)
+const componentEditModel = ref<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>>({})
 const unitInfoDialog = ref(false)
 const courseStructureDialog = ref(false)
 const courseStructureSaving = ref(false)
@@ -47,6 +50,7 @@ const courseStructureParentId = ref<string | null>(null)
 const editingCourseGroup = ref<CourseResourceItem | null>(null)
 const availableCourseUnits = ref<CourseResourceItem[]>([])
 const editingBlock = ref<CourseResourceItem | null>(null)
+const editingComponent = ref<UnitBlockComponent | null>(null)
 const form = reactive({ type: 'T:B', parent: '', position: '' as number | string })
 const blockForm = reactive({ title: '' })
 const unitInfoForm = reactive({ code: '', title: '' })
@@ -640,6 +644,46 @@ async function addComponent(type: string, variant: string) {
   }
 }
 
+async function openComponentEditor(component: UnitBlockComponent) {
+  if (componentSaving.value) return
+  componentSaving.value = true
+  error.value = ''
+  try {
+    const { vjsf } = await unitBlockComponentsApi.editForm(courseId, unitId.value, component.block_id, component.id)
+    componentEditSchema.value = vjsf.schema
+    componentEditModel.value = {
+      ...vjsf.model,
+      content: { ...(vjsf.model.content || {}) },
+    }
+    editingComponent.value = component
+    componentDialog.value = true
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to load component for editing.')
+  } finally {
+    componentSaving.value = false
+  }
+}
+
+async function saveComponent() {
+  const component = editingComponent.value
+  if (!component || componentSaving.value) return
+  componentSaving.value = true
+  error.value = ''
+  try {
+    const { item } = await unitBlockComponentsApi.update(courseId, unitId.value, component.block_id, component.id, {
+      type: componentEditModel.value.type,
+      content: componentEditModel.value.content || {},
+    })
+    blockComponents.value = blockComponents.value.map(existing => existing.id === item.id ? item : existing)
+    componentDialog.value = false
+    editingComponent.value = null
+  } catch (cause) {
+    error.value = getApiErrorMessage(cause, 'Unable to save component.')
+  } finally {
+    componentSaving.value = false
+  }
+}
+
 onMounted(() => load())
 watch(
   () => [route.params.unitId, route.params.version] as const,
@@ -878,6 +922,16 @@ watch(
                   <VAvatar color="primary" rounded="lg" size="38" variant="tonal"><VIcon :icon="componentIcon(component.type)" size="20" /></VAvatar>
                   <span>{{ componentLabel(component.type) }}</span>
                   <VSpacer />
+                  <VBtn
+                    v-if="editable"
+                    aria-label="Edit component"
+                    density="comfortable"
+                    icon="mdi-pencil-outline"
+                    size="small"
+                    variant="text"
+                    :disabled="componentSaving"
+                    @click="openComponentEditor(component)"
+                  />
                   <span class="text-caption text-medium-emphasis">{{ String(index + 1).padStart(2, '0') }}</span>
                 </VCardTitle>
                 <VCardText class="component-card-content px-5 pb-5 pt-3">
@@ -929,6 +983,20 @@ watch(
         <VSpacer />
         <VBtn variant="text" @click="dialog = false">Cancel</VBtn>
         <VBtn color="primary" :loading="saving" @click="saveBlock">Save block</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
+  <VDialog v-if="editable" v-model="componentDialog" max-width="720">
+    <VCard rounded="xl">
+      <VCardTitle class="pa-6 pb-2">Edit {{ editingComponent ? componentLabel(editingComponent.type).toLowerCase() : 'component' }}</VCardTitle>
+      <VCardText class="pa-6 pt-2">
+        <FormsVjsfForm v-if="componentEditSchema" v-model="componentEditModel" :schema="componentEditSchema" />
+      </VCardText>
+      <VCardActions class="pa-6 pt-0">
+        <VSpacer />
+        <VBtn :disabled="componentSaving" variant="text" @click="componentDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="componentSaving" @click="saveComponent">Save changes</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

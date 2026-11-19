@@ -12,6 +12,10 @@ export const useUnitBlockComponentsStore = defineStore('unit-block-components', 
     return request(() => api<{ vjsf: ApiNewForm<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>> }>(`${collection(courseId, unitId, blockId)}/new`), 'Unable to load the component form.')
   }
 
+  function editForm(courseId: string, unitId: string, blockId: string, id: string) {
+    return request(() => api<{ vjsf: ApiNewForm<Partial<Pick<UnitBlockComponent, 'type' | 'content'>>> }>(`${collection(courseId, unitId, blockId)}/${encodeURIComponent(id)}/edit`), 'Unable to load the component form.')
+  }
+
   function index(courseId: string, unitId: string, blockId: string) {
     return request(() => api<{ items: UnitBlockComponent[] }>(collection(courseId, unitId, blockId)))
   }
@@ -44,5 +48,5 @@ export const useUnitBlockComponentsStore = defineStore('unit-block-components', 
     }), 'Unable to reorder block components.')
   }
 
-  return { loading, error, newForm, new: newForm, index, list: index, create, update, save, destroy, remove: destroy, reorder }
+  return { loading, error, newForm, editForm, new: newForm, index, list: index, create, update, save, destroy, remove: destroy, reorder }
 })

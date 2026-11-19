@@ -229,7 +229,7 @@ watch(activeBlockId, async (blockId) => {
     return
   }
   void recordView('view_block', blockId)
-  if (selectedVersion.value) {
+  if (selectedVersion.value || isCatalogueUnit.value) {
     const block = activeBlock.value as (CourseResourceItem & { components?: UnitBlockComponent[] }) | null
     blockComponents.value = block?.components || []
     componentsLoading.value = false
